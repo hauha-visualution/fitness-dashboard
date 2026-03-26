@@ -4,7 +4,7 @@ import {
   ChevronRight, Bell, Plus, Search, Calendar, 
   TrendingUp, Activity, ArrowLeft, MoreHorizontal, MessageSquare,
   AlertCircle, Coffee, CheckCircle2, Circle, Droplets, Target, Flame, 
-  Clock, Camera, History, ChevronDown, Award, BarChart3, Scale, Percent
+  Clock, Camera, History, ChevronDown, Award, BarChart3, Scale, Percent, X
 } from 'lucide-react';
 
 // --- DỮ LIỆU MẪU (MOCK DATABASE) ---
@@ -78,6 +78,54 @@ const DetailActionNav = ({ onRecordWorkout, activeTab, setActiveTab }) => (
   </div>
 );
 
+// --- MODAL GHI NHẬN BUỔI TẬP ---
+const RecordWorkoutModal = ({ isOpen, onClose, clientName }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end justify-center pointer-events-none">
+      {/* Lớp nền tối (Backdrop) */}
+      <div 
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto transition-opacity animate-in fade-in duration-300" 
+        onClick={onClose}
+      ></div>
+      
+      {/* Nội dung Modal trượt từ dưới lên */}
+      <div className="w-full max-w-[420px] bg-[#1a1a1c] border-t border-white/10 rounded-t-[32px] p-6 pointer-events-auto animate-in slide-in-from-bottom-full duration-300 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h3 className="text-white text-xl font-medium tracking-tight">Record Session</h3>
+            <p className="text-blue-400 text-[10px] font-black uppercase tracking-wider mt-1">{clientName}</p>
+          </div>
+          <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        {/* Các trường nhập liệu */}
+        <div className="space-y-5 mb-8">
+          <div>
+            <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-2 block">Workout Focus</label>
+            <input type="text" placeholder="VD: Push Day, Legs, Fullbody..." className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors" />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-2 block">Exercises & Weights</label>
+            <input type="text" placeholder="VD: Bench Press 60kg, Squat 80kg..." className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors" />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-2 block">Coach Notes</label>
+            <textarea rows="3" placeholder="Đánh giá thể lực, form tập..." className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors resize-none"></textarea>
+          </div>
+        </div>
+
+        <button onClick={onClose} className="w-full bg-white text-black font-bold py-4 rounded-[20px] flex items-center justify-center gap-2 hover:bg-neutral-200 active:scale-[0.98] transition-all shadow-lg">
+          <CheckCircle2 className="w-5 h-5" /> Save Workout
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // --- GIAO DIỆN TRANG CHỦ (MILESTONE TIMELINE) ---
 
 const DashboardView = ({ onSelectClient }) => {
@@ -121,7 +169,7 @@ const DashboardView = ({ onSelectClient }) => {
         <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></div><span className="text-[9px] font-black text-neutral-400 uppercase">Live</span></div>
       </div>
 
-      {/* MILESTONE TIMELINE FEATURE (Khôi phục từ V5) */}
+      {/* MILESTONE TIMELINE FEATURE */}
       <div className="flex-1 overflow-y-auto px-6 pb-32 hide-scrollbar">
         <div className="relative border-l border-white/5 ml-[54px] pl-6 space-y-8">
           {sessions.map((session, i) => {
@@ -262,6 +310,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [selectedClient, setSelectedClient] = useState(null);
   const [detailTab, setDetailTab] = useState('overview');
+  
+  // State để quản lý việc đóng/mở Modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleBack = () => { setSelectedClient(null); setDetailTab('overview'); };
 
@@ -280,7 +331,16 @@ export default function App() {
         ) : (
           <>
             <ClientDetailView client={selectedClient} onBack={handleBack} activeTab={detailTab} setActiveTab={setDetailTab} />
-            <DetailActionNav onRecordWorkout={() => {}} activeTab={detailTab} setActiveTab={setDetailTab} />
+            
+            {/* Nút "+" giờ đã gọi hàm mở Modal */}
+            <DetailActionNav onRecordWorkout={() => setIsModalOpen(true)} activeTab={detailTab} setActiveTab={setDetailTab} />
+            
+            {/* Hiển thị Modal */}
+            <RecordWorkoutModal 
+               isOpen={isModalOpen} 
+               onClose={() => setIsModalOpen(false)} 
+               clientName={selectedClient.name} 
+            />
           </>
         )}
       </div>
