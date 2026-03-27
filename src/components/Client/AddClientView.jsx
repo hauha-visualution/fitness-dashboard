@@ -9,7 +9,7 @@ const AddClientView = ({ onBack, onSave }) => {
     traininghistory: '', jobtype: '', trainingtime: '', targetduration: '', 
     cookinghabit: '', dietaryrestriction: '', favoritefoods: '', avoidfoods: '', 
     cookingtime: '', foodbudget: '', medicalconditions: '', 
-    supplements: '', sleephabits: '', commitmentlevel: 'Sẵn sàng'
+    supplements: '', sleephabits: '', commitmentlevel: 'Sẵn sàng tuân thủ 100%'
   });
 
   const [expandedSection, setExpandedSection] = useState('basic');
@@ -20,16 +20,20 @@ const AddClientView = ({ onBack, onSave }) => {
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSyncAPI = async () => {
-    if (!formData.phone) { alert("Nhập SĐT để Sync!"); return; }
+    if (!formData.phone) return alert("Nhập SĐT để Sync!");
     setIsSyncing(true);
     try {
-      // Tìm trong bảng survey_responses để đổ data vào form
-      const { data } = await supabase.from('survey_responses').select('*').eq('phone', formData.phone).maybeSingle();
+      const { data, error } = await supabase.from('survey_responses').select('*').eq('phone', formData.phone).maybeSingle();
       if (data) {
-        setFormData({ ...formData, ...data });
-        alert("Đồng bộ thành công dữ liệu từ Form!");
-      } else { alert("Không tìm thấy dữ liệu cho SĐT này!"); }
-    } catch (e) { alert("Lỗi kết nối!"); }
+        // Map data từ survey_responses (nếu có) vào formData
+        setFormData(prev => ({ ...prev, ...data }));
+        alert("Đã đồng bộ dữ liệu từ Google Form!");
+      } else {
+        alert("Không tìm thấy dữ liệu cho SĐT này!");
+      }
+    } catch (e) {
+      alert("Lỗi kết nối database!");
+    }
     setIsSyncing(false);
   };
 
@@ -37,14 +41,14 @@ const AddClientView = ({ onBack, onSave }) => {
     if (!formData.name || !formData.phone) return alert("Họ tên và SĐT là bắt buộc!");
     setIsSaving(true);
     
-    // Lưu vào bảng clients (cột sessions sẽ để trống để xử lý ở phần Gói tập sau)
+    // Đẩy data lên table 'clients'. Sessions sẽ để trống (null) theo yêu cầu của Hạo.
     const { error } = await supabase.from('clients').insert([formData]);
-    setIsSaving(false);
     
+    setIsSaving(false);
     if (!error) { 
       alert("Đã lưu hồ sơ học viên thành công!");
-      onSave(); 
-      onBack(); 
+      onSave(); // Refresh lại danh sách ở App.jsx
+      onBack(); // Quay lại Client Pool
     } else { 
       alert("Lỗi khi lưu: " + error.message); 
     }
@@ -62,7 +66,7 @@ const AddClientView = ({ onBack, onSave }) => {
       </div>
 
       <div className="flex-1 pb-32 pt-4 space-y-4">
-        {/* 1. THÔNG TIN CÁ NHÂN */}
+        {/* SECTION 1: CÁ NHÂN */}
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
           <div onClick={() => toggleSection('basic')} className="p-5 flex justify-between items-center cursor-pointer">
             <div className="flex items-center gap-2"><User className="w-4 h-4 text-emerald-400" /><h3 className="text-white text-sm font-medium">1. Thông tin cá nhân (*)</h3></div>
@@ -70,8 +74,8 @@ const AddClientView = ({ onBack, onSave }) => {
           </div>
           {expandedSection === 'basic' && (
             <div className="px-5 pb-5 space-y-3">
-              <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Họ và Tên *" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500/50 transition-all" />
-              <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="Số điện thoại *" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-emerald-500/50 transition-all" />
+              <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Họ và Tên *" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+              <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="Số điện thoại *" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
               <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="Địa chỉ Email" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
               <div className="grid grid-cols-2 gap-3">
                 <input type="date" name="dob" value={formData.dob} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-neutral-400 text-xs outline-none" />
@@ -85,7 +89,7 @@ const AddClientView = ({ onBack, onSave }) => {
           )}
         </div>
 
-        {/* 2. MỤC TIÊU & TẬP LUYỆN */}
+        {/* SECTION 2: MỤC TIÊU */}
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
           <div onClick={() => toggleSection('goals')} className="p-5 flex justify-between items-center cursor-pointer">
             <div className="flex items-center gap-2"><Target className="w-4 h-4 text-blue-400" /><h3 className="text-white text-sm font-medium">2. Mục tiêu & Tập luyện</h3></div>
@@ -101,7 +105,7 @@ const AddClientView = ({ onBack, onSave }) => {
           )}
         </div>
 
-        {/* 3. LIFESTYLE */}
+        {/* SECTION 3: LIFESTYLE */}
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
           <div onClick={() => toggleSection('lifestyle')} className="p-5 flex justify-between items-center cursor-pointer">
             <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-purple-400" /><h3 className="text-white text-sm font-medium">3. Công việc & Sinh hoạt</h3></div>
@@ -109,7 +113,7 @@ const AddClientView = ({ onBack, onSave }) => {
           </div>
           {expandedSection === 'lifestyle' && (
             <div className="px-5 pb-5 space-y-3">
-              <input type="text" name="jobtype" value={formData.jobtype} onChange={handleChange} placeholder="Hành chính hay Freelance?" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
+              <input type="text" name="jobtype" value={formData.jobtype} onChange={handleChange} placeholder="Công việc hiện tại" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
               <input type="text" name="sleephabits" value={formData.sleephabits} onChange={handleChange} placeholder="Giờ ngủ & số tiếng ngủ/đêm" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
               <select name="commitmentlevel" value={formData.commitmentlevel} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-neutral-400 text-sm outline-none">
                 <option>Sẵn sàng tuân thủ 100%</option>
@@ -120,7 +124,7 @@ const AddClientView = ({ onBack, onSave }) => {
           )}
         </div>
 
-        {/* 4. DINH DƯỠNG */}
+        {/* SECTION 4: NUTRITION */}
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
           <div onClick={() => toggleSection('nutrition')} className="p-5 flex justify-between items-center cursor-pointer">
             <div className="flex items-center gap-2"><Utensils className="w-4 h-4 text-orange-400" /><h3 className="text-white text-sm font-medium">4. Dinh dưỡng & Ăn uống</h3></div>
@@ -131,14 +135,14 @@ const AddClientView = ({ onBack, onSave }) => {
               <input type="text" name="cookinghabit" value={formData.cookinghabit} onChange={handleChange} placeholder="Tự nấu hay ăn ngoài?" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
               <input type="text" name="dietaryrestriction" value={formData.dietaryrestriction} onChange={handleChange} placeholder="Chế độ ăn kiêng đặc biệt" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
               <textarea name="favoritefoods" value={formData.favoritefoods} onChange={handleChange} rows="2" placeholder="Thực phẩm yêu thích?" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm resize-none"></textarea>
-              <input type="text" name="avoidfoods" value={formData.avoidfoods} onChange={handleChange} placeholder="Dị ứng / thực phẩm ghét" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
+              <input type="text" name="avoidfoods" value={formData.avoidfoods} onChange={handleChange} placeholder="Thực phẩm dị ứng / cần tránh" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
               <input type="text" name="cookingtime" value={formData.cookingtime} onChange={handleChange} placeholder="Thời gian nấu ăn/ngày" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
               <input type="text" name="foodbudget" value={formData.foodbudget} onChange={handleChange} placeholder="Ngân sách ăn uống/tháng" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
             </div>
           )}
         </div>
 
-        {/* 5. SỨC KHỎE */}
+        {/* SECTION 5: HEALTH */}
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
           <div onClick={() => toggleSection('health')} className="p-5 flex justify-between items-center cursor-pointer">
             <div className="flex items-center gap-2"><HeartPulse className="w-4 h-4 text-red-400" /><h3 className="text-white text-sm font-medium">5. Sức khỏe & Y tế</h3></div>
@@ -153,9 +157,9 @@ const AddClientView = ({ onBack, onSave }) => {
         </div>
 
         <div className="pt-6 pb-10">
-          <button onClick={handleSave} disabled={isSaving} className={`w-full text-black font-black py-5 rounded-[24px] flex items-center justify-center gap-2 shadow-2xl transition-all ${isSaving ? 'bg-neutral-500' : 'bg-white hover:scale-[1.02] active:scale-95'}`}>
+          <button onClick={handleSave} disabled={isSaving} className={`w-full text-black font-black py-5 rounded-[24px] flex items-center justify-center gap-2 shadow-2xl transition-all ${isSaving ? 'bg-neutral-500 cursor-not-allowed' : 'bg-white hover:scale-[1.02] active:scale-95'}`}>
             {isSaving ? <RefreshCw className="animate-spin w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />} 
-            LƯU HỒ SƠ KHÁCH HÀNG
+            ADD CLIENT
           </button>
         </div>
       </div>
