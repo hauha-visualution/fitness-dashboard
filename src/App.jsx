@@ -39,18 +39,19 @@ export default function App() {
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
   const [activeWorkoutGroup, setActiveWorkoutGroup] = useState(null);
 
-  // 2. Hàm Login: Vừa set state vừa lưu vào trình duyệt
+  // 2. Hàm Login
   const handleLogin = (userData) => {
     setSession(userData);
     localStorage.setItem('aesthetic_hub_session', JSON.stringify(userData));
   };
 
-  // 3. Hàm Logout: Xóa sạch dấu vết
+  // 3. Hàm Logout
   const handleLogout = () => {
     setSession(null);
     localStorage.removeItem('aesthetic_hub_session');
   };
 
+  // 4. Lấy danh sách học viên
   const fetchClients = async () => {
     if (!session) return;
     setIsLoading(true);
@@ -70,6 +71,20 @@ export default function App() {
       })));
     }
     setIsLoading(false);
+  };
+
+  // 5. Xử lý Xóa học viên
+  const handleDeleteClient = async (clientId) => {
+    const { error } = await supabase
+      .from('clients')
+      .delete()
+      .eq('id', clientId);
+
+    if (error) {
+      alert("Lỗi khi xóa: " + error.message);
+    } else {
+      fetchClients(); // Load lại danh sách sau khi xóa
+    }
   };
 
   useEffect(() => { if (session) fetchClients(); }, [session, activeTab]);
@@ -94,12 +109,7 @@ export default function App() {
     }
   };
 
-  // Nếu chưa có session thì hiện màn hình Login
-  if (!session) return (
-    <div className="bg-black h-screen flex justify-center">
-      <AuthScreen onLogin={handleLogin} />
-    </div>
-  );
+  if (!session) return <div className="bg-black h-screen flex justify-center"><AuthScreen onLogin={handleLogin} /></div>;
 
   return (
     <div className="min-h-screen bg-[#050505] text-neutral-200 flex justify-center font-sans">
@@ -109,23 +119,33 @@ export default function App() {
         {!selectedClient ? (
           <>
             {activeTab === 'home' && <DashboardView onSelectClient={setSelectedClient} onLogout={handleLogout} />}
-            {activeTab === 'clients' && <ClientListView clients={clients} isLoading={isLoading} onSelectClient={setSelectedClient} onOpenAdd={() => setActiveTab('add_client')} />}
+            
+            {activeTab === 'clients' && (
+              <ClientListView 
+                clients={clients} 
+                isLoading={isLoading} 
+                onSelectClient={setSelectedClient} 
+                onOpenAdd={() => setActiveTab('add_client')} 
+                onDeleteClient={handleDeleteClient} // Truyền hàm xóa xuống
+              />
+            )}
+            
             {activeTab === 'add_client' && <AddClientView onBack={() => setActiveTab('clients')} onSave={fetchClients} />}
             
-            {/* Thanh điều hướng chính (Có thêm nút Logout để test) */}
+            {/* Thanh điều hướng chính (Tối giản 3 nút chính) */}
             {activeTab !== 'add_client' && (
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[85%] max-w-[320px] bg-black/80 backdrop-blur-3xl border border-white/10 rounded-[32px] p-1.5 flex justify-between z-50 shadow-2xl">
-        <button onClick={() => setActiveTab('home')} className={`relative flex-1 py-4 rounded-[26px] flex justify-center items-center ${activeTab === 'home' ? 'text-white bg-white/5' : 'text-neutral-600'}`}>
-          <Home className="w-5 h-5" />
-        </button>
-        <button onClick={() => setActiveTab('calendar')} className={`relative flex-1 py-4 rounded-[26px] flex justify-center items-center ${activeTab === 'calendar' ? 'text-white bg-white/5' : 'text-neutral-600'}`}>
-          <Calendar className="w-5 h-5" />
-        </button>
-        <button onClick={() => setActiveTab('clients')} className={`relative flex-1 py-4 rounded-[26px] flex justify-center items-center ${activeTab === 'clients' ? 'text-white bg-white/5' : 'text-neutral-600'}`}>
-          <Users className="w-5 h-5" />
-        </button>
-      </div>
-    )}
+              <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[85%] max-w-[320px] bg-black/80 backdrop-blur-3xl border border-white/10 rounded-[32px] p-1.5 flex justify-between z-50 shadow-2xl">
+                <button onClick={() => setActiveTab('home')} className={`relative flex-1 py-4 rounded-[26px] flex justify-center items-center ${activeTab === 'home' ? 'text-white bg-white/5' : 'text-neutral-600'}`}>
+                  <Home className="w-5 h-5" />
+                </button>
+                <button onClick={() => setActiveTab('calendar')} className={`relative flex-1 py-4 rounded-[26px] flex justify-center items-center ${activeTab === 'calendar' ? 'text-white bg-white/5' : 'text-neutral-600'}`}>
+                  <Calendar className="w-5 h-5" />
+                </button>
+                <button onClick={() => setActiveTab('clients')} className={`relative flex-1 py-4 rounded-[26px] flex justify-center items-center ${activeTab === 'clients' ? 'text-white bg-white/5' : 'text-neutral-600'}`}>
+                  <Users className="w-5 h-5" />
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <div className="h-screen bg-[#0a0a0a] animate-slide-up flex flex-col p-6 overflow-y-auto hide-scrollbar">
