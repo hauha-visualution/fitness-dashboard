@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { UserPlus, ChevronRight, Users, RefreshCw, Trash2, Package } from 'lucide-react'; // Thêm icon
-import DeleteClientModal from './DeleteClientModal'; // Import modal xóa
+import { UserPlus, ChevronRight, Users, RefreshCw, Trash2, Package } from 'lucide-react';
+import DeleteClientModal from './DeleteClientModal';
 
 const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading, onDeleteClient }) => {
-  // State quản lý việc mở Modal xóa
   const [selectedForDelete, setSelectedForDelete] = useState(null);
 
   return (
@@ -15,7 +14,7 @@ const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading, onDelet
            <h1 className="text-2xl font-medium text-white tracking-tight">Client Pool</h1>
            <p className="text-neutral-500 text-[10px] font-black uppercase tracking-widest mt-1">Total: {clients.length} Active</p>
          </div>
-         <button onClick={onOpenAdd} className="p-3 bg-white text-black rounded-full shadow-lg hover:scale-105 transition-all">
+         <button onClick={onOpenAdd} className="p-3 bg-white text-black rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all">
            <UserPlus className="w-5 h-5" />
          </button>
       </div>
@@ -31,12 +30,10 @@ const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading, onDelet
            <p className="text-sm text-neutral-400">Chưa có khách hàng.</p>
          </div>
       ) : (
-         <div className="space-y-4">
+         <div className="space-y-5"> {/* Tăng khoảng cách một chút để nút xóa không bị dính */}
             {clients.map(c => (
-              <div 
-                key={c.id} 
-                className="relative group animate-slide-up" // Thêm group để hiện nút xóa khi hover
-              >
+              <div key={c.id} className="relative animate-slide-up">
+                
                 {/* THẺ HỌC VIÊN */}
                 <div 
                   onClick={() => onSelectClient(c)} 
@@ -48,7 +45,6 @@ const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading, onDelet
                       <p className="text-blue-400 text-[10px] font-bold uppercase truncate mt-0.5">{c.goal}</p>
                    </div>
                    
-                   {/* XỬ LÝ HIỂN THỊ SỐ BUỔI (Fix Default 12) */}
                    <div className="text-right mr-2 flex flex-col items-end">
                       {c.package.remaining === '--' ? (
                         <div className="flex gap-1 items-center bg-orange-500/10 border border-orange-500/20 px-2.5 py-1.5 rounded-full">
@@ -58,29 +54,28 @@ const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading, onDelet
                       ) : (
                         <>
                           <p className="text-[10px] font-black text-neutral-500 uppercase">Remaining</p>
-                          <p className="text-xs font-bold text-white">{c.package.remaining}/{c.package.total} Buổi</p>
+                          <p className="text-xs font-bold text-white">{c.package.remaining} Buổi</p>
                         </>
                       )}
                    </div>
                    <ChevronRight className="w-4 h-4 text-neutral-600" />
                 </div>
 
-                {/* NÚT XÓA ẨN: Chỉ hiện khi PT muốn xóa (Hover) */}
+                {/* NÚT XÓA: Đã bỏ opacity-0 để LUÔN HIỂN THỊ */}
                 <button 
                   onClick={(e) => {
-                    e.stopPropagation(); // QUAN TRỌNG: Ngăn việc click trúng thẻ để mở profile
+                    e.stopPropagation(); 
                     setSelectedForDelete(c);
                   }}
-                  className="absolute -right-2 -top-2 p-2 bg-red-500 text-white rounded-full shadow-xl opacity-0 group-hover:opacity-100 transition-all active:scale-90 z-20"
+                  className="absolute -right-1 -top-1 p-2 bg-red-500/20 border border-red-500/30 rounded-full text-red-500 shadow-xl active:scale-90 z-20 hover:bg-red-500 hover:text-white transition-all"
                 >
-                  <Trash2 className="w-3 h-3" />
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
             ))}
          </div>
       )}
 
-      {/* MODAL XÁC NHẬN XÓA */}
       {selectedForDelete && (
         <DeleteClientModal 
           client={selectedForDelete}

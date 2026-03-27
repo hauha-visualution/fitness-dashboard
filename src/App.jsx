@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, Calendar, MessageSquare, Users, ArrowLeft, MoreHorizontal, Award, BarChart3, Dumbbell, Utensils, CreditCard, Plus, CheckCircle2, X, LogOut } from 'lucide-react';
+import { Home, Calendar, MessageSquare, Users, ArrowLeft, MoreHorizontal, Award, BarChart3, Dumbbell, Utensils, CreditCard, Plus, CheckCircle2, X, LogOut, Trash2 } from 'lucide-react'; // Đã thêm Trash2 vào import
 import { supabase } from './supabaseClient'; 
 
 // Import các thành phần đã tách
@@ -69,8 +69,11 @@ export default function App() {
 
   const handleDeleteClient = async (clientId) => {
     const { error } = await supabase.from('clients').delete().eq('id', clientId);
-    if (!error) fetchClients();
-    else alert("Lỗi khi xóa: " + error.message);
+    if (!error) {
+        fetchClients();
+    } else {
+        alert("Lỗi khi xóa: " + error.message);
+    }
   };
 
   useEffect(() => { if (session) fetchClients(); }, [session, activeTab]);
@@ -110,7 +113,32 @@ export default function App() {
           </>
         ) : (
           <div className="h-screen bg-[#0a0a0a] animate-slide-up flex flex-col p-6 overflow-y-auto hide-scrollbar pb-32">
-            <button onClick={() => setSelectedClient(null)} className="p-3 bg-white/5 border border-white/10 rounded-full w-fit mb-8"><ArrowLeft className="w-5 h-5"/></button>
+            {/* HEADER PROFILE CẢI TIẾN: Thêm nút xóa */}
+            <div className="flex justify-between items-center mb-8 shrink-0">
+                <button onClick={() => setSelectedClient(null)} className="p-3 bg-white/5 border border-white/10 rounded-full text-white active:scale-90 transition-all">
+                    <ArrowLeft className="w-5 h-5"/>
+                </button>
+                
+                <div className="flex gap-2">
+                    <button 
+                        onClick={() => {
+                            if(window.confirm(`Xóa vĩnh viễn hồ sơ của ${selectedClient.name}?`)) {
+                                const pass = prompt("Nhập mật khẩu PT để xác nhận:");
+                                if(pass === '123456') {
+                                    handleDeleteClient(selectedClient.id);
+                                    setSelectedClient(null);
+                                } else if (pass !== null) {
+                                    alert("Sai mật khẩu!");
+                                }
+                            }
+                        }}
+                        className="p-3 bg-red-500/10 border border-red-500/20 rounded-full text-red-500 active:scale-90 transition-all"
+                    >
+                        <Trash2 className="w-5 h-5" />
+                    </button>
+                    <button className="p-3 bg-white/[0.03] rounded-full text-neutral-400 border border-white/5"><MoreHorizontal className="w-5 h-5" /></button>
+                </div>
+            </div>
             
             <div className="flex items-center gap-5 mb-10 shrink-0">
               <div className="relative">
