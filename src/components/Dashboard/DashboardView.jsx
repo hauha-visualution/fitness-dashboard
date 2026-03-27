@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 
-const DashboardView = ({ onSelectClient, onLogout }) => {
+const DashboardView = ({ session, onSelectClient, onLogout, onOpenProfile }) => {
   const today = new Date();
   const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState(today);
@@ -22,13 +22,25 @@ const DashboardView = ({ onSelectClient, onLogout }) => {
   return (
     <div className="h-screen flex flex-col relative z-10 bg-gradient-to-b from-[#2a2a2c] via-[#121212] to-[#000000]">
       
-      {/* 1. HEADER DASHBOARD */}
+      {/* 1. HEADER DASHBOARD - Cập nhật để mở Profile */}
       <div className="flex justify-between items-center p-6 shrink-0">
-        <div className="flex items-center gap-4">
-          <img src="https://i.pravatar.cc/150?u=coach" className="w-12 h-12 rounded-full border border-white/10 grayscale-[20%]" alt="avatar" />
+        <div 
+          onClick={onOpenProfile} 
+          className="flex items-center gap-4 cursor-pointer active:scale-95 transition-all group"
+        >
+          <div className="relative">
+            <img 
+              src={session?.avatar_url || "https://i.pravatar.cc/150?u=coach"} 
+              className="w-12 h-12 rounded-full border border-white/10 grayscale-[20%] object-cover" 
+              alt="avatar" 
+            />
+            <div className="absolute inset-0 rounded-full border border-white/0 group-hover:border-white/20 transition-all"></div>
+          </div>
           <div>
             <p className="text-neutral-500 text-[9px] font-black uppercase tracking-widest">Aesthetics Hub</p>
-            <h1 className="text-xl font-medium text-white tracking-tight">Coach Hoang</h1>
+            <h1 className="text-xl font-medium text-white tracking-tight">
+              {session?.full_name || 'Coach Hạo'}
+            </h1>
           </div>
         </div>
         

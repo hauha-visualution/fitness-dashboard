@@ -11,6 +11,7 @@ import SummaryTab from './components/Client/SummaryTab';
 import InBodyTab from './components/Client/InBodyTab';
 import WorkoutTab from './components/Client/WorkoutTab';
 import WorkoutPlayer from './components/Client/WorkoutPlayer';
+import CoachProfileView from './components/Dashboard/CoachProfileView'; // <--- Thành phần mới
 
 // --- STYLES ---
 const GlobalStyles = () => (
@@ -35,6 +36,9 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
   const [activeWorkoutGroup, setActiveWorkoutGroup] = useState(null);
+  
+  // TÍNH NĂNG MỚI: State điều khiển việc hiển thị trang cá nhân PT
+  const [showCoachProfile, setShowCoachProfile] = useState(false);
 
   const handleLogin = (userData) => {
     setSession(userData);
@@ -97,13 +101,45 @@ export default function App() {
       <div className="w-full max-w-[420px] h-screen relative overflow-hidden bg-black flex flex-col border-x border-white/[0.05] shadow-2xl">
         <GlobalStyles />
         
-        {!selectedClient ? (
+        {/* LOGIC PHÂN TRANG CHÍNH */}
+        {showCoachProfile ? (
+          // TRANG CÁ NHÂN COACH
+          <CoachProfileView 
+            session={session} 
+            onBack={() => setShowCoachProfile(false)} 
+            onUpdateSession={handleLogin} 
+          />
+        ) : !selectedClient ? (
           <>
-            {activeTab === 'home' && <DashboardView onSelectClient={setSelectedClient} onLogout={handleLogout} />}
-            {/* Đã dọn dẹp prop onDeleteClient ở đây vì Pool không còn nút xóa */}
-            {activeTab === 'clients' && <ClientListView clients={clients} isLoading={isLoading} onSelectClient={setSelectedClient} onOpenAdd={() => setActiveTab('add_client')} />}
-            {activeTab === 'add_client' && <AddClientView onBack={() => setActiveTab('clients')} onSave={fetchClients} />}
+            {/* TRANG DASHBOARD/HOME */}
+            {activeTab === 'home' && (
+              <DashboardView 
+                session={session} 
+                onSelectClient={setSelectedClient} 
+                onLogout={handleLogout}
+                onOpenProfile={() => setShowCoachProfile(true)} // Mở trang cá nhân khi bấm avatar
+              />
+            )}
             
+            {/* TRANG DANH SÁCH CLIENT */}
+            {activeTab === 'clients' && (
+              <ClientListView 
+                clients={clients} 
+                isLoading={isLoading} 
+                onSelectClient={setSelectedClient} 
+                onOpenAdd={() => setActiveTab('add_client')} 
+              />
+            )}
+            
+            {/* TRANG THÊM CLIENT MỚI */}
+            {activeTab === 'add_client' && (
+              <AddClientView 
+                onBack={() => setActiveTab('clients')} 
+                onSave={fetchClients} 
+              />
+            )}
+            
+            {/* THANH ĐIỀU HƯỚNG DƯỚI CÙNG (Chỉ hiện ở Dashboard/List) */}
             {activeTab !== 'add_client' && (
               <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[85%] max-w-[320px] bg-black/80 backdrop-blur-3xl border border-white/10 rounded-[32px] p-1.5 flex justify-between z-50 shadow-2xl">
                 <button onClick={() => setActiveTab('home')} className={`relative flex-1 py-4 rounded-[26px] flex justify-center items-center ${activeTab === 'home' ? 'text-white bg-white/5' : 'text-neutral-600'}`}><Home className="w-5 h-5" /></button>
@@ -113,6 +149,7 @@ export default function App() {
             )}
           </>
         ) : (
+          // TRANG CHI TIẾT CLIENT
           <div className="h-screen bg-[#0a0a0a] animate-slide-up flex flex-col p-6 overflow-y-auto hide-scrollbar pb-32">
             <div className="flex justify-between items-center mb-8 shrink-0">
                 <button onClick={() => setSelectedClient(null)} className="p-3 bg-white/5 border border-white/10 rounded-full text-white active:scale-90 transition-all">
@@ -120,12 +157,12 @@ export default function App() {
                 </button>
                 
                 <div className="flex gap-2">
-                    {/* NÚT XÓA LOW-KEY: Màu trung tính, không nổi bật */}
                     <button 
                         onClick={() => {
                             if(window.confirm(`Xác nhận xóa hồ sơ của ${selectedClient.name}?`)) {
                                 const pass = prompt("Nhập mật khẩu PT để xác nhận:");
-                                if(pass === '123456') {
+                                // Sẽ lấy pass từ session của PT để so sánh cho bảo mật
+                                if(pass === (session.password || '123456')) {
                                     handleDeleteClient(selectedClient.id);
                                     setSelectedClient(null);
                                 } else if (pass !== null) {
