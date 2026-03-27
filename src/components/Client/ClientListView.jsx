@@ -1,6 +1,6 @@
-import React, { useState } from 'react'; // Thêm useState
-import { UserPlus, ChevronRight, Users, RefreshCw, Trash2 } from 'lucide-react'; // Thêm Trash2
-import DeleteClientModal from './DeleteClientModal'; // Import Modal xóa
+import React, { useState } from 'react';
+import { UserPlus, ChevronRight, Users, RefreshCw, Trash2, Package } from 'lucide-react'; // Thêm icon
+import DeleteClientModal from './DeleteClientModal'; // Import modal xóa
 
 const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading, onDeleteClient }) => {
   // State quản lý việc mở Modal xóa
@@ -9,7 +9,7 @@ const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading, onDelet
   return (
     <div className="h-screen flex flex-col relative z-10 bg-gradient-to-b from-[#2a2a2c] via-[#121212] to-[#000000] px-6 py-8 pb-32 overflow-y-auto hide-scrollbar">
       
-      {/* HEADER GIỮ NGUYÊN */}
+      {/* HEADER */}
       <div className="flex justify-between items-center mb-8 shrink-0">
          <div>
            <h1 className="text-2xl font-medium text-white tracking-tight">Client Pool</h1>
@@ -37,7 +37,7 @@ const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading, onDelet
                 key={c.id} 
                 className="relative group animate-slide-up" // Thêm group để hiện nút xóa khi hover
               >
-                {/* THẺ HỌC VIÊN CŨ */}
+                {/* THẺ HỌC VIÊN */}
                 <div 
                   onClick={() => onSelectClient(c)} 
                   className="bg-white/[0.03] border border-white/5 p-4 rounded-[24px] flex items-center gap-4 cursor-pointer hover:bg-white/[0.05] transition-all active:scale-[0.98]"
@@ -47,14 +47,25 @@ const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading, onDelet
                       <h3 className="text-white font-medium text-sm truncate">{c.name}</h3>
                       <p className="text-blue-400 text-[10px] font-bold uppercase truncate mt-0.5">{c.goal}</p>
                    </div>
-                   <div className="text-right mr-2">
-                      <p className="text-[10px] font-black text-neutral-500 uppercase">Phone</p>
-                      <p className="text-xs font-bold text-white">{c.phone}</p>
+                   
+                   {/* XỬ LÝ HIỂN THỊ SỐ BUỔI (Fix Default 12) */}
+                   <div className="text-right mr-2 flex flex-col items-end">
+                      {c.package.remaining === '--' ? (
+                        <div className="flex gap-1 items-center bg-orange-500/10 border border-orange-500/20 px-2.5 py-1.5 rounded-full">
+                           <Package className="w-2.5 h-2.5 text-orange-400" />
+                           <span className="text-[8px] font-black text-orange-300 uppercase">Chưa kích hoạt</span>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-[10px] font-black text-neutral-500 uppercase">Remaining</p>
+                          <p className="text-xs font-bold text-white">{c.package.remaining}/{c.package.total} Buổi</p>
+                        </>
+                      )}
                    </div>
                    <ChevronRight className="w-4 h-4 text-neutral-600" />
                 </div>
 
-                {/* NÚT XÓA: Chỉ hiện khi PT muốn (Hover hoặc chủ động) */}
+                {/* NÚT XÓA ẨN: Chỉ hiện khi PT muốn xóa (Hover) */}
                 <button 
                   onClick={(e) => {
                     e.stopPropagation(); // QUAN TRỌNG: Ngăn việc click trúng thẻ để mở profile

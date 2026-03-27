@@ -6,7 +6,7 @@ const DeleteClientModal = ({ client, onClose, onConfirm }) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleConfirm = async () => {
-    // Mật khẩu xác nhận tạm thời (Hạo có thể đổi ở đây)
+    // Mật khẩu xác nhận PT (Hạo có thể đổi ở đây)
     const MASTER_PASS = '123456'; 
 
     if (password !== MASTER_PASS) {
