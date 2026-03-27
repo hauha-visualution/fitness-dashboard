@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Dumbbell, Utensils, CreditCard, Home, 
-  ChevronRight, Bell, Plus, Search, Calendar, 
+  ChevronRight, ChevronLeft, Bell, Plus, Search, Calendar, 
   TrendingUp, Activity, ArrowLeft, MoreHorizontal, MessageSquare,
   AlertCircle, Coffee, CheckCircle2, Circle, Droplets, Target, Flame, 
   Clock, Camera, History, ChevronDown, Award, BarChart3, Scale, Percent, X,
@@ -100,15 +100,12 @@ const DetailActionNav = ({ onRecordWorkout, activeTab, setActiveTab }) => (
   </div>
 );
 
-// --- MODAL GHI NHẬN BUỔI TẬP (Đã fix lỗi hiển thị) ---
+// --- MODAL GHI NHẬN BUỔI TẬP ---
 const RecordWorkoutModal = ({ isOpen, onClose, clientName }) => {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center">
-      {/* Lớp phủ mờ click để đóng */}
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
-      
-      {/* Nội dung Modal */}
       <div className="w-full max-w-[420px] bg-[#1a1a1c] border-t border-white/10 rounded-t-[32px] p-6 relative animate-slide-up shadow-[0_-10px_40px_rgba(0,0,0,0.8)]">
         <div className="flex justify-between items-center mb-6">
           <div><h3 className="text-white text-xl font-medium tracking-tight">Record Session</h3><p className="text-blue-400 text-[10px] font-black uppercase tracking-wider mt-1">{clientName}</p></div>
@@ -125,7 +122,7 @@ const RecordWorkoutModal = ({ isOpen, onClose, clientName }) => {
   );
 };
 
-// --- MÀN HÌNH THÊM HỌC VIÊN MỚI (Đổi từ Modal sang Trang riêng) ---
+// --- MÀN HÌNH THÊM HỌC VIÊN MỚI ---
 const AddClientView = ({ onBack, onSave }) => {
   const [name, setName] = useState('');
   const [goal, setGoal] = useState('');
@@ -140,11 +137,10 @@ const AddClientView = ({ onBack, onSave }) => {
     <div className="h-screen flex flex-col relative z-20 bg-[#0a0a0a] overflow-y-auto px-6 animate-slide-up">
       <div className="absolute top-0 right-0 w-full h-[300px] bg-gradient-to-b from-[#2a2a2c]/30 to-[#0a0a0a] pointer-events-none"></div>
       
-      {/* Header */}
       <div className="flex justify-between items-center py-6 shrink-0 relative z-10">
          <button onClick={onBack} className="p-3 bg-white/[0.05] border border-white/10 rounded-full text-white shadow-md"><ArrowLeft className="w-5 h-5" /></button>
          <h2 className="text-[10px] font-black tracking-[0.2em] text-white/40 uppercase">New Client</h2>
-         <div className="w-11"></div> {/* Spacer để cân bằng */}
+         <div className="w-11"></div>
       </div>
 
       <div className="flex-1 relative z-10 pb-10">
@@ -214,10 +210,44 @@ const ClientListView = ({ clients, onSelectClient, onOpenAdd }) => {
   );
 };
 
-// --- GIAO DIỆN TRANG CHỦ (MILESTONE TIMELINE) ---
+// --- GIAO DIỆN TRANG CHỦ (MILESTONE TIMELINE) ĐÃ NÂNG CẤP ---
 const DashboardView = ({ onSelectClient }) => {
-  const [selectedDate, setSelectedDate] = useState("18");
-  const sessions = []; 
+  const today = new Date();
+  
+  // viewDate: Tháng đang hiển thị trên màn hình
+  const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+  
+  // selectedDate: Ngày cụ thể được chọn (Mặc định là Hôm nay)
+  const [selectedDate, setSelectedDate] = useState(today);
+
+  // Tự động cuộn đến ngày đang chọn khi đổi tháng hoặc load app lần đầu
+  useEffect(() => {
+    const elId = 'date-btn-' + selectedDate.toDateString();
+    const el = document.getElementById(elId);
+    if (el) {
+       el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }, [viewDate, selectedDate]);
+
+  const nextMonth = () => {
+     const next = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1);
+     setViewDate(next);
+     setSelectedDate(next); // Tự động chọn ngày 1 của tháng mới
+  };
+
+  const prevMonth = () => {
+     const prev = new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1);
+     setViewDate(prev);
+     setSelectedDate(prev); // Tự động chọn ngày 1 của tháng mới
+  };
+
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  
+  // Tính toán số ngày trong tháng hiện tại và tạo mảng Date objects
+  const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
+  const days = Array.from({ length: daysInMonth }, (_, i) => new Date(viewDate.getFullYear(), viewDate.getMonth(), i + 1));
+
+  const sessions = []; // Data tạm thời rỗng
 
   return (
     <div className="h-screen flex flex-col relative z-10 bg-gradient-to-b from-[#2a2a2c] via-[#121212] to-[#000000]">
@@ -230,14 +260,34 @@ const DashboardView = ({ onSelectClient }) => {
       </div>
 
       <div className="px-6 mb-8 shrink-0">
-        <h2 className="text-2xl font-light text-white mb-5 tracking-tight">March 2026</h2>
-        <div className="flex gap-3 overflow-x-auto hide-scrollbar">
-          {["16", "17", "18", "19", "20", "21", "22"].map(date => (
-            <button key={date} onClick={() => setSelectedDate(date)} className={`flex flex-col items-center justify-center min-w-[58px] h-[84px] rounded-[22px] border transition-all ${selectedDate === date ? 'bg-black border-white/20 shadow-2xl scale-100' : 'bg-white/[0.03] border-white/[0.05] text-neutral-600'}`}>
-              <span className="text-[10px] font-bold uppercase mb-1">Day</span>
-              <span className="text-lg font-semibold">{date}</span>
-            </button>
-          ))}
+        <div className="flex justify-between items-center mb-5">
+          <h2 className="text-2xl font-light text-white tracking-tight">
+            {monthNames[viewDate.getMonth()]} {viewDate.getFullYear()}
+          </h2>
+          <div className="flex gap-2">
+            <button onClick={prevMonth} className="p-2 bg-white/[0.05] rounded-full hover:bg-white/10 transition-colors"><ChevronLeft className="w-4 h-4 text-white"/></button>
+            <button onClick={nextMonth} className="p-2 bg-white/[0.05] rounded-full hover:bg-white/10 transition-colors"><ChevronRight className="w-4 h-4 text-white"/></button>
+          </div>
+        </div>
+        
+        <div className="flex gap-3 overflow-x-auto hide-scrollbar scroll-smooth">
+          {days.map(dateObj => {
+            const isSelected = dateObj.toDateString() === selectedDate.toDateString();
+            const dayNum = dateObj.getDate();
+            const shortDay = dateObj.toLocaleDateString('en-US', { weekday: 'short' }); // VD: Mon, Tue
+
+            return (
+              <button 
+                key={dateObj.toISOString()} 
+                id={'date-btn-' + dateObj.toDateString()}
+                onClick={() => setSelectedDate(dateObj)} 
+                className={`flex flex-col items-center justify-center min-w-[58px] h-[84px] rounded-[22px] border transition-all shrink-0 ${isSelected ? 'bg-black border-white/20 shadow-2xl scale-100' : 'bg-white/[0.03] border-white/[0.05] text-neutral-600 hover:bg-white/[0.08]'}`}
+              >
+                <span className="text-[10px] font-bold uppercase mb-1">{shortDay}</span>
+                <span className="text-lg font-semibold">{dayNum}</span>
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -368,7 +418,6 @@ export default function App() {
       sessionHistory: []
     };
     setClients([...clients, newClient]);
-    // Trở về tab Danh sách học viên
     setActiveTab('clients'); 
   };
 
@@ -393,10 +442,8 @@ export default function App() {
             {activeTab === 'home' && <DashboardView onSelectClient={setSelectedClient} />}
             {activeTab === 'clients' && <ClientListView clients={clients} onSelectClient={setSelectedClient} onOpenAdd={() => setActiveTab('add_client')} />}
             
-            {/* View Thêm Học Viên thay cho Popup */}
             {activeTab === 'add_client' && <AddClientView onBack={() => setActiveTab('clients')} onSave={handleAddClient} />}
             
-            {/* Ẩn thanh Bottom Nav khi đang ở màn hình Thêm Học Viên để rộng rãi gõ phím */}
             {activeTab !== 'add_client' && <FloatingBottomNav activeTab={activeTab} setActiveTab={setActiveTab} />}
           </>
         ) : (
