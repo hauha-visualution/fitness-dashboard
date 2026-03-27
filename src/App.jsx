@@ -129,7 +129,6 @@ const AddClientView = ({ onBack, onSave }) => {
   };
 
   const handleSave = () => {
-    // Đã cập nhật: Phải có formGoal mới được lưu
     if (!formData.name || !formData.phone || !formData.dob || !formData.height || !formData.trainingHistory || !formData.goal) {
       alert("Vui lòng điền đầy đủ các trường bắt buộc có dấu (*)");
       return;
@@ -156,15 +155,18 @@ const AddClientView = ({ onBack, onSave }) => {
     <div className="h-screen flex flex-col relative z-20 bg-[#0a0a0a] overflow-y-auto px-6 animate-slide-up hide-scrollbar">
       <div className="absolute top-0 right-0 w-full h-[300px] bg-gradient-to-b from-[#2a2a2c]/30 to-[#0a0a0a] pointer-events-none"></div>
       
-      <div className="flex justify-between items-center py-6 shrink-0 relative z-10 sticky top-0 bg-[#0a0a0a]/80 backdrop-blur-md">
-         <button onClick={onBack} className="p-3 bg-white/[0.05] border border-white/10 rounded-full text-white shadow-md"><ArrowLeft className="w-5 h-5" /></button>
-         <h2 className="text-[10px] font-black tracking-[0.2em] text-white/40 uppercase">Onboarding Form</h2>
-         <button onClick={handleSyncAPI} className={`p-3 rounded-full text-blue-400 bg-blue-500/10 border border-blue-500/20 shadow-md transition-all ${isSyncing ? 'animate-spin' : 'hover:bg-blue-500/20'}`}>
-            <RefreshCw className="w-5 h-5" />
-         </button>
+      {/* HEADER STICKY: Đã fix lỗi đè chữ. Tạo lớp nền che khuất content bên dưới */}
+      <div className="sticky top-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-2xl -mx-6 px-6 pt-6 pb-4 border-b border-white/[0.05]">
+        <div className="flex justify-between items-center">
+           <button onClick={onBack} className="p-3 bg-white/[0.05] border border-white/10 rounded-full text-white shadow-md hover:bg-white/10 transition-colors"><ArrowLeft className="w-5 h-5" /></button>
+           <h2 className="text-[10px] font-black tracking-[0.2em] text-white/40 uppercase">Onboarding Form</h2>
+           <button onClick={handleSyncAPI} className={`p-3 rounded-full text-blue-400 bg-blue-500/10 border border-blue-500/20 shadow-md transition-all ${isSyncing ? 'animate-spin' : 'hover:bg-blue-500/20'}`}>
+              <RefreshCw className="w-5 h-5" />
+           </button>
+        </div>
       </div>
 
-      <div className="flex-1 relative z-10 pb-32">
+      <div className="flex-1 relative z-10 pb-12 pt-4">
         <div className="mb-6">
           <h1 className="text-3xl font-medium text-white tracking-tight mb-2">New Client Profile</h1>
           <p className="text-neutral-500 text-sm">Cập nhật thông tin học viên. Bấm vào icon góc trên bên phải để giả lập Sync Data từ Google Form.</p>
@@ -172,7 +174,7 @@ const AddClientView = ({ onBack, onSave }) => {
 
         <div className="space-y-4">
           
-          {/* PHẦN 1: THÔNG TIN BẮT BUỘC (Đã bổ sung Mục tiêu) */}
+          {/* PHẦN 1: THÔNG TIN BẮT BUỘC */}
           <div className="bg-white/[0.02] border border-white/[0.05] p-5 rounded-[24px]">
             <div className="flex items-center gap-2 mb-4">
               <User className="w-4 h-4 text-emerald-400" />
@@ -188,16 +190,13 @@ const AddClientView = ({ onBack, onSave }) => {
                 <div><input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="SĐT Liên lạc *" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-white text-sm" /></div>
                 <div><input type="text" name="height" value={formData.height} onChange={handleChange} placeholder="Chiều cao *" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-white text-sm" /></div>
               </div>
-              
-              {/* Đã đưa Mục tiêu lên đây */}
               <div><input type="text" name="goal" value={formData.goal} onChange={handleChange} placeholder="Mục tiêu chính (Giảm cân, tăng cơ...) *" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-white text-sm" /></div>
-              
               <div><textarea name="trainingHistory" value={formData.trainingHistory} onChange={handleChange} rows="2" placeholder="Lịch sử tập luyện trước đây? *" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-white text-sm resize-none"></textarea></div>
               <div><select name="commitment" value={formData.commitment} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-neutral-400 text-sm"><option>Sẵn sàng tuân thủ meal plan *</option><option>Có thể tuân thủ phần lớn</option><option>Hơi khó vì bận công việc</option></select></div>
             </div>
           </div>
 
-          {/* PHẦN 2: SINH HOẠT (Accordion) */}
+          {/* PHẦN 2: SINH HOẠT */}
           <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
             <div onClick={() => toggleSection('goals')} className="p-5 flex justify-between items-center cursor-pointer hover:bg-white/[0.03] transition-colors">
               <div className="flex items-center gap-2"><Target className="w-4 h-4 text-blue-400" /><h3 className="text-white text-sm font-medium">2. Sinh hoạt & Chế độ</h3></div>
@@ -215,7 +214,7 @@ const AddClientView = ({ onBack, onSave }) => {
             )}
           </div>
 
-          {/* PHẦN 3: DINH DƯỠNG (Accordion) */}
+          {/* PHẦN 3: DINH DƯỠNG */}
           <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
             <div onClick={() => toggleSection('nutrition')} className="p-5 flex justify-between items-center cursor-pointer hover:bg-white/[0.03] transition-colors">
               <div className="flex items-center gap-2"><Utensils className="w-4 h-4 text-orange-400" /><h3 className="text-white text-sm font-medium">3. Dinh dưỡng & Bếp núc</h3></div>
@@ -235,7 +234,7 @@ const AddClientView = ({ onBack, onSave }) => {
             )}
           </div>
 
-          {/* PHẦN 4: Y TẾ (Accordion) */}
+          {/* PHẦN 4: Y TẾ */}
           <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
             <div onClick={() => toggleSection('medical')} className="p-5 flex justify-between items-center cursor-pointer hover:bg-white/[0.03] transition-colors">
               <div className="flex items-center gap-2"><HeartPulse className="w-4 h-4 text-red-400" /><h3 className="text-white text-sm font-medium">4. Sức khỏe & Y tế</h3></div>
@@ -249,8 +248,8 @@ const AddClientView = ({ onBack, onSave }) => {
             )}
           </div>
 
-          {/* Nút Save nổi (Floating Button) */}
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[380px] z-50">
+          {/* NÚT LƯU HIỂN THỊ CỐ ĐỊNH Ở CUỐI FORM */}
+          <div className="mt-8 pb-4">
             <button onClick={handleSave} className="w-full bg-white text-black font-bold py-4 rounded-[20px] flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_10px_40px_rgba(255,255,255,0.2)]">
               <CheckCircle2 className="w-5 h-5" /> Lưu Hồ Sơ Khách Hàng
             </button>
@@ -373,7 +372,7 @@ export default function App() {
       height: formData.height,
       medical: formData.medical || "Không có vấn đề sức khỏe đặc biệt",
       avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${formData.name}&backgroundColor=eceff4`, 
-      goal: formData.goal, // Đã đẩy mục tiêu ra ngoài
+      goal: formData.goal,
       package: { total: 12, bonus: 0, completed: 0, remaining: 12 },
       status: "active",
       sessionHistory: []
