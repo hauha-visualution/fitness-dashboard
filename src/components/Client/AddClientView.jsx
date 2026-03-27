@@ -3,7 +3,7 @@ import { ArrowLeft, RefreshCw, User, Target, Utensils, HeartPulse, ChevronDown, 
 import { supabase } from '../../supabaseClient';
 
 const AddClientView = ({ onBack, onSave }) => {
-  // 1. Khai báo state ban đầu với toàn bộ key VIẾT THƯỜNG
+  // 1. Khai báo state chuẩn khớp 100% với Schema Supabase
   const initialFormState = {
     name: '', phone: '', email: '', gender: 'Nam', dob: '', 
     height: '', weight: '', goal: '',
@@ -21,42 +21,53 @@ const AddClientView = ({ onBack, onSave }) => {
   const toggleSection = (id) => setExpandedSection(expandedSection === id ? null : id);
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  // 2. HÀM SYNC: Đã thêm logic chuẩn hóa chữ thường (Sanitize)
+  // 2. HÀM SYNC THÔNG MINH: Chuẩn hóa mọi dữ liệu từ Google Form
   const handleSyncAPI = async () => {
     if (!formData.phone) return alert("Nhập SĐT để Sync!");
     setIsSyncing(true);
     try {
       const { data, error } = await supabase.from('survey_responses').select('*').eq('phone', formData.phone).maybeSingle();
+      
       if (data) {
-        // CHUẨN HÓA: Ép tất cả các Key từ bảng khảo sát về chữ thường để tránh lỗi avoidFoods
-        const sanitizedData = {};
+        // CHUẨN HÓA: Ép tất cả các Key từ Database Survey về chữ thường
+        const rawData = {};
         Object.keys(data).forEach(key => {
-          sanitizedData[key.toLowerCase()] = data[key];
+          rawData[key.toLowerCase()] = data[key];
         });
 
-        setFormData(prev => ({ ...prev, ...sanitizedData }));
-        alert("Đã đồng bộ và chuẩn hóa dữ liệu!");
+        // MAPPING: Đảm bảo các trường Lifestyle & Dinh dưỡng chui đúng vào ô
+        const mappedData = {
+          ...rawData,
+          // Dự phòng các trường hợp tên cột bị lệch một vài ký tự
+          avoidfoods: rawData.avoidfoods || rawData.avoidfood,
+          commitmentlevel: rawData.commitmentlevel || rawData.commitmentlevels,
+          traininghistory: rawData.traininghistory || rawData.training_history,
+          targetduration: rawData.targetduration || rawData.target_duration
+        };
+
+        setFormData(prev => ({ ...prev, ...mappedData }));
+        alert("Đã đồng bộ thành công! Các mục Lifestyle đã được điền.");
       } else {
-        alert("Không tìm thấy dữ liệu cho SĐT này!");
+        alert("Không tìm thấy dữ liệu cho SĐT này trong Survey!");
       }
     } catch (e) {
-      alert("Lỗi kết nối database!");
+      alert("Lỗi kết nối Sync!");
     }
     setIsSyncing(false);
   };
 
-  // 3. HÀM SAVE: Đã thêm bộ lọc Payload sạch
+  // 3. HÀM SAVE: Chỉ gửi đi Payload sạch, khớp hoàn toàn với bảng 'clients'
   const handleSave = async () => {
     if (!formData.name || !formData.phone) return alert("Họ tên và SĐT là bắt buộc!");
     setIsSaving(true);
     
-    // CHUẨN HÓA LẦN CUỐI: Chỉ gửi đi những trường có trong Database (viết thường)
+    // BỘ LỌC PAYLOAD: Chỉ lấy những key có trong initialFormState để gửi lên bảng 'clients'
     const allowedKeys = Object.keys(initialFormState);
     const cleanPayload = {};
     
     allowedKeys.forEach(key => {
-      // Lấy giá trị tương ứng từ formData (đảm bảo key gửi đi là chữ thường)
-      if (formData[key] !== undefined) {
+      // Đảm bảo không gửi dư thừa các cột từ bảng Survey cũ
+      if (formData[key] !== undefined && formData[key] !== null) {
         cleanPayload[key] = formData[key];
       }
     });
@@ -69,8 +80,7 @@ const AddClientView = ({ onBack, onSave }) => {
       onSave(); 
       onBack(); 
     } else { 
-      // Nếu vẫn lỗi, alert sẽ hiện rõ cột nào đang bị sai
-      alert("Lỗi khi lưu: " + error.message); 
+      alert("Lỗi khi lưu vào bảng Clients: " + error.message); 
     }
   };
 
@@ -89,21 +99,21 @@ const AddClientView = ({ onBack, onSave }) => {
         {/* Nhóm 1: Cơ bản */}
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
           <div onClick={() => toggleSection('basic')} className="p-5 flex justify-between items-center cursor-pointer">
-            <div className="flex items-center gap-2"><User className="w-4 h-4 text-emerald-400" /><h3 className="text-white text-sm font-medium">1. Thông tin cá nhân (*)</h3></div>
+            <div className="flex items-center gap-2"><User className="w-4 h-4 text-emerald-400" /><h3 className="text-white text-sm font-medium">1. Cá nhân (*)</h3></div>
             <ChevronDown className={`w-4 h-4 text-neutral-500 transition-transform ${expandedSection === 'basic' ? 'rotate-180' : ''}`} />
           </div>
           {expandedSection === 'basic' && (
             <div className="px-5 pb-5 space-y-3">
               <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Họ và Tên *" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
               <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="Số điện thoại *" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
-              <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="Địa chỉ Email" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+              <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="Email" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
               <div className="grid grid-cols-2 gap-3">
                 <input type="date" name="dob" value={formData.dob} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-neutral-400 text-xs outline-none" />
-                <select name="gender" value={formData.gender} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-neutral-400 text-sm outline-none"><option>Nam</option><option>Nữ</option><option>Khác</option></select>
+                <select name="gender" value={formData.gender} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-neutral-400 text-sm outline-none"><option>Nam</option><option>Nữ</option></select>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <input type="text" name="height" value={formData.height} onChange={handleChange} placeholder="Cao (cm) *" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
-                <input type="text" name="weight" value={formData.weight} onChange={handleChange} placeholder="Nặng (kg) *" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+                <input type="text" name="height" value={formData.height} onChange={handleChange} placeholder="Cao (cm)" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+                <input type="text" name="weight" value={formData.weight} onChange={handleChange} placeholder="Nặng (kg)" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
               </div>
             </div>
           )}
@@ -112,64 +122,53 @@ const AddClientView = ({ onBack, onSave }) => {
         {/* Nhóm 2: Mục tiêu */}
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
           <div onClick={() => toggleSection('goals')} className="p-5 flex justify-between items-center cursor-pointer">
-            <div className="flex items-center gap-2"><Target className="w-4 h-4 text-blue-400" /><h3 className="text-white text-sm font-medium">2. Mục tiêu & Tập luyện</h3></div>
+            <div className="flex items-center gap-2"><Target className="w-4 h-4 text-blue-400" /><h3 className="text-white text-sm font-medium">2. Mục tiêu & Lifestyle</h3></div>
             <ChevronDown className={`w-4 h-4 text-neutral-500 transition-transform ${expandedSection === 'goals' ? 'rotate-180' : ''}`} />
           </div>
           {expandedSection === 'goals' && (
             <div className="px-5 pb-5 space-y-3">
-              <input type="text" name="goal" value={formData.goal} onChange={handleChange} placeholder="Mục tiêu chính *" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
-              <textarea name="traininghistory" value={formData.traininghistory} onChange={handleChange} rows="2" placeholder="Lịch sử tập luyện?" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm resize-none outline-none"></textarea>
-              <input type="text" name="trainingtime" value={formData.trainingtime} onChange={handleChange} placeholder="Thời gian tập luyện/ngày" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
-              <input type="text" name="targetduration" value={formData.targetduration} onChange={handleChange} placeholder="Thời gian đạt mục tiêu" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+              <input type="text" name="goal" value={formData.goal} onChange={handleChange} placeholder="Mục tiêu chính" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+              <input type="text" name="targetduration" value={formData.targetduration} onChange={handleChange} placeholder="Thời gian mong muốn" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+              <input type="text" name="jobtype" value={formData.jobtype} onChange={handleChange} placeholder="Tính chất công việc" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+              <input type="text" name="sleephabits" value={formData.sleephabits} onChange={handleChange} placeholder="Thói quen giấc ngủ" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
             </div>
           )}
         </div>
 
-        {/* Nhóm 3: Sinh hoạt */}
-        <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
-          <div onClick={() => toggleSection('lifestyle')} className="p-5 flex justify-between items-center cursor-pointer">
-            <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-purple-400" /><h3 className="text-white text-sm font-medium">3. Sinh hoạt</h3></div>
-            <ChevronDown className={`w-4 h-4 text-neutral-500 transition-transform ${expandedSection === 'lifestyle' ? 'rotate-180' : ''}`} />
-          </div>
-          {expandedSection === 'lifestyle' && (
-            <div className="px-5 pb-5 space-y-3">
-              <input type="text" name="jobtype" value={formData.jobtype} onChange={handleChange} placeholder="Công việc hiện tại" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
-              <input type="text" name="sleephabits" value={formData.sleephabits} onChange={handleChange} placeholder="Giấc ngủ hàng đêm" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
-            </div>
-          )}
-        </div>
-
-        {/* Nhóm 4: Dinh dưỡng */}
+        {/* Nhóm 3: Dinh dưỡng */}
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
           <div onClick={() => toggleSection('nutrition')} className="p-5 flex justify-between items-center cursor-pointer">
-            <div className="flex items-center gap-2"><Utensils className="w-4 h-4 text-orange-400" /><h3 className="text-white text-sm font-medium">4. Dinh dưỡng</h3></div>
+            <div className="flex items-center gap-2"><Utensils className="w-4 h-4 text-orange-400" /><h3 className="text-white text-sm font-medium">3. Dinh dưỡng</h3></div>
             <ChevronDown className={`w-4 h-4 text-neutral-500 transition-transform ${expandedSection === 'nutrition' ? 'rotate-180' : ''}`} />
           </div>
           {expandedSection === 'nutrition' && (
             <div className="px-5 pb-5 space-y-3">
-              <input type="text" name="cookinghabit" value={formData.cookinghabit} onChange={handleChange} placeholder="Thói quen nấu nướng" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
-              <input type="text" name="dietaryrestriction" value={formData.dietaryrestriction} onChange={handleChange} placeholder="Chế độ ăn đặc biệt" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
+              <input type="text" name="cookinghabit" value={formData.cookinghabit} onChange={handleChange} placeholder="Thói quen nấu ăn" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+              <input type="text" name="dietaryrestriction" value={formData.dietaryrestriction} onChange={handleChange} placeholder="Dị ứng / Kiêng đặc biệt" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
               <textarea name="favoritefoods" value={formData.favoritefoods} onChange={handleChange} rows="2" placeholder="Món yêu thích" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm resize-none"></textarea>
-              <input type="text" name="avoidfoods" value={formData.avoidfoods} onChange={handleChange} placeholder="Món cần tránh (Dị ứng...)" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
-              <input type="text" name="foodbudget" value={formData.foodbudget} onChange={handleChange} placeholder="Ngân sách ăn uống/tháng" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
+              <input type="text" name="avoidfoods" value={formData.avoidfoods} onChange={handleChange} placeholder="Thực phẩm cần tránh" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+              <div className="grid grid-cols-2 gap-3">
+                <input type="text" name="cookingtime" value={formData.cookingtime} onChange={handleChange} placeholder="Giờ nấu/ngày" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
+                <input type="text" name="foodbudget" value={formData.foodbudget} onChange={handleChange} placeholder="Ngân sách ăn" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
+              </div>
             </div>
           )}
         </div>
 
-        {/* Nhóm 5: Y tế */}
+        {/* Nhóm 4: Y tế */}
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
           <div onClick={() => toggleSection('health')} className="p-5 flex justify-between items-center cursor-pointer">
-            <div className="flex items-center gap-2"><HeartPulse className="w-4 h-4 text-red-400" /><h3 className="text-white text-sm font-medium">5. Y tế & Cam kết</h3></div>
+            <div className="flex items-center gap-2"><HeartPulse className="w-4 h-4 text-red-400" /><h3 className="text-white text-sm font-medium">4. Y tế & Cam kết</h3></div>
             <ChevronDown className={`w-4 h-4 text-neutral-500 transition-transform ${expandedSection === 'health' ? 'rotate-180' : ''}`} />
           </div>
           {expandedSection === 'health' && (
             <div className="px-5 pb-5 space-y-3">
-              <textarea name="medicalconditions" value={formData.medicalconditions} onChange={handleChange} rows="2" placeholder="Lưu ý bệnh lý (Tim, khớp...)" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm resize-none"></textarea>
-              <input type="text" name="supplements" value={formData.supplements} onChange={handleChange} placeholder="Thuốc/TPBS đang dùng" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
+              <textarea name="medicalconditions" value={formData.medicalconditions} onChange={handleChange} rows="2" placeholder="Bệnh lý (Xương khớp, tim mạch...)" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm resize-none"></textarea>
+              <input type="text" name="supplements" value={formData.supplements} onChange={handleChange} placeholder="Thuốc / TPBS đang dùng" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
               <select name="commitmentlevel" value={formData.commitmentlevel} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-neutral-400 text-sm outline-none">
                 <option>Sẵn sàng tuân thủ 100%</option>
                 <option>Sẵn sàng phần lớn</option>
-                <option>Hơi khó khăn</option>
+                <option>Cần đốc thúc</option>
               </select>
             </div>
           )}
