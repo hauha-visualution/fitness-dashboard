@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, ChevronLeft, ChevronRight, LogOut } from 'lucide-react'; // Thêm LogOut
-import React, { useState, useEffect } from 'react';
-import { Bell, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Bell, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 
 const DashboardView = ({ onSelectClient, onLogout }) => {
   const today = new Date();
@@ -24,7 +22,7 @@ const DashboardView = ({ onSelectClient, onLogout }) => {
   return (
     <div className="h-screen flex flex-col relative z-10 bg-gradient-to-b from-[#2a2a2c] via-[#121212] to-[#000000]">
       
-      {/* 1. HEADER DASHBOARD: Chứa thông tin Coach và các nút hệ thống */}
+      {/* 1. HEADER DASHBOARD */}
       <div className="flex justify-between items-center p-6 shrink-0">
         <div className="flex items-center gap-4">
           <img src="https://i.pravatar.cc/150?u=coach" className="w-12 h-12 rounded-full border border-white/10 grayscale-[20%]" alt="avatar" />
@@ -34,7 +32,6 @@ const DashboardView = ({ onSelectClient, onLogout }) => {
           </div>
         </div>
         
-        {/* Nhóm nút: Thông báo + Đăng xuất */}
         <div className="flex gap-2">
           <button className="p-3 bg-white/5 border border-white/10 rounded-full text-white shadow-lg active:scale-90 transition-all">
             <Bell className="w-5 h-5" />
@@ -48,7 +45,7 @@ const DashboardView = ({ onSelectClient, onLogout }) => {
         </div>
       </div>
 
-      {/* 2. CALENDAR SECTION: Dải lịch cuộn ngang chọn ngày */}
+      {/* 2. CALENDAR SECTION */}
       <div className="px-6 mb-8 shrink-0">
         <div className="flex justify-between items-center mb-5">
           <h2 className="text-2xl font-light text-white tracking-tight">
@@ -82,7 +79,7 @@ const DashboardView = ({ onSelectClient, onLogout }) => {
         </div>
       </div>
 
-      {/* 3. WORK TIMELINE: Hiển thị các buổi tập trong ngày */}
+      {/* 3. WORK TIMELINE */}
       <div className="px-6 mb-4 flex justify-between items-end shrink-0">
         <h2 className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.2em]">Work Timeline</h2>
         <div className="flex items-center gap-1.5">
