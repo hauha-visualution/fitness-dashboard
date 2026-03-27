@@ -146,7 +146,7 @@ const CoachProfileView = ({ session, onBack, onUpdateSession }) => {
           className="w-full bg-white text-black font-black py-5 rounded-[24px] mt-12 flex items-center justify-center gap-2 shadow-2xl active:scale-95 transition-all disabled:opacity-50"
         >
           {(isSaving || isUploading) ? <RefreshCw className="animate-spin" /> : <Save className="w-5 h-5" />}
-          LƯU THÔNG TIN
+          SAVE
         </button>
       </div>
     </div>
