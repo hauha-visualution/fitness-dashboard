@@ -3,7 +3,7 @@ import { ArrowLeft, RefreshCw, User, Target, Utensils, HeartPulse, ChevronDown, 
 import { supabase } from '../../supabaseClient';
 
 const AddClientView = ({ onBack, onSave }) => {
-  // 1. Khai báo state chuẩn khớp 100% với Schema Supabase
+  // 1. Khai báo state chuẩn khớp 100% với Schema Supabase bảng 'clients'
   const initialFormState = {
     name: '', phone: '', email: '', gender: 'Nam', dob: '', 
     height: '', weight: '', goal: '',
@@ -21,7 +21,7 @@ const AddClientView = ({ onBack, onSave }) => {
   const toggleSection = (id) => setExpandedSection(expandedSection === id ? null : id);
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  // 2. HÀM SYNC THÔNG MINH: Chuẩn hóa mọi dữ liệu từ Google Form
+  // 2. HÀM SYNC THÔNG MINH: Đã thêm Log để Hạo dễ debug
   const handleSyncAPI = async () => {
     if (!formData.phone) return alert("Nhập SĐT để Sync!");
     setIsSyncing(true);
@@ -29,44 +29,46 @@ const AddClientView = ({ onBack, onSave }) => {
       const { data, error } = await supabase.from('survey_responses').select('*').eq('phone', formData.phone).maybeSingle();
       
       if (data) {
-        // CHUẨN HÓA: Ép tất cả các Key từ Database Survey về chữ thường
+        // QUAN TRỌNG: Hạo nhấn F12 trong trình duyệt để xem dòng này nhé
+        console.log("Dữ liệu gốc từ survey_responses:", data);
+
+        // CHUẨN HÓA: Ép tất cả các Key về chữ thường
         const rawData = {};
         Object.keys(data).forEach(key => {
           rawData[key.toLowerCase()] = data[key];
         });
 
-        // MAPPING: Đảm bảo các trường Lifestyle & Dinh dưỡng chui đúng vào ô
+        // MAPPING "VÉT CẠN": Dự phòng các trường hợp tên cột ở bảng survey bị sai lệch
         const mappedData = {
           ...rawData,
-          // Dự phòng các trường hợp tên cột bị lệch một vài ký tự
           avoidfoods: rawData.avoidfoods || rawData.avoidfood,
           commitmentlevel: rawData.commitmentlevel || rawData.commitmentlevels,
           traininghistory: rawData.traininghistory || rawData.training_history,
-          targetduration: rawData.targetduration || rawData.target_duration
+          targetduration: rawData.targetduration || rawData.target_duration,
+          medicalconditions: rawData.medicalconditions || rawData.medical_conditions
         };
 
         setFormData(prev => ({ ...prev, ...mappedData }));
-        alert("Đã đồng bộ thành công! Các mục Lifestyle đã được điền.");
+        alert("Đồng bộ thành công! Hãy kiểm tra các mục Lifestyle & Dinh dưỡng phía dưới.");
       } else {
-        alert("Không tìm thấy dữ liệu cho SĐT này trong Survey!");
+        alert("Không tìm thấy dữ liệu! Có thể Apps Script chưa đẩy được dữ liệu lên.");
       }
     } catch (e) {
+      console.error("Lỗi Sync:", e);
       alert("Lỗi kết nối Sync!");
     }
     setIsSyncing(false);
   };
 
-  // 3. HÀM SAVE: Chỉ gửi đi Payload sạch, khớp hoàn toàn với bảng 'clients'
+  // 3. HÀM SAVE: Chỉ gửi đi các trường hợp lệ
   const handleSave = async () => {
     if (!formData.name || !formData.phone) return alert("Họ tên và SĐT là bắt buộc!");
     setIsSaving(true);
     
-    // BỘ LỌC PAYLOAD: Chỉ lấy những key có trong initialFormState để gửi lên bảng 'clients'
     const allowedKeys = Object.keys(initialFormState);
     const cleanPayload = {};
     
     allowedKeys.forEach(key => {
-      // Đảm bảo không gửi dư thừa các cột từ bảng Survey cũ
       if (formData[key] !== undefined && formData[key] !== null) {
         cleanPayload[key] = formData[key];
       }
@@ -80,7 +82,7 @@ const AddClientView = ({ onBack, onSave }) => {
       onSave(); 
       onBack(); 
     } else { 
-      alert("Lỗi khi lưu vào bảng Clients: " + error.message); 
+      alert("Lỗi khi lưu: " + error.message); 
     }
   };
 
