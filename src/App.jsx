@@ -7,6 +7,7 @@ import {
   Clock, Camera, History, ChevronDown, Award, BarChart3, Scale, Percent, X,
   Lock, User, UserPlus, FileText, ActivitySquare, HeartPulse, RefreshCw, Phone
 } from 'lucide-react';
+import { supabase } from './supabaseClient'; 
 
 // --- STYLES & ANIMATIONS ---
 const GlobalStyles = () => (
@@ -109,8 +110,8 @@ const RecordWorkoutModal = ({ isOpen, onClose, clientName }) => {
   );
 };
 
-// --- MÀN HÌNH THÊM HỌC VIÊN MỚI ---
-const AddClientView = ({ onBack, onSave }) => {
+// --- MÀN HÌNH THÊM HỌC VIÊN MỚI (SYNC TỪ SUPABASE THEO SĐT) ---
+const AddClientView = ({ onBack, onSave, isSaving }) => {
   const [formData, setFormData] = useState({
     name: '', dob: '', gender: 'Nam', phone: '', height: '', trainingHistory: '', goal: '', commitment: 'Sẵn sàng tuân thủ meal plan',
     jobType: '', trainingTime: '', targetDuration: '', sleep: '',
@@ -119,6 +120,7 @@ const AddClientView = ({ onBack, onSave }) => {
   });
 
   const [expandedSection, setExpandedSection] = useState(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const toggleSection = (sectionName) => {
     setExpandedSection(expandedSection === sectionName ? null : sectionName);
@@ -126,6 +128,72 @@ const AddClientView = ({ onBack, onSave }) => {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  // LOGIC SYNC API MỚI THEO YÊU CẦU CỦA BẠN
+  const handleSyncAPI = async () => {
+    if (!formData.phone) {
+      alert("Vui lòng nhập SỐ ĐIỆN THOẠI khách hàng vào form trước để quét dữ liệu!");
+      return;
+    }
+
+    setIsSyncing(true);
+
+    try {
+      // Tìm khách hàng trong bảng 'survey_responses' dựa trên SĐT
+      const { data, error } = await supabase
+        .from('survey_responses') // <--- Tên bảng chứa form khảo sát
+        .select('*')
+        .eq('phone', formData.phone)
+        .single(); // Chỉ lấy 1 kết quả duy nhất
+
+      if (data) {
+        // Ghi đè data tìm được vào form hiện tại
+        setFormData({
+          ...formData,
+          name: data.name || '',
+          dob: data.dob || '',
+          gender: data.gender || 'Nam',
+          height: data.height || '',
+          trainingHistory: data.trainingHistory || '',
+          goal: data.goal || '',
+          commitment: data.commitmentLevel || 'Sẵn sàng tuân thủ meal plan',
+          jobType: data.jobType || '',
+          trainingTime: data.trainingTime || '',
+          targetDuration: data.targetDuration || '',
+          sleep: data.sleepHabits || '',
+          cookHabit: data.cookingHabit || '',
+          cookTime: data.cookingTime || '',
+          diet: data.dietaryRestriction || '',
+          favFood: data.favoriteFoods || '',
+          avoidFood: data.avoidFoods || '',
+          budget: data.foodBudget || '',
+          medical: data.medicalConditions || '',
+          supplements: data.supplements || ''
+        });
+        alert("Đã quét và điền dữ liệu thành công!");
+      } else {
+         // Fallback Data Demo (để bạn test nếu chưa setup kịp bảng survey_responses)
+         if (formData.phone === '0901234567') {
+            setFormData({
+              ...formData,
+              name: 'Trần Văn Demo', dob: '1995-05-15', gender: 'Nam', height: '175',
+              trainingHistory: 'Đã tập gym được 6 tháng nhưng chưa thấy thay đổi.', goal: 'Giảm cân, Cắt nét', commitment: 'Sẵn sàng tuân thủ meal plan',
+              jobType: 'Hành chính 8-10 tiếng', trainingTime: 'Từ 30-60 phút', targetDuration: '3 tháng', sleep: 'Ngủ lúc 11h, 7 tiếng/ngày',
+              cookHabit: 'Tự nấu', cookTime: '30-60 phút', diet: 'Không', favFood: 'Thịt bò, ức gà, trứng', avoidFood: 'Dị ứng hải sản', budget: '3 triệu',
+              medical: 'Hơi đau lưng dưới do ngồi nhiều', supplements: 'Whey Protein'
+            });
+            alert("BẢN DEMO: Đã điền dữ liệu mẫu cho SĐT 0901234567");
+         } else {
+            alert("Không tìm thấy phiếu khảo sát nào có số điện thoại này!");
+         }
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Lỗi khi kết nối hoặc không tìm thấy dữ liệu!");
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const handleSave = () => {
@@ -136,67 +204,46 @@ const AddClientView = ({ onBack, onSave }) => {
     onSave(formData);
   };
 
-  const [isSyncing, setIsSyncing] = useState(false);
-  const handleSyncAPI = () => {
-    setIsSyncing(true);
-    setTimeout(() => {
-      setFormData({
-        name: 'Trần Văn Demo', dob: '1995-05-15', gender: 'Nam', phone: '0901234567', height: '175',
-        trainingHistory: 'Đã tập gym được 6 tháng nhưng chưa thấy thay đổi.', goal: 'Giảm cân, Cắt nét', commitment: 'Sẵn sàng tuân thủ meal plan',
-        jobType: 'Hành chính 8-10 tiếng', trainingTime: 'Từ 30-60 phút', targetDuration: '3 tháng', sleep: 'Ngủ lúc 11h, 7 tiếng/ngày',
-        cookHabit: 'Tự nấu', cookTime: '30-60 phút', diet: 'Không', favFood: 'Thịt bò, ức gà, trứng', avoidFood: 'Dị ứng hải sản', budget: '3 triệu',
-        medical: 'Hơi đau lưng dưới do ngồi nhiều', supplements: 'Whey Protein'
-      });
-      setIsSyncing(false);
-    }, 1500);
-  };
-
   return (
     <div className="h-screen flex flex-col relative z-20 bg-[#0a0a0a] overflow-y-auto px-6 animate-slide-up hide-scrollbar">
       <div className="absolute top-0 right-0 w-full h-[300px] bg-gradient-to-b from-[#2a2a2c]/30 to-[#0a0a0a] pointer-events-none"></div>
       
-      {/* HEADER STICKY: Đã fix lỗi đè chữ. Tạo lớp nền che khuất content bên dưới */}
-      <div className="sticky top-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-2xl -mx-6 px-6 pt-6 pb-4 border-b border-white/[0.05]">
-        <div className="flex justify-between items-center">
-           <button onClick={onBack} className="p-3 bg-white/[0.05] border border-white/10 rounded-full text-white shadow-md hover:bg-white/10 transition-colors"><ArrowLeft className="w-5 h-5" /></button>
-           <h2 className="text-[10px] font-black tracking-[0.2em] text-white/40 uppercase">Onboarding Form</h2>
-           <button onClick={handleSyncAPI} className={`p-3 rounded-full text-blue-400 bg-blue-500/10 border border-blue-500/20 shadow-md transition-all ${isSyncing ? 'animate-spin' : 'hover:bg-blue-500/20'}`}>
-              <RefreshCw className="w-5 h-5" />
-           </button>
-        </div>
+      <div className="sticky top-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-2xl -mx-6 px-6 pt-6 pb-4 border-b border-white/[0.05] flex justify-between items-center">
+         <button onClick={onBack} className="p-3 bg-white/[0.05] border border-white/10 rounded-full text-white shadow-md hover:bg-white/10 transition-colors"><ArrowLeft className="w-5 h-5" /></button>
+         <h2 className="text-[10px] font-black tracking-[0.2em] text-white/40 uppercase">Onboarding Form</h2>
+         <button onClick={handleSyncAPI} className={`p-3 rounded-full text-blue-400 bg-blue-500/10 border border-blue-500/20 shadow-md transition-all ${isSyncing ? 'animate-spin' : 'hover:bg-blue-500/20'}`}>
+            <RefreshCw className="w-5 h-5" />
+         </button>
       </div>
 
       <div className="flex-1 relative z-10 pb-12 pt-4">
         <div className="mb-6">
           <h1 className="text-3xl font-medium text-white tracking-tight mb-2">New Client Profile</h1>
-          <p className="text-neutral-500 text-sm">Cập nhật thông tin học viên. Bấm vào icon góc trên bên phải để giả lập Sync Data từ Google Form.</p>
+          <p className="text-neutral-500 text-[12px] leading-relaxed">Nhập <b>Số điện thoại</b> và bấm <RefreshCw className="w-3 h-3 inline text-blue-400" /> để tự động quét dữ liệu từ Form Khảo Sát.</p>
         </div>
 
         <div className="space-y-4">
           
-          {/* PHẦN 1: THÔNG TIN BẮT BUỘC */}
           <div className="bg-white/[0.02] border border-white/[0.05] p-5 rounded-[24px]">
-            <div className="flex items-center gap-2 mb-4">
-              <User className="w-4 h-4 text-emerald-400" />
-              <h3 className="text-white text-sm font-medium">1. Thông tin bắt buộc (*)</h3>
-            </div>
+            <div className="flex items-center gap-2 mb-4"><User className="w-4 h-4 text-emerald-400" /><h3 className="text-white text-sm font-medium">1. Thông tin bắt buộc (*)</h3></div>
             <div className="space-y-4">
+              {/* SĐT đưa lên đầu để PT tiện gõ và Sync ngay */}
+              <div><input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="SĐT Liên lạc (Nhập để Sync) *" className="w-full bg-black/80 border border-blue-500/30 rounded-[12px] p-3 text-white text-sm focus:border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.1)]" /></div>
+              
               <div><input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Họ và Tên *" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-white text-sm" /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div><input type="date" name="dob" value={formData.dob} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-neutral-400 text-sm" /></div>
-                <div><select name="gender" value={formData.gender} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-neutral-400 text-sm"><option>Nam</option><option>Nữ</option><option>Không muốn nêu cụ thể</option></select></div>
+                <div><select name="gender" value={formData.gender} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-neutral-400 text-sm"><option>Nam</option><option>Nữ</option><option>Khác</option></select></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="SĐT Liên lạc *" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-white text-sm" /></div>
                 <div><input type="text" name="height" value={formData.height} onChange={handleChange} placeholder="Chiều cao *" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-white text-sm" /></div>
+                <div><input type="text" name="goal" value={formData.goal} onChange={handleChange} placeholder="Mục tiêu chính *" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-white text-sm" /></div>
               </div>
-              <div><input type="text" name="goal" value={formData.goal} onChange={handleChange} placeholder="Mục tiêu chính (Giảm cân, tăng cơ...) *" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-white text-sm" /></div>
               <div><textarea name="trainingHistory" value={formData.trainingHistory} onChange={handleChange} rows="2" placeholder="Lịch sử tập luyện trước đây? *" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-white text-sm resize-none"></textarea></div>
               <div><select name="commitment" value={formData.commitment} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-neutral-400 text-sm"><option>Sẵn sàng tuân thủ meal plan *</option><option>Có thể tuân thủ phần lớn</option><option>Hơi khó vì bận công việc</option></select></div>
             </div>
           </div>
 
-          {/* PHẦN 2: SINH HOẠT */}
           <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
             <div onClick={() => toggleSection('goals')} className="p-5 flex justify-between items-center cursor-pointer hover:bg-white/[0.03] transition-colors">
               <div className="flex items-center gap-2"><Target className="w-4 h-4 text-blue-400" /><h3 className="text-white text-sm font-medium">2. Sinh hoạt & Chế độ</h3></div>
@@ -214,7 +261,6 @@ const AddClientView = ({ onBack, onSave }) => {
             )}
           </div>
 
-          {/* PHẦN 3: DINH DƯỠNG */}
           <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
             <div onClick={() => toggleSection('nutrition')} className="p-5 flex justify-between items-center cursor-pointer hover:bg-white/[0.03] transition-colors">
               <div className="flex items-center gap-2"><Utensils className="w-4 h-4 text-orange-400" /><h3 className="text-white text-sm font-medium">3. Dinh dưỡng & Bếp núc</h3></div>
@@ -226,15 +272,14 @@ const AddClientView = ({ onBack, onSave }) => {
                   <div><label className="text-[10px] text-neutral-500 ml-1 mb-1 block">Thói quen ăn uống</label><input type="text" name="cookHabit" value={formData.cookHabit} onChange={handleChange} placeholder="Tự nấu, order..." className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-white text-sm" /></div>
                   <div><label className="text-[10px] text-neutral-500 ml-1 mb-1 block">Thời gian nấu/ngày</label><input type="text" name="cookTime" value={formData.cookTime} onChange={handleChange} placeholder="Dưới 30 phút..." className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-white text-sm" /></div>
                 </div>
-                <div><label className="text-[10px] text-neutral-500 ml-1 mb-1 block">Có đang theo chế độ ăn kiêng nào không?</label><input type="text" name="diet" value={formData.diet} onChange={handleChange} placeholder="VD: Eat clean, Keto..." className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-white text-sm" /></div>
+                <div><label className="text-[10px] text-neutral-500 ml-1 mb-1 block">Chế độ ăn kiêng</label><input type="text" name="diet" value={formData.diet} onChange={handleChange} placeholder="VD: Eat clean, Keto..." className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-white text-sm" /></div>
                 <div><label className="text-[10px] text-neutral-500 ml-1 mb-1 block">Thực phẩm yêu thích</label><input type="text" name="favFood" value={formData.favFood} onChange={handleChange} placeholder="Thịt bò, ức gà..." className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-white text-sm" /></div>
                 <div><label className="text-[10px] text-neutral-500 ml-1 mb-1 block">Thực phẩm không ăn/dị ứng</label><input type="text" name="avoidFood" value={formData.avoidFood} onChange={handleChange} placeholder="Hải sản, đậu phộng..." className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-white text-sm" /></div>
-                <div><label className="text-[10px] text-neutral-500 ml-1 mb-1 block">Ngân sách thực phẩm hàng tháng</label><input type="text" name="budget" value={formData.budget} onChange={handleChange} placeholder="VD: 3.000.000 VND" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-white text-sm" /></div>
+                <div><label className="text-[10px] text-neutral-500 ml-1 mb-1 block">Ngân sách thực phẩm</label><input type="text" name="budget" value={formData.budget} onChange={handleChange} placeholder="VD: 3.000.000 VND" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3 text-white text-sm" /></div>
               </div>
             )}
           </div>
 
-          {/* PHẦN 4: Y TẾ */}
           <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
             <div onClick={() => toggleSection('medical')} className="p-5 flex justify-between items-center cursor-pointer hover:bg-white/[0.03] transition-colors">
               <div className="flex items-center gap-2"><HeartPulse className="w-4 h-4 text-red-400" /><h3 className="text-white text-sm font-medium">4. Sức khỏe & Y tế</h3></div>
@@ -248,10 +293,10 @@ const AddClientView = ({ onBack, onSave }) => {
             )}
           </div>
 
-          {/* NÚT LƯU HIỂN THỊ CỐ ĐỊNH Ở CUỐI FORM */}
           <div className="mt-8 pb-4">
-            <button onClick={handleSave} className="w-full bg-white text-black font-bold py-4 rounded-[20px] flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_10px_40px_rgba(255,255,255,0.2)]">
-              <CheckCircle2 className="w-5 h-5" /> Lưu Hồ Sơ Khách Hàng
+            <button onClick={handleSave} disabled={isSaving} className={`w-full text-black font-bold py-4 rounded-[20px] flex items-center justify-center gap-2 transition-all shadow-[0_10px_40px_rgba(255,255,255,0.2)] ${isSaving ? 'bg-neutral-400 cursor-not-allowed' : 'bg-white hover:scale-[1.02] active:scale-[0.98]'}`}>
+              {isSaving ? <RefreshCw className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />} 
+              {isSaving ? 'Đang lưu...' : 'Lưu Hồ Sơ Khách Hàng'}
             </button>
           </div>
 
@@ -262,14 +307,20 @@ const AddClientView = ({ onBack, onSave }) => {
 };
 
 // --- GIAO DIỆN DANH SÁCH HỌC VIÊN ---
-const ClientListView = ({ clients, onSelectClient, onOpenAdd }) => {
+const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading }) => {
   return (
     <div className="h-screen flex flex-col relative z-10 bg-gradient-to-b from-[#2a2a2c] via-[#121212] to-[#000000] px-6 py-8 pb-32 overflow-y-auto hide-scrollbar">
       <div className="flex justify-between items-center mb-8 shrink-0">
          <div><h1 className="text-2xl font-medium text-white tracking-tight">Client Pool</h1><p className="text-neutral-500 text-[10px] font-black uppercase tracking-widest mt-1">Total: {clients.length} Active</p></div>
          <button onClick={onOpenAdd} className="p-3 bg-white text-black rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all"><UserPlus className="w-5 h-5" /></button>
       </div>
-      {clients.length === 0 ? (
+      
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center h-64 text-center mt-10">
+          <RefreshCw className="w-8 h-8 mb-4 text-blue-500 animate-spin" />
+          <p className="text-sm text-neutral-400">Đang tải dữ liệu...</p>
+        </div>
+      ) : clients.length === 0 ? (
          <div className="flex flex-col items-center justify-center h-64 text-center mt-10"><Users className="w-12 h-12 mb-4 text-neutral-600/50" /><p className="text-sm text-neutral-400">Chưa có khách hàng.</p><p className="text-[10px] mt-2 text-neutral-500 uppercase tracking-widest">Nhấn dấu + để thêm</p></div>
       ) : (
          <div className="space-y-4">
@@ -359,28 +410,59 @@ export default function App() {
   const [selectedClient, setSelectedClient] = useState(null);
   const [detailTab, setDetailTab] = useState('overview');
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
+  
   const [clients, setClients] = useState([]); 
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Lấy dữ liệu các KHÁCH HÀNG ĐÃ ĐƯỢC PT LƯU (Từ bảng clients)
+  const fetchClients = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*');
+
+    if (error) {
+      console.error('Lỗi khi tải dữ liệu:', error.message);
+    } else if (data) {
+      const formattedClients = data.map(dbClient => ({
+        id: dbClient.id || Date.now() + Math.random(),
+        name: dbClient.name || 'Học viên',
+        phone: dbClient.phone || '',
+        gender: dbClient.gender || 'Nam',
+        height: dbClient.height || '--',
+        medical: dbClient.medicalConditions || "Không có ghi chú y tế",
+        avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${dbClient.name || 'Guest'}&backgroundColor=eceff4`, 
+        goal: dbClient.goal || 'General Fitness',
+        package: { total: parseInt(dbClient.sessions) || 12, bonus: 0, completed: 0, remaining: parseInt(dbClient.sessions) || 12 },
+        status: "active",
+        sessionHistory: []
+      }));
+      setClients(formattedClients);
+    }
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    if (session) fetchClients();
+  }, [session, activeTab]);
+
+  // LƯU HỌC VIÊN CHÍNH THỨC VÀO BẢNG 'clients'
+  const handleAddClient = async (formData) => {
+    setIsSaving(true);
+    const { data, error } = await supabase
+      .from('clients')
+      .insert([{
+          name: formData.name, phone: formData.phone, dob: formData.dob, gender: formData.gender, height: formData.height, trainingHistory: formData.trainingHistory, goal: formData.goal, commitmentLevel: formData.commitment, jobType: formData.jobType, trainingTime: formData.trainingTime, targetDuration: formData.targetDuration, sleepHabits: formData.sleep, cookingHabit: formData.cookHabit, cookingTime: formData.cookTime, dietaryRestriction: formData.diet, favoriteFoods: formData.favFood, avoidFoods: formData.avoidFood, foodBudget: formData.budget, medicalConditions: formData.medical, supplements: formData.supplements, sessions: '12' 
+      }]);
+
+    setIsSaving(false);
+
+    if (error) { alert("Lỗi khi lưu khách hàng: " + error.message); } 
+    else { fetchClients(); setActiveTab('clients'); }
+  };
 
   const handleBack = () => { setSelectedClient(null); setDetailTab('overview'); };
-
-  const handleAddClient = (formData) => {
-    const newClient = {
-      id: Date.now(),
-      name: formData.name,
-      phone: formData.phone,
-      gender: formData.gender,
-      height: formData.height,
-      medical: formData.medical || "Không có vấn đề sức khỏe đặc biệt",
-      avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${formData.name}&backgroundColor=eceff4`, 
-      goal: formData.goal,
-      package: { total: 12, bonus: 0, completed: 0, remaining: 12 },
-      status: "active",
-      sessionHistory: []
-    };
-    
-    setClients([...clients, newClient]);
-    setActiveTab('clients'); 
-  };
 
   if (!session) { return <div className="min-h-screen bg-[#050505] font-sans flex justify-center"><div className="w-full max-w-[420px] h-screen relative shadow-2xl border-x border-white/[0.05] overflow-hidden flex flex-col bg-black"><AuthScreen onLogin={(user) => setSession(user)} /></div></div>; }
 
@@ -393,8 +475,8 @@ export default function App() {
         {!selectedClient ? (
           <>
             {activeTab === 'home' && <DashboardView onSelectClient={setSelectedClient} />}
-            {activeTab === 'clients' && <ClientListView clients={clients} onSelectClient={setSelectedClient} onOpenAdd={() => setActiveTab('add_client')} />}
-            {activeTab === 'add_client' && <AddClientView onBack={() => setActiveTab('clients')} onSave={handleAddClient} />}
+            {activeTab === 'clients' && <ClientListView clients={clients} isLoading={isLoading} onSelectClient={setSelectedClient} onOpenAdd={() => setActiveTab('add_client')} />}
+            {activeTab === 'add_client' && <AddClientView onBack={() => setActiveTab('clients')} onSave={handleAddClient} isSaving={isSaving} />}
             {activeTab !== 'add_client' && <FloatingBottomNav activeTab={activeTab} setActiveTab={setActiveTab} />}
           </>
         ) : (
