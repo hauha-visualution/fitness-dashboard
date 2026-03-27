@@ -5,7 +5,7 @@ import {
   TrendingUp, Activity, ArrowLeft, MoreHorizontal, MessageSquare,
   AlertCircle, Coffee, CheckCircle2, Circle, Droplets, Target, Flame, 
   Clock, Camera, History, ChevronDown, Award, BarChart3, Scale, Percent, X,
-  Lock, User, UserPlus
+  Lock, User, UserPlus, FileText, ActivitySquare, HeartPulse, RefreshCw
 } from 'lucide-react';
 
 // --- STYLES & ANIMATIONS ---
@@ -26,7 +26,7 @@ const GlobalStyles = () => (
   `}} />
 );
 
-// --- GIAO DIỆN ĐĂNG NHẬP / ĐĂNG KÝ (AUTH SCREEN) ---
+// --- GIAO DIỆN ĐĂNG NHẬP (AUTH SCREEN) ---
 const AuthScreen = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
@@ -122,48 +122,136 @@ const RecordWorkoutModal = ({ isOpen, onClose, clientName }) => {
   );
 };
 
-// --- MÀN HÌNH THÊM HỌC VIÊN MỚI ---
+// --- MÀN HÌNH THÊM HỌC VIÊN MỚI (CHI TIẾT CHUẨN FORM API) ---
 const AddClientView = ({ onBack, onSave }) => {
-  const [name, setName] = useState('');
-  const [goal, setGoal] = useState('');
-  const [sessions, setSessions] = useState('');
+  // State quản lý toàn bộ Form Data
+  const [formData, setFormData] = useState({
+    name: '', phone: '', email: '', gender: 'Male',
+    height: '', weight: '', bodyFat: '',
+    goal: '', targetWeight: '', sessions: '',
+    medicalNotes: ''
+  });
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const handleSave = () => {
-    if (!name) return;
-    onSave({ name, goal: goal || 'General Fitness', sessions: Number(sessions) || 12 });
+    if (!formData.name) {
+      alert("Vui lòng nhập tên khách hàng!");
+      return;
+    }
+    // Đẩy nguyên object formData ra ngoài để lưu
+    onSave(formData);
+  };
+
+  // Nút giả lập lấy dữ liệu qua Webhook API (UI demo)
+  const [isSyncing, setIsSyncing] = useState(false);
+  const handleSyncAPI = () => {
+    setIsSyncing(true);
+    setTimeout(() => {
+      // Giả lập nhận data từ Google Form đổ về
+      setFormData({
+        name: 'Trần Văn Demo', phone: '0909123456', email: 'demo@gmail.com', gender: 'Male',
+        height: '175', weight: '85', bodyFat: '25',
+        goal: 'Giảm mỡ, tăng cơ', targetWeight: '75', sessions: '36',
+        medicalNotes: 'Từng đau lưng nhẹ, không chấn thương nghiêm trọng.'
+      });
+      setIsSyncing(false);
+    }, 1500);
   };
 
   return (
-    <div className="h-screen flex flex-col relative z-20 bg-[#0a0a0a] overflow-y-auto px-6 animate-slide-up">
+    <div className="h-screen flex flex-col relative z-20 bg-[#0a0a0a] overflow-y-auto px-6 animate-slide-up hide-scrollbar">
       <div className="absolute top-0 right-0 w-full h-[300px] bg-gradient-to-b from-[#2a2a2c]/30 to-[#0a0a0a] pointer-events-none"></div>
       
-      <div className="flex justify-between items-center py-6 shrink-0 relative z-10">
+      <div className="flex justify-between items-center py-6 shrink-0 relative z-10 sticky top-0 bg-[#0a0a0a]/80 backdrop-blur-md">
          <button onClick={onBack} className="p-3 bg-white/[0.05] border border-white/10 rounded-full text-white shadow-md"><ArrowLeft className="w-5 h-5" /></button>
-         <h2 className="text-[10px] font-black tracking-[0.2em] text-white/40 uppercase">New Client</h2>
-         <div className="w-11"></div>
+         <h2 className="text-[10px] font-black tracking-[0.2em] text-white/40 uppercase">Onboarding Form</h2>
+         <button onClick={handleSyncAPI} className={`p-3 rounded-full text-blue-400 bg-blue-500/10 border border-blue-500/20 shadow-md transition-all ${isSyncing ? 'animate-spin' : 'hover:bg-blue-500/20'}`}>
+            <RefreshCw className="w-5 h-5" />
+         </button>
       </div>
 
-      <div className="flex-1 relative z-10 pb-10">
-        <div className="mb-8">
-          <h1 className="text-3xl font-medium text-white tracking-tight mb-2">Add Member</h1>
-          <p className="text-neutral-500 text-sm">Create a new client profile to start tracking their fitness journey.</p>
+      <div className="flex-1 relative z-10 pb-32">
+        <div className="mb-6">
+          <h1 className="text-3xl font-medium text-white tracking-tight mb-2">New Client Profile</h1>
+          <p className="text-neutral-500 text-sm">Điền thông tin thủ công hoặc nhấn nút Sync (phía trên) để lấy data từ Google Form qua Webhook API.</p>
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white/[0.02] border border-white/[0.05] p-6 rounded-[24px]">
-            <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-3 block">Full Name</label>
-            <input type="text" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Thai Hung" className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors mb-5" />
-            
-            <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-3 block">Primary Goal</label>
-            <input type="text" value={goal} onChange={e=>setGoal(e.target.value)} placeholder="e.g. Fat Loss, Muscle Gain" className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors mb-5" />
-            
-            <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-3 block">Total Sessions</label>
-            <input type="number" value={sessions} onChange={e=>setSessions(e.target.value)} placeholder="e.g. 12, 24, 36" className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors" />
+          {/* Section 1: Thông tin cá nhân */}
+          <div className="bg-white/[0.02] border border-white/[0.05] p-5 rounded-[24px]">
+            <div className="flex items-center gap-2 mb-4">
+              <User className="w-4 h-4 text-neutral-400" />
+              <h3 className="text-white text-sm font-medium">1. Personal Details</h3>
+            </div>
+            <div className="space-y-4">
+              <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Họ và Tên (Bắt buộc)" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3.5 text-white text-sm outline-none focus:border-blue-500 transition-colors" />
+              <div className="grid grid-cols-2 gap-3">
+                <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="Số điện thoại" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3.5 text-white text-sm outline-none focus:border-blue-500" />
+                <select name="gender" value={formData.gender} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3.5 text-white text-sm outline-none focus:border-blue-500 appearance-none">
+                  <option value="Male">Nam</option>
+                  <option value="Female">Nữ</option>
+                  <option value="Other">Khác</option>
+                </select>
+              </div>
+              <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="Email liên hệ" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3.5 text-white text-sm outline-none focus:border-blue-500" />
+            </div>
           </div>
 
-          <button onClick={handleSave} className="w-full bg-white text-black font-bold py-4 rounded-[20px] flex items-center justify-center gap-2 hover:bg-neutral-200 active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]">
-            <UserPlus className="w-5 h-5" /> Create Profile
-          </button>
+          {/* Section 2: Chỉ số ban đầu */}
+          <div className="bg-white/[0.02] border border-white/[0.05] p-5 rounded-[24px]">
+            <div className="flex items-center gap-2 mb-4">
+              <ActivitySquare className="w-4 h-4 text-emerald-400" />
+              <h3 className="text-white text-sm font-medium">2. Initial Metrics</h3>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="text-[9px] font-black text-neutral-500 uppercase ml-1 mb-1 block">Chiều cao (cm)</label>
+                <input type="number" name="height" value={formData.height} onChange={handleChange} placeholder="VD: 170" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3.5 text-white text-sm text-center outline-none focus:border-emerald-500" />
+              </div>
+              <div>
+                <label className="text-[9px] font-black text-neutral-500 uppercase ml-1 mb-1 block">Cân nặng (kg)</label>
+                <input type="number" step="0.1" name="weight" value={formData.weight} onChange={handleChange} placeholder="VD: 65.5" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3.5 text-white text-sm text-center outline-none focus:border-emerald-500" />
+              </div>
+              <div>
+                <label className="text-[9px] font-black text-neutral-500 uppercase ml-1 mb-1 block">Mỡ (%)</label>
+                <input type="number" step="0.1" name="bodyFat" value={formData.bodyFat} onChange={handleChange} placeholder="VD: 20" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3.5 text-white text-sm text-center outline-none focus:border-emerald-500" />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Mục tiêu & Gói tập */}
+          <div className="bg-white/[0.02] border border-white/[0.05] p-5 rounded-[24px]">
+            <div className="flex items-center gap-2 mb-4">
+              <Target className="w-4 h-4 text-blue-400" />
+              <h3 className="text-white text-sm font-medium">3. Goals & Package</h3>
+            </div>
+            <div className="space-y-4">
+              <input type="text" name="goal" value={formData.goal} onChange={handleChange} placeholder="Mục tiêu chính (VD: Tăng cơ, giảm mỡ...)" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3.5 text-white text-sm outline-none focus:border-blue-500" />
+              <div className="grid grid-cols-2 gap-3">
+                <input type="number" step="0.1" name="targetWeight" value={formData.targetWeight} onChange={handleChange} placeholder="Cân nặng mục tiêu" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3.5 text-white text-sm outline-none focus:border-blue-500" />
+                <input type="number" name="sessions" value={formData.sessions} onChange={handleChange} placeholder="Số buổi (Package)" className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3.5 text-white text-sm outline-none focus:border-blue-500" />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 4: Y tế & Ghi chú */}
+          <div className="bg-white/[0.02] border border-white/[0.05] p-5 rounded-[24px]">
+            <div className="flex items-center gap-2 mb-4">
+              <HeartPulse className="w-4 h-4 text-red-400" />
+              <h3 className="text-white text-sm font-medium">4. Medical History</h3>
+            </div>
+            <textarea name="medicalNotes" value={formData.medicalNotes} onChange={handleChange} rows="3" placeholder="Tiền sử bệnh lý, chấn thương xương khớp (nếu có)..." className="w-full bg-black/50 border border-white/10 rounded-[12px] p-3.5 text-white text-sm outline-none focus:border-red-500 resize-none"></textarea>
+          </div>
+
+          {/* Nút Save nổi (Floating Button) cho trang Form */}
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[380px] z-50">
+            <button onClick={handleSave} className="w-full bg-white text-black font-bold py-4 rounded-[20px] flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_10px_40px_rgba(255,255,255,0.2)]">
+              <CheckCircle2 className="w-5 h-5" /> Lưu Hồ Sơ Khách Hàng
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -185,14 +273,14 @@ const ClientListView = ({ clients, onSelectClient, onOpenAdd }) => {
       {clients.length === 0 ? (
          <div className="flex flex-col items-center justify-center h-64 text-center mt-10">
             <Users className="w-12 h-12 mb-4 text-neutral-600/50" />
-            <p className="text-sm text-neutral-400">No clients yet.</p>
-            <p className="text-[10px] mt-2 text-neutral-500 uppercase tracking-widest">Click the + button to add</p>
+            <p className="text-sm text-neutral-400">Chưa có khách hàng.</p>
+            <p className="text-[10px] mt-2 text-neutral-500 uppercase tracking-widest">Nhấn dấu + để thêm từ Google Form</p>
          </div>
       ) : (
          <div className="space-y-4">
             {clients.map(c => (
               <div key={c.id} onClick={() => onSelectClient(c)} className="bg-white/[0.03] border border-white/5 p-4 rounded-[24px] flex items-center gap-4 cursor-pointer hover:bg-white/[0.05] transition-all active:scale-[0.98]">
-                 <img src={c.avatar} className="w-12 h-12 rounded-full border border-white/10" />
+                 <img src={c.avatar} className="w-12 h-12 rounded-full border border-white/10 bg-white" alt="avatar" />
                  <div className="flex-1 min-w-0">
                     <h3 className="text-white font-medium text-sm truncate">{c.name}</h3>
                     <p className="text-blue-400 text-[10px] font-bold uppercase truncate mt-0.5">{c.goal}</p>
@@ -210,44 +298,32 @@ const ClientListView = ({ clients, onSelectClient, onOpenAdd }) => {
   );
 };
 
-// --- GIAO DIỆN TRANG CHỦ (MILESTONE TIMELINE) ĐÃ NÂNG CẤP ---
+// --- GIAO DIỆN TRANG CHỦ (MILESTONE TIMELINE) ---
 const DashboardView = ({ onSelectClient }) => {
   const today = new Date();
-  
-  // viewDate: Tháng đang hiển thị trên màn hình
   const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
-  
-  // selectedDate: Ngày cụ thể được chọn (Mặc định là Hôm nay)
   const [selectedDate, setSelectedDate] = useState(today);
 
-  // Tự động cuộn đến ngày đang chọn khi đổi tháng hoặc load app lần đầu
   useEffect(() => {
     const elId = 'date-btn-' + selectedDate.toDateString();
     const el = document.getElementById(elId);
-    if (el) {
-       el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    }
+    if (el) { el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); }
   }, [viewDate, selectedDate]);
 
   const nextMonth = () => {
      const next = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1);
-     setViewDate(next);
-     setSelectedDate(next); // Tự động chọn ngày 1 của tháng mới
+     setViewDate(next); setSelectedDate(next); 
   };
-
   const prevMonth = () => {
      const prev = new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1);
-     setViewDate(prev);
-     setSelectedDate(prev); // Tự động chọn ngày 1 của tháng mới
+     setViewDate(prev); setSelectedDate(prev); 
   };
 
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  
-  // Tính toán số ngày trong tháng hiện tại và tạo mảng Date objects
   const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
   const days = Array.from({ length: daysInMonth }, (_, i) => new Date(viewDate.getFullYear(), viewDate.getMonth(), i + 1));
 
-  const sessions = []; // Data tạm thời rỗng
+  const sessions = []; 
 
   return (
     <div className="h-screen flex flex-col relative z-10 bg-gradient-to-b from-[#2a2a2c] via-[#121212] to-[#000000]">
@@ -261,9 +337,7 @@ const DashboardView = ({ onSelectClient }) => {
 
       <div className="px-6 mb-8 shrink-0">
         <div className="flex justify-between items-center mb-5">
-          <h2 className="text-2xl font-light text-white tracking-tight">
-            {monthNames[viewDate.getMonth()]} {viewDate.getFullYear()}
-          </h2>
+          <h2 className="text-2xl font-light text-white tracking-tight">{monthNames[viewDate.getMonth()]} {viewDate.getFullYear()}</h2>
           <div className="flex gap-2">
             <button onClick={prevMonth} className="p-2 bg-white/[0.05] rounded-full hover:bg-white/10 transition-colors"><ChevronLeft className="w-4 h-4 text-white"/></button>
             <button onClick={nextMonth} className="p-2 bg-white/[0.05] rounded-full hover:bg-white/10 transition-colors"><ChevronRight className="w-4 h-4 text-white"/></button>
@@ -274,13 +348,10 @@ const DashboardView = ({ onSelectClient }) => {
           {days.map(dateObj => {
             const isSelected = dateObj.toDateString() === selectedDate.toDateString();
             const dayNum = dateObj.getDate();
-            const shortDay = dateObj.toLocaleDateString('en-US', { weekday: 'short' }); // VD: Mon, Tue
-
+            const shortDay = dateObj.toLocaleDateString('en-US', { weekday: 'short' }); 
             return (
               <button 
-                key={dateObj.toISOString()} 
-                id={'date-btn-' + dateObj.toDateString()}
-                onClick={() => setSelectedDate(dateObj)} 
+                key={dateObj.toISOString()} id={'date-btn-' + dateObj.toDateString()} onClick={() => setSelectedDate(dateObj)} 
                 className={`flex flex-col items-center justify-center min-w-[58px] h-[84px] rounded-[22px] border transition-all shrink-0 ${isSelected ? 'bg-black border-white/20 shadow-2xl scale-100' : 'bg-white/[0.03] border-white/[0.05] text-neutral-600 hover:bg-white/[0.08]'}`}
               >
                 <span className="text-[10px] font-bold uppercase mb-1">{shortDay}</span>
@@ -325,7 +396,7 @@ const ClientDetailView = ({ client, onBack, activeTab, setActiveTab }) => {
       <div className="flex-1 overflow-y-auto hide-scrollbar pb-40 relative z-10 px-6">
         <div className="flex items-center gap-5 mt-4 mb-8">
            <div className="relative shrink-0">
-              <img src={client.avatar} className="w-20 h-20 rounded-full border-2 border-white/10 shadow-2xl" alt={client.name}/>
+              <img src={client.avatar} className="w-20 h-20 rounded-full border-2 border-white/10 shadow-2xl bg-white" alt={client.name}/>
               <div className="absolute -bottom-1 -right-1 bg-white text-black rounded-full p-1 border border-black"><Award className="w-3 h-3" /></div>
            </div>
            <div className="flex-1 min-w-0">
@@ -403,20 +474,34 @@ export default function App() {
 
   const handleBack = () => { setSelectedClient(null); setDetailTab('overview'); };
 
-  const handleAddClient = (data) => {
+  const handleAddClient = (formData) => {
+    // Mapping data từ Google Form UI vào cấu trúc App
     const newClient = {
       id: Date.now(),
-      name: data.name,
-      avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${data.name}&backgroundColor=eceff4`, 
-      goal: data.goal,
-      package: { total: data.sessions, bonus: 0, completed: 0, remaining: data.sessions },
+      name: formData.name,
+      avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${formData.name}&backgroundColor=eceff4`, 
+      goal: formData.goal || 'General Fitness',
+      package: { total: Number(formData.sessions) || 0, bonus: 0, completed: 0, remaining: Number(formData.sessions) || 0 },
       status: "active",
-      startStats: { weight: "--", bodyFat: "--", height: "--", date: new Date().toLocaleDateString('en-GB'), waist: "--", chest: "--" },
-      currentStats: { weight: "--", bodyFat: "--", height: "--", date: new Date().toLocaleDateString('en-GB'), waist: "--", chest: "--" },
-      targetWeight: "--",
+      startStats: { 
+        weight: formData.weight ? `${formData.weight} kg` : "--", 
+        bodyFat: formData.bodyFat ? `${formData.bodyFat}%` : "--", 
+        height: formData.height ? `${formData.height}cm` : "--", 
+        date: new Date().toLocaleDateString('en-GB'), 
+        waist: "--", chest: "--" 
+      },
+      currentStats: { 
+        weight: formData.weight ? `${formData.weight} kg` : "--", 
+        bodyFat: formData.bodyFat ? `${formData.bodyFat}%` : "--", 
+        height: formData.height ? `${formData.height}cm` : "--", 
+        date: new Date().toLocaleDateString('en-GB'), 
+        waist: "--", chest: "--" 
+      },
+      targetWeight: formData.targetWeight ? `${formData.targetWeight} kg` : "--",
       photos: { before: "", after: "" },
       sessionHistory: []
     };
+    
     setClients([...clients, newClient]);
     setActiveTab('clients'); 
   };
@@ -442,6 +527,7 @@ export default function App() {
             {activeTab === 'home' && <DashboardView onSelectClient={setSelectedClient} />}
             {activeTab === 'clients' && <ClientListView clients={clients} onSelectClient={setSelectedClient} onOpenAdd={() => setActiveTab('add_client')} />}
             
+            {/* View Form Chi tiết */}
             {activeTab === 'add_client' && <AddClientView onBack={() => setActiveTab('clients')} onSave={handleAddClient} />}
             
             {activeTab !== 'add_client' && <FloatingBottomNav activeTab={activeTab} setActiveTab={setActiveTab} />}
