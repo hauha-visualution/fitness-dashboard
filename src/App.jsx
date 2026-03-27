@@ -23,7 +23,6 @@ const GlobalStyles = () => (
 );
 
 export default function App() {
-  // 1. TÍNH NĂNG: Khởi tạo session từ localStorage (Auto Login)
   const [session, setSession] = useState(() => {
     const saved = localStorage.getItem('aesthetic_hub_session');
     return saved ? JSON.parse(saved) : null;
@@ -34,41 +33,33 @@ export default function App() {
   const [detailTab, setDetailTab] = useState('overview');
   const [clients, setClients] = useState([]); 
   const [isLoading, setIsLoading] = useState(false);
-  
-  // State cho Workout Player
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
   const [activeWorkoutGroup, setActiveWorkoutGroup] = useState(null);
 
-  // 2. TÍNH NĂNG: Hàm Login & Lưu vào trình duyệt
   const handleLogin = (userData) => {
     setSession(userData);
     localStorage.setItem('aesthetic_hub_session', JSON.stringify(userData));
   };
 
-  // 3. TÍNH NĂNG: Hàm Logout & Xóa thông tin cũ
   const handleLogout = () => {
     setSession(null);
     localStorage.removeItem('aesthetic_hub_session');
   };
 
-  // 4. Lấy danh sách học viên từ Database
   const fetchClients = async () => {
     if (!session) return;
     setIsLoading(true);
     const { data, error } = await supabase.from('clients').select('*');
     if (error) console.error('Error:', error.message);
     else if (data) {
-      // FIX Default Sessions: Dữ liệu NULL thì sessions hiện '--'
       setClients(data.map(db => ({
         ...db,
         id: db.id,
         medical: db.medicalconditions || "Không có ghi chú y tế",
         avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${db.name}&backgroundColor=eceff4`,
         package: { 
-          // Nếu db.sessions là NULL, parseInt sẽ trả về NaN. Cần handle.
           total: db.sessions ? parseInt(db.sessions) : 0, 
           completed: 0, 
-          // Marker '--' để UI biết là chưa kích hoạt
           remaining: db.sessions ? parseInt(db.sessions) : '--' 
         }
       })));
@@ -76,107 +67,61 @@ export default function App() {
     setIsLoading(false);
   };
 
-  // 5. TÍNH NĂNG MỚI: Xóa học viên (Xác nhận PT)
   const handleDeleteClient = async (clientId) => {
-    const { error } = await supabase
-      .from('clients')
-      .delete()
-      .eq('id', clientId);
-
-    if (error) {
-      alert("Lỗi khi xóa: " + error.message);
-    } else {
-      fetchClients(); // Load lại danh sách học viên
-    }
+    const { error } = await supabase.from('clients').delete().eq('id', clientId);
+    if (!error) fetchClients();
+    else alert("Lỗi khi xóa: " + error.message);
   };
 
   useEffect(() => { if (session) fetchClients(); }, [session, activeTab]);
 
   const handleFinishWorkout = async (timeInSeconds) => {
-    // Nếu gói tập chưa kích hoạt, không cho phép finish workout trừ buổi
     if (selectedClient.package.remaining === '--') return alert("Gói tập chưa kích hoạt!");
-
     const newRemaining = selectedClient.package.remaining - 1;
-    const { error } = await supabase
-      .from('clients')
-      .update({ sessions: newRemaining.toString() })
-      .eq('id', selectedClient.id);
-
-    if (error) {
-      alert("Lỗi khi trừ buổi tập: " + error.message);
-    } else {
+    const { error } = await supabase.from('clients').update({ sessions: newRemaining.toString() }).eq('id', selectedClient.id);
+    if (!error) {
       alert(`Buổi tập kết thúc. Còn lại ${newRemaining} buổi.`);
       setIsPlayerOpen(false);
       fetchClients();
-      setSelectedClient({
-        ...selectedClient, 
-        package: { ...selectedClient.package, remaining: newRemaining }
-      });
+      setSelectedClient({ ...selectedClient, package: { ...selectedClient.package, remaining: newRemaining } });
     }
   };
 
-  // Nếu chưa có session thì hiện màn hình Login
-  if (!session) return (
-    <div className="bg-black h-screen flex justify-center selection:bg-white/20">
-      <AuthScreen onLogin={handleLogin} />
-    </div>
-  );
+  if (!session) return <div className="bg-black h-screen flex justify-center"><AuthScreen onLogin={handleLogin} /></div>;
 
   return (
     <div className="min-h-screen bg-[#050505] text-neutral-200 flex justify-center font-sans">
-      <div className="w-full max-w-[420px] h-screen relative overflow-hidden bg-black flex flex-col md:border-x md:border-white/[0.05] md:shadow-2xl">
+      <div className="w-full max-w-[420px] h-screen relative overflow-hidden bg-black flex flex-col border-x border-white/[0.05] shadow-2xl">
         <GlobalStyles />
         
         {!selectedClient ? (
           <>
-            {/* Truyền handleLogout xuống cho DashboardView */}
             {activeTab === 'home' && <DashboardView onSelectClient={setSelectedClient} onLogout={handleLogout} />}
-            
-            {activeTab === 'clients' && (
-              <ClientListView 
-                clients={clients} 
-                isLoading={isLoading} 
-                onSelectClient={setSelectedClient} 
-                onOpenAdd={() => setActiveTab('add_client')} 
-                onDeleteClient={handleDeleteClient} // Truyền prop xóa xuống
-              />
-            )}
-            
+            {activeTab === 'clients' && <ClientListView clients={clients} isLoading={isLoading} onSelectClient={setSelectedClient} onOpenAdd={() => setActiveTab('add_client')} onDeleteClient={handleDeleteClient} />}
             {activeTab === 'add_client' && <AddClientView onBack={() => setActiveTab('clients')} onSave={fetchClients} />}
             
-            {/* Thanh điều hướng chính: Chỉ giữ các tab chính (Tối giản nút Logout) */}
             {activeTab !== 'add_client' && (
-              <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[85%] max-w-[320px] bg-black/80 backdrop-blur-3xl border border-white/10 rounded-[32px] p-1.5 flex justify-between z-50 md:shadow-inner">
-                <button onClick={() => setActiveTab('home')} className={`relative flex-1 py-4 rounded-[26px] flex justify-center items-center ${activeTab === 'home' ? 'text-white bg-white/5' : 'text-neutral-600 hover:text-white transition-colors'}`}>
-                  <Home className="w-5 h-5" />
-                </button>
-                <button onClick={() => setActiveTab('calendar')} className={`relative flex-1 py-4 rounded-[26px] flex justify-center items-center ${activeTab === 'calendar' ? 'text-white bg-white/5' : 'text-neutral-600 hover:text-white transition-colors'}`}>
-                  <Calendar className="w-5 h-5" />
-                </button>
-                <button onClick={() => setActiveTab('clients')} className={`relative flex-1 py-4 rounded-[26px] flex justify-center items-center ${activeTab === 'clients' ? 'text-white bg-white/5' : 'text-neutral-600 hover:text-white transition-colors'}`}>
-                  <Users className="w-5 h-5" />
-                </button>
+              <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[85%] max-w-[320px] bg-black/80 backdrop-blur-3xl border border-white/10 rounded-[32px] p-1.5 flex justify-between z-50 shadow-2xl">
+                <button onClick={() => setActiveTab('home')} className={`relative flex-1 py-4 rounded-[26px] flex justify-center items-center ${activeTab === 'home' ? 'text-white bg-white/5' : 'text-neutral-600'}`}><Home className="w-5 h-5" /></button>
+                <button onClick={() => setActiveTab('calendar')} className={`relative flex-1 py-4 rounded-[26px] flex justify-center items-center ${activeTab === 'calendar' ? 'text-white bg-white/5' : 'text-neutral-600'}`}><Calendar className="w-5 h-5" /></button>
+                <button onClick={() => setActiveTab('clients')} className={`relative flex-1 py-4 rounded-[26px] flex justify-center items-center ${activeTab === 'clients' ? 'text-white bg-white/5' : 'text-neutral-600'}`}><Users className="w-5 h-5" /></button>
               </div>
             )}
           </>
         ) : (
-          {/* MÀN HÌNH CHI TIẾT HỌC VIÊN */}
           <div className="h-screen bg-[#0a0a0a] animate-slide-up flex flex-col p-6 overflow-y-auto hide-scrollbar pb-32">
             <button onClick={() => setSelectedClient(null)} className="p-3 bg-white/5 border border-white/10 rounded-full w-fit mb-8"><ArrowLeft className="w-5 h-5"/></button>
             
             <div className="flex items-center gap-5 mb-10 shrink-0">
               <div className="relative">
-                <img src={selectedClient.avatar} className="w-20 h-20 rounded-full border border-white/10 bg-white" alt="avt" />
-                <div className="absolute -bottom-1 -right-1 bg-blue-500 text-white rounded-full p-1.5 border-2 border-black">
-                  <Dumbbell className="w-3 h-3" />
-                </div>
+                <img src={selectedClient.avatar} className="w-20 h-20 rounded-full border border-white/10 bg-white shadow-2xl" alt="avt" />
+                <div className="absolute -bottom-1 -right-1 bg-blue-500 text-white rounded-full p-1.5 border-2 border-black"><Dumbbell className="w-3 h-3" /></div>
               </div>
               <div className="flex-1 min-w-0">
                 <h1 className="text-2xl font-medium tracking-tight text-white truncate">{selectedClient.name}</h1>
                 <div className="flex items-center gap-2.5 mt-1.5">
-                  <span className="text-blue-400 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">{selectedClient.goal}</span>
+                  <span className="text-blue-400 text-[10px] font-black uppercase tracking-wider">{selectedClient.goal}</span>
                   <span className="text-neutral-600 text-[10px]">•</span>
-                  {/* FIX hiển thị sessions trong Profile */}
                   {selectedClient.package.remaining === '--' ? (
                      <span className="text-orange-400 text-[10px] font-bold">Gói chưa kích hoạt</span>
                   ) : (
@@ -196,24 +141,12 @@ export default function App() {
               {detailTab === 'overview' && <SummaryTab client={selectedClient} />}
               {detailTab === 'inbody' && <InBodyTab client={selectedClient} />}
               {detailTab === 'workout' && (
-                <WorkoutTab 
-                  clientId={selectedClient.id} 
-                  onStartWorkout={(group) => {
-                    setActiveWorkoutGroup(group);
-                    setIsPlayerOpen(true);
-                  }} 
-                />
+                <WorkoutTab clientId={selectedClient.id} onStartWorkout={(group) => { setActiveWorkoutGroup(group); setIsPlayerOpen(true); }} />
               )}
             </div>
 
-            {/* Workout Player Overlay */}
             {isPlayerOpen && activeWorkoutGroup && (
-              <WorkoutPlayer 
-                sessionData={activeWorkoutGroup}
-                client={selectedClient}
-                onBack={() => setIsPlayerOpen(false)}
-                onFinish={handleFinishWorkout}
-              />
+              <WorkoutPlayer sessionData={activeWorkoutGroup} client={selectedClient} onBack={() => setIsPlayerOpen(false)} onFinish={handleFinishWorkout} />
             )}
           </div>
         )}
