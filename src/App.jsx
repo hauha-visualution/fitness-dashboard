@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, Calendar, MessageSquare, Users, ArrowLeft, MoreHorizontal, Award, BarChart3, Dumbbell, Utensils, CreditCard, Plus, CheckCircle2, X, LogOut, Trash2 } from 'lucide-react'; // Đã thêm Trash2 vào import
+import { Home, Calendar, MessageSquare, Users, ArrowLeft, MoreHorizontal, Award, BarChart3, Dumbbell, Utensils, CreditCard, Plus, CheckCircle2, X, LogOut, Trash2 } from 'lucide-react';
 import { supabase } from './supabaseClient'; 
 
 // Import các thành phần đã tách
@@ -100,7 +100,8 @@ export default function App() {
         {!selectedClient ? (
           <>
             {activeTab === 'home' && <DashboardView onSelectClient={setSelectedClient} onLogout={handleLogout} />}
-            {activeTab === 'clients' && <ClientListView clients={clients} isLoading={isLoading} onSelectClient={setSelectedClient} onOpenAdd={() => setActiveTab('add_client')} onDeleteClient={handleDeleteClient} />}
+            {/* Đã dọn dẹp prop onDeleteClient ở đây vì Pool không còn nút xóa */}
+            {activeTab === 'clients' && <ClientListView clients={clients} isLoading={isLoading} onSelectClient={setSelectedClient} onOpenAdd={() => setActiveTab('add_client')} />}
             {activeTab === 'add_client' && <AddClientView onBack={() => setActiveTab('clients')} onSave={fetchClients} />}
             
             {activeTab !== 'add_client' && (
@@ -113,16 +114,16 @@ export default function App() {
           </>
         ) : (
           <div className="h-screen bg-[#0a0a0a] animate-slide-up flex flex-col p-6 overflow-y-auto hide-scrollbar pb-32">
-            {/* HEADER PROFILE CẢI TIẾN: Thêm nút xóa */}
             <div className="flex justify-between items-center mb-8 shrink-0">
                 <button onClick={() => setSelectedClient(null)} className="p-3 bg-white/5 border border-white/10 rounded-full text-white active:scale-90 transition-all">
                     <ArrowLeft className="w-5 h-5"/>
                 </button>
                 
                 <div className="flex gap-2">
+                    {/* NÚT XÓA LOW-KEY: Màu trung tính, không nổi bật */}
                     <button 
                         onClick={() => {
-                            if(window.confirm(`Xóa vĩnh viễn hồ sơ của ${selectedClient.name}?`)) {
+                            if(window.confirm(`Xác nhận xóa hồ sơ của ${selectedClient.name}?`)) {
                                 const pass = prompt("Nhập mật khẩu PT để xác nhận:");
                                 if(pass === '123456') {
                                     handleDeleteClient(selectedClient.id);
@@ -132,11 +133,11 @@ export default function App() {
                                 }
                             }
                         }}
-                        className="p-3 bg-red-500/10 border border-red-500/20 rounded-full text-red-500 active:scale-90 transition-all"
+                        className="p-3 bg-white/[0.03] border border-white/[0.08] rounded-full text-neutral-600 hover:text-red-500/80 hover:bg-red-500/5 active:scale-90 transition-all"
                     >
                         <Trash2 className="w-5 h-5" />
                     </button>
-                    <button className="p-3 bg-white/[0.03] rounded-full text-neutral-400 border border-white/5"><MoreHorizontal className="w-5 h-5" /></button>
+                    <button className="p-3 bg-white/[0.03] rounded-full text-neutral-600 border border-white/[0.05]"><MoreHorizontal className="w-5 h-5" /></button>
                 </div>
             </div>
             
