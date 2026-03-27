@@ -4,7 +4,8 @@ import {
   ChevronRight, Bell, Plus, Search, Calendar, 
   TrendingUp, Activity, ArrowLeft, MoreHorizontal, MessageSquare,
   AlertCircle, Coffee, CheckCircle2, Circle, Droplets, Target, Flame, 
-  Clock, Camera, History, ChevronDown, Award, BarChart3, Scale, Percent, X
+  Clock, Camera, History, ChevronDown, Award, BarChart3, Scale, Percent, X,
+  Lock, User // Đã thêm 2 icon này cho màn hình Login
 } from 'lucide-react';
 
 // --- DỮ LIỆU MẪU (MOCK DATABASE) ---
@@ -52,6 +53,72 @@ const GlobalStyles = () => (
   `}} />
 );
 
+// --- GIAO DIỆN ĐĂNG NHẬP / ĐĂNG KÝ (AUTH SCREEN) ---
+const AuthScreen = ({ onLogin }) => {
+  const [isLogin, setIsLogin] = useState(true);
+  const [username, setUsername] = useState(''); // Sử dụng Username thay cho Email
+  const [password, setPassword] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    console.log("Submit:", username, password);
+    // Tạm thời giả lập đăng nhập thành công
+    onLogin({ username }); 
+  };
+
+  return (
+    <div className="h-screen w-full flex flex-col items-center justify-center relative z-20 bg-[#0a0a0a] overflow-hidden px-6">
+      <div className="absolute top-[-10%] left-[-20%] w-[140%] h-[400px] bg-white/[0.03] blur-[100px] pointer-events-none"></div>
+      
+      <div className="w-full max-w-sm relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
+        <div className="text-center mb-10">
+          <div className="w-16 h-16 bg-white/[0.03] border border-white/10 rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_30px_rgba(255,255,255,0.05)]">
+            <Dumbbell className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-medium text-white tracking-tight">Aesthetics Hub</h1>
+          <p className="text-neutral-500 text-[10px] font-black uppercase tracking-widest mt-2">Coach Portal Access</p>
+        </div>
+
+        <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-[32px] p-6 shadow-2xl">
+          <div className="flex bg-white/[0.03] p-1 rounded-[20px] mb-6">
+            <button onClick={() => setIsLogin(true)} className={`flex-1 py-3 text-[10px] font-bold uppercase rounded-[16px] transition-all ${isLogin ? 'bg-black text-white shadow-lg border border-white/10' : 'text-neutral-600'}`}>Sign In</button>
+            <button onClick={() => setIsLogin(false)} className={`flex-1 py-3 text-[10px] font-bold uppercase rounded-[16px] transition-all ${!isLogin ? 'bg-black text-white shadow-lg border border-white/10' : 'text-neutral-600'}`}>Sign Up</button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="relative">
+              <User className="w-5 h-5 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
+              <input 
+                type="text" 
+                placeholder="Username" 
+                required 
+                value={username} 
+                onChange={(e) => setUsername(e.target.value)} 
+                className="w-full bg-black/50 border border-white/10 rounded-[20px] py-4 pl-12 pr-4 text-white text-sm outline-none focus:border-blue-500 transition-colors" 
+              />
+            </div>
+            <div className="relative">
+              <Lock className="w-5 h-5 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
+              <input 
+                type="password" 
+                placeholder="Password" 
+                required 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                className="w-full bg-black/50 border border-white/10 rounded-[20px] py-4 pl-12 pr-4 text-white text-sm outline-none focus:border-blue-500 transition-colors" 
+              />
+            </div>
+
+            <button type="submit" className="w-full bg-white text-black font-bold py-4 rounded-[20px] mt-2 flex items-center justify-center gap-2 hover:bg-neutral-200 active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+              {isLogin ? 'Access Portal' : 'Create Account'} <ArrowLeft className="w-4 h-4 rotate-180" />
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- CÁC THÀNH PHẦN ĐIỀU HƯỚNG ---
 
 const FloatingBottomNav = ({ activeTab, setActiveTab }) => {
@@ -84,13 +151,11 @@ const RecordWorkoutModal = ({ isOpen, onClose, clientName }) => {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center pointer-events-none">
-      {/* Lớp nền tối (Backdrop) */}
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto transition-opacity animate-in fade-in duration-300" 
         onClick={onClose}
       ></div>
       
-      {/* Nội dung Modal trượt từ dưới lên */}
       <div className="w-full max-w-[420px] bg-[#1a1a1c] border-t border-white/10 rounded-t-[32px] p-6 pointer-events-auto animate-in slide-in-from-bottom-full duration-300 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -102,7 +167,6 @@ const RecordWorkoutModal = ({ isOpen, onClose, clientName }) => {
           </button>
         </div>
         
-        {/* Các trường nhập liệu */}
         <div className="space-y-5 mb-8">
           <div>
             <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-2 block">Workout Focus</label>
@@ -142,7 +206,6 @@ const DashboardView = ({ onSelectClient }) => {
 
   return (
     <div className="h-screen flex flex-col relative z-10 bg-gradient-to-b from-[#2a2a2c] via-[#121212] to-[#000000]">
-      {/* Header */}
       <div className="flex justify-between items-center p-6 shrink-0">
         <div className="flex items-center gap-4">
           <img src="https://i.pravatar.cc/150?u=coach" className="w-12 h-12 rounded-full border border-white/10 grayscale-[20%]" />
@@ -151,7 +214,6 @@ const DashboardView = ({ onSelectClient }) => {
         <button className="p-3 bg-black border border-white/10 rounded-full text-white shadow-lg"><Bell className="w-5 h-5" /></button>
       </div>
 
-      {/* Date Slider Cố định */}
       <div className="px-6 mb-8 shrink-0">
         <h2 className="text-2xl font-light text-white mb-5 tracking-tight">March 2026</h2>
         <div className="flex gap-3 overflow-x-auto hide-scrollbar">
@@ -169,7 +231,6 @@ const DashboardView = ({ onSelectClient }) => {
         <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></div><span className="text-[9px] font-black text-neutral-400 uppercase">Live</span></div>
       </div>
 
-      {/* MILESTONE TIMELINE FEATURE */}
       <div className="flex-1 overflow-y-auto px-6 pb-32 hide-scrollbar">
         <div className="relative border-l border-white/5 ml-[54px] pl-6 space-y-8">
           {sessions.map((session, i) => {
@@ -183,12 +244,10 @@ const DashboardView = ({ onSelectClient }) => {
 
             return (
               <div key={i} onClick={() => onSelectClient(session)} className={`relative p-4 rounded-[26px] border transition-all cursor-pointer active:scale-95 ${cardStyles}`}>
-                {/* Time Label bên trái vạch */}
                 <div className="absolute right-full mr-6 top-1/2 -translate-y-1/2 text-right whitespace-nowrap">
                    <p className={`text-xs font-black ${isLive || isUpcoming ? 'text-white' : 'text-neutral-600'}`}>{session.time}</p>
                    <p className="text-[8px] font-bold text-neutral-700">{session.ampm}</p>
                 </div>
-                {/* Dấu chấm mốc thời gian */}
                 <div className={`absolute right-[calc(100%+20px)] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-black z-10 transition-all ${isLive ? 'bg-white shadow-[0_0_10px_white]' : 'bg-neutral-800'}`}></div>
                 
                 <div className="flex items-center gap-4">
@@ -218,7 +277,6 @@ const ClientDetailView = ({ client, onBack, activeTab, setActiveTab }) => {
     <div className="h-screen flex flex-col relative z-20 bg-[#0a0a0a] animate-in slide-in-from-right duration-500 overflow-hidden">
       <div className="absolute top-0 right-0 w-full h-[350px] bg-gradient-to-b from-[#2a2a2c]/40 via-[#0a0a0a] to-[#0a0a0a] pointer-events-none"></div>
 
-      {/* Profile Header */}
       <div className="flex justify-between items-center p-6 shrink-0 relative z-50">
          <button onClick={onBack} className="p-3 bg-black/60 backdrop-blur-md rounded-full text-white border border-white/10 shadow-md"><ArrowLeft className="w-5 h-5" /></button>
          <h2 className="text-[10px] font-black tracking-[0.2em] text-white/40 uppercase">Profile Settings</h2>
@@ -227,7 +285,6 @@ const ClientDetailView = ({ client, onBack, activeTab, setActiveTab }) => {
 
       <div className="flex-1 overflow-y-auto hide-scrollbar pb-40 relative z-10 px-6">
         
-        {/* Avatar & Contract Info */}
         <div className="flex items-center gap-5 mt-4 mb-8">
            <div className="relative shrink-0">
               <img src={client.avatar} className="w-20 h-20 rounded-full border-2 border-white/10 shadow-2xl" alt={client.name}/>
@@ -243,7 +300,6 @@ const ClientDetailView = ({ client, onBack, activeTab, setActiveTab }) => {
            </div>
         </div>
 
-        {/* Profile Tabs */}
         <div className="mb-8">
            <div className="flex bg-white/[0.03] backdrop-blur-xl p-1 rounded-[20px] border border-white/[0.05]">
               {['overview', 'workout', 'nutrition'].map(tab => (
@@ -259,14 +315,12 @@ const ClientDetailView = ({ client, onBack, activeTab, setActiveTab }) => {
 
         {activeTab === 'overview' && (
           <div className="space-y-8 animate-in fade-in duration-300">
-            {/* Stats row */}
             <div className="grid grid-cols-3 gap-3">
                <div className="bg-black/60 border border-white/10 p-4 rounded-[24px] text-center shadow-lg"><Scale className="w-4 h-4 text-neutral-500 mx-auto mb-2" /><p className="text-[14px] text-white font-medium">{client.currentStats.weight}</p><p className="text-[8px] text-neutral-600 font-black uppercase mt-1">Weight</p></div>
                <div className="bg-black/60 border border-white/10 p-4 rounded-[24px] text-center shadow-lg"><Percent className="w-4 h-4 text-neutral-500 mx-auto mb-2" /><p className="text-[14px] text-white font-medium">{client.currentStats.bodyFat}</p><p className="text-[8px] text-neutral-600 font-black uppercase mt-1">Body Fat</p></div>
                <div className="bg-black/60 border border-white/10 p-4 rounded-[24px] text-center shadow-lg"><Target className="w-4 h-4 text-blue-500/80 mx-auto mb-2" /><p className="text-[14px] text-blue-400 font-medium">{client.targetWeight}</p><p className="text-[8px] text-neutral-600 font-black uppercase mt-1">Goal</p></div>
             </div>
 
-            {/* Evolution Table */}
             <div className="bg-white/[0.02] border border-white/[0.05] rounded-[32px] overflow-hidden shadow-2xl">
                <div className="p-4 border-b border-white/5 bg-white/[0.01] flex items-center justify-between"><h3 className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Evolution Tracking</h3><TrendingUp className="w-3 h-3 text-emerald-500" /></div>
                <div className="overflow-x-auto"><table className="w-full text-left border-collapse text-white">
@@ -279,13 +333,11 @@ const ClientDetailView = ({ client, onBack, activeTab, setActiveTab }) => {
                </table></div>
             </div>
 
-            {/* Visual Progress */}
             <div className="grid grid-cols-2 gap-3">
                <div className="relative rounded-[28px] h-64 overflow-hidden grayscale opacity-40"><img src={client.photos.before} className="w-full h-full object-cover" /><div className="absolute top-4 left-4 bg-black/80 px-2 py-1 rounded text-[8px] font-black">BEFORE</div></div>
                <div className="relative rounded-[28px] h-64 overflow-hidden border border-white/10"><img src={client.photos.after} className="w-full h-full object-cover" /><div className="absolute top-4 left-4 bg-white text-black px-2 py-1 rounded text-[8px] font-black">NOW</div></div>
             </div>
 
-            {/* Session Logs Accordion */}
             <div className="space-y-2 pb-8">
                <h3 className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-3">Session Log</h3>
                {client.sessionHistory.map(session => (
@@ -307,15 +359,26 @@ const ClientDetailView = ({ client, onBack, activeTab, setActiveTab }) => {
 
 // --- COMPONENT CHÍNH ---
 export default function App() {
+  const [session, setSession] = useState(null); // Quản lý trạng thái Đăng nhập
   const [activeTab, setActiveTab] = useState('home');
   const [selectedClient, setSelectedClient] = useState(null);
   const [detailTab, setDetailTab] = useState('overview');
-  
-  // State để quản lý việc đóng/mở Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleBack = () => { setSelectedClient(null); setDetailTab('overview'); };
 
+  // NẾU CHƯA ĐĂNG NHẬP -> HIỂN THỊ MÀN HÌNH LOGIN
+  if (!session) {
+    return (
+      <div className="min-h-screen bg-[#050505] font-sans flex justify-center selection:bg-white/20">
+        <div className="w-full max-w-[420px] h-screen relative shadow-2xl md:border-x border-white/[0.05] overflow-hidden flex flex-col bg-black">
+           <AuthScreen onLogin={(user) => setSession(user)} />
+        </div>
+      </div>
+    );
+  }
+
+  // NẾU ĐÃ ĐĂNG NHẬP -> HIỂN THỊ GIAO DIỆN APP CHÍNH
   return (
     <div className="min-h-screen bg-[#050505] text-neutral-200 font-sans flex justify-center selection:bg-white/20">
       <div className="w-full max-w-[420px] h-screen relative shadow-2xl md:border-x border-white/[0.05] overflow-hidden flex flex-col bg-black">
@@ -331,11 +394,7 @@ export default function App() {
         ) : (
           <>
             <ClientDetailView client={selectedClient} onBack={handleBack} activeTab={detailTab} setActiveTab={setDetailTab} />
-            
-            {/* Nút "+" giờ đã gọi hàm mở Modal */}
             <DetailActionNav onRecordWorkout={() => setIsModalOpen(true)} activeTab={detailTab} setActiveTab={setDetailTab} />
-            
-            {/* Hiển thị Modal */}
             <RecordWorkoutModal 
                isOpen={isModalOpen} 
                onClose={() => setIsModalOpen(false)} 
