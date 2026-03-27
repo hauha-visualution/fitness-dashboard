@@ -5,7 +5,7 @@ import {
   TrendingUp, Activity, ArrowLeft, MoreHorizontal, MessageSquare,
   AlertCircle, Coffee, CheckCircle2, Circle, Droplets, Target, Flame, 
   Clock, Camera, History, ChevronDown, Award, BarChart3, Scale, Percent, X,
-  Lock, User, UserPlus // Đã thêm icon UserPlus
+  Lock, User, UserPlus
 } from 'lucide-react';
 
 // --- STYLES & ANIMATIONS ---
@@ -15,7 +15,12 @@ const GlobalStyles = () => (
       0%, 100% { border-color: rgba(255, 255, 255, 0.05); box-shadow: 0 0 0px rgba(255, 255, 255, 0); }
       50% { border-color: rgba(255, 255, 255, 0.2); box-shadow: 0 0 15px rgba(255, 255, 255, 0.1); }
     }
+    @keyframes slideUp {
+      from { transform: translateY(100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
     .animate-glow-pulse { animation: pulse-glow 2s infinite ease-in-out; }
+    .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   `}} />
@@ -36,7 +41,7 @@ const AuthScreen = ({ onLogin }) => {
     <div className="h-screen w-full flex flex-col items-center justify-center relative z-20 bg-[#0a0a0a] overflow-hidden px-6">
       <div className="absolute top-[-10%] left-[-20%] w-[140%] h-[400px] bg-white/[0.03] blur-[100px] pointer-events-none"></div>
       
-      <div className="w-full max-w-sm relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
+      <div className="w-full max-w-sm relative z-10 animate-slide-up">
         <div className="text-center mb-10">
           <div className="w-16 h-16 bg-white/[0.03] border border-white/10 rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_30px_rgba(255,255,255,0.05)]">
             <Dumbbell className="w-8 h-8 text-white" />
@@ -95,13 +100,16 @@ const DetailActionNav = ({ onRecordWorkout, activeTab, setActiveTab }) => (
   </div>
 );
 
-// --- MODAL GHI NHẬN BUỔI TẬP ---
+// --- MODAL GHI NHẬN BUỔI TẬP (Đã fix lỗi hiển thị) ---
 const RecordWorkoutModal = ({ isOpen, onClose, clientName }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center pointer-events-none">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto transition-opacity animate-in fade-in duration-300" onClick={onClose}></div>
-      <div className="w-full max-w-[420px] bg-[#1a1a1c] border-t border-white/10 rounded-t-[32px] p-6 pointer-events-auto animate-in slide-in-from-bottom-full duration-300 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center">
+      {/* Lớp phủ mờ click để đóng */}
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
+      
+      {/* Nội dung Modal */}
+      <div className="w-full max-w-[420px] bg-[#1a1a1c] border-t border-white/10 rounded-t-[32px] p-6 relative animate-slide-up shadow-[0_-10px_40px_rgba(0,0,0,0.8)]">
         <div className="flex justify-between items-center mb-6">
           <div><h3 className="text-white text-xl font-medium tracking-tight">Record Session</h3><p className="text-blue-400 text-[10px] font-black uppercase tracking-wider mt-1">{clientName}</p></div>
           <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"><X className="w-5 h-5" /></button>
@@ -117,46 +125,50 @@ const RecordWorkoutModal = ({ isOpen, onClose, clientName }) => {
   );
 };
 
-// --- MODAL THÊM HỌC VIÊN MỚI ---
-const AddClientModal = ({ isOpen, onClose, onSave }) => {
+// --- MÀN HÌNH THÊM HỌC VIÊN MỚI (Đổi từ Modal sang Trang riêng) ---
+const AddClientView = ({ onBack, onSave }) => {
   const [name, setName] = useState('');
   const [goal, setGoal] = useState('');
   const [sessions, setSessions] = useState('');
 
-  if (!isOpen) return null;
-
   const handleSave = () => {
-    if (!name) return; // Bắt buộc nhập tên
+    if (!name) return;
     onSave({ name, goal: goal || 'General Fitness', sessions: Number(sessions) || 12 });
-    setName(''); setGoal(''); setSessions('');
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center pointer-events-none">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto transition-opacity animate-in fade-in duration-300" onClick={onClose}></div>
-      <div className="w-full max-w-[420px] bg-[#1a1a1c] border-t border-white/10 rounded-t-[32px] p-6 pointer-events-auto animate-in slide-in-from-bottom-full duration-300 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h3 className="text-white text-xl font-medium tracking-tight">New Client</h3>
-            <p className="text-neutral-500 text-[10px] font-black uppercase tracking-wider mt-1">Client Pool</p>
-          </div>
-          <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"><X className="w-5 h-5" /></button>
+    <div className="h-screen flex flex-col relative z-20 bg-[#0a0a0a] overflow-y-auto px-6 animate-slide-up">
+      <div className="absolute top-0 right-0 w-full h-[300px] bg-gradient-to-b from-[#2a2a2c]/30 to-[#0a0a0a] pointer-events-none"></div>
+      
+      {/* Header */}
+      <div className="flex justify-between items-center py-6 shrink-0 relative z-10">
+         <button onClick={onBack} className="p-3 bg-white/[0.05] border border-white/10 rounded-full text-white shadow-md"><ArrowLeft className="w-5 h-5" /></button>
+         <h2 className="text-[10px] font-black tracking-[0.2em] text-white/40 uppercase">New Client</h2>
+         <div className="w-11"></div> {/* Spacer để cân bằng */}
+      </div>
+
+      <div className="flex-1 relative z-10 pb-10">
+        <div className="mb-8">
+          <h1 className="text-3xl font-medium text-white tracking-tight mb-2">Add Member</h1>
+          <p className="text-neutral-500 text-sm">Create a new client profile to start tracking their fitness journey.</p>
         </div>
-        <div className="space-y-5 mb-8">
-          <div>
-            <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-2 block">Full Name</label>
-            <input type="text" value={name} onChange={e=>setName(e.target.value)} placeholder="VD: Thai Hung..." className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors" />
+
+        <div className="space-y-6">
+          <div className="bg-white/[0.02] border border-white/[0.05] p-6 rounded-[24px]">
+            <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-3 block">Full Name</label>
+            <input type="text" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Thai Hung" className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors mb-5" />
+            
+            <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-3 block">Primary Goal</label>
+            <input type="text" value={goal} onChange={e=>setGoal(e.target.value)} placeholder="e.g. Fat Loss, Muscle Gain" className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors mb-5" />
+            
+            <label className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-3 block">Total Sessions</label>
+            <input type="number" value={sessions} onChange={e=>setSessions(e.target.value)} placeholder="e.g. 12, 24, 36" className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors" />
           </div>
-          <div>
-            <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-2 block">Primary Goal</label>
-            <input type="text" value={goal} onChange={e=>setGoal(e.target.value)} placeholder="VD: Fat Loss, Muscle Gain..." className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors" />
-          </div>
-          <div>
-            <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-2 block">Total Sessions (Package)</label>
-            <input type="number" value={sessions} onChange={e=>setSessions(e.target.value)} placeholder="VD: 12, 24, 36..." className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors" />
-          </div>
+
+          <button onClick={handleSave} className="w-full bg-white text-black font-bold py-4 rounded-[20px] flex items-center justify-center gap-2 hover:bg-neutral-200 active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+            <UserPlus className="w-5 h-5" /> Create Profile
+          </button>
         </div>
-        <button onClick={handleSave} className="w-full bg-white text-black font-bold py-4 rounded-[20px] flex items-center justify-center gap-2 hover:bg-neutral-200 active:scale-[0.98] transition-all shadow-lg"><UserPlus className="w-5 h-5" /> Add Client</button>
       </div>
     </div>
   );
@@ -205,7 +217,6 @@ const ClientListView = ({ clients, onSelectClient, onOpenAdd }) => {
 // --- GIAO DIỆN TRANG CHỦ (MILESTONE TIMELINE) ---
 const DashboardView = ({ onSelectClient }) => {
   const [selectedDate, setSelectedDate] = useState("18");
-  // Xóa data demo, timeline sẽ trống để chờ nối API
   const sessions = []; 
 
   return (
@@ -239,12 +250,7 @@ const DashboardView = ({ onSelectClient }) => {
         <div className="relative border-l border-white/5 ml-[54px] pl-6 space-y-8">
           {sessions.length === 0 ? (
              <div className="text-center text-neutral-500 text-[10px] uppercase font-black tracking-widest mt-10">No sessions scheduled</div>
-          ) : (
-             sessions.map((session, i) => (
-               // ... logic cũ ...
-               <div key={i}></div>
-             ))
-          )}
+          ) : null}
         </div>
       </div>
     </div>
@@ -257,7 +263,7 @@ const ClientDetailView = ({ client, onBack, activeTab, setActiveTab }) => {
   const completedRatio = client.package.total > 0 ? (client.package.completed / (client.package.total + client.package.bonus)) * 100 : 0;
 
   return (
-    <div className="h-screen flex flex-col relative z-20 bg-[#0a0a0a] animate-in slide-in-from-right duration-500 overflow-hidden">
+    <div className="h-screen flex flex-col relative z-20 bg-[#0a0a0a] animate-slide-up overflow-hidden">
       <div className="absolute top-0 right-0 w-full h-[350px] bg-gradient-to-b from-[#2a2a2c]/40 via-[#0a0a0a] to-[#0a0a0a] pointer-events-none"></div>
 
       <div className="flex justify-between items-center p-6 shrink-0 relative z-50">
@@ -293,7 +299,7 @@ const ClientDetailView = ({ client, onBack, activeTab, setActiveTab }) => {
         </div>
 
         {activeTab === 'overview' && (
-          <div className="space-y-8 animate-in fade-in duration-300">
+          <div className="space-y-8 animate-slide-up">
             <div className="grid grid-cols-3 gap-3">
                <div className="bg-black/60 border border-white/10 p-4 rounded-[24px] text-center shadow-lg"><Scale className="w-4 h-4 text-neutral-500 mx-auto mb-2" /><p className="text-[14px] text-white font-medium">{client.currentStats.weight}</p><p className="text-[8px] text-neutral-600 font-black uppercase mt-1">Weight</p></div>
                <div className="bg-black/60 border border-white/10 p-4 rounded-[24px] text-center shadow-lg"><Percent className="w-4 h-4 text-neutral-500 mx-auto mb-2" /><p className="text-[14px] text-white font-medium">{client.currentStats.bodyFat}</p><p className="text-[8px] text-neutral-600 font-black uppercase mt-1">Body Fat</p></div>
@@ -312,15 +318,10 @@ const ClientDetailView = ({ client, onBack, activeTab, setActiveTab }) => {
                </table></div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-               <div className="relative rounded-[28px] h-64 overflow-hidden grayscale opacity-40"><img src={client.photos.before} className="w-full h-full object-cover" /><div className="absolute top-4 left-4 bg-black/80 px-2 py-1 rounded text-[8px] font-black">BEFORE</div></div>
-               <div className="relative rounded-[28px] h-64 overflow-hidden border border-white/10"><img src={client.photos.after} className="w-full h-full object-cover" /><div className="absolute top-4 left-4 bg-white text-black px-2 py-1 rounded text-[8px] font-black">NOW</div></div>
-            </div>
-
             <div className="space-y-2 pb-8">
                <h3 className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-3">Session Log</h3>
                {client.sessionHistory.length === 0 ? (
-                 <div className="text-center text-neutral-500 text-[10px] uppercase font-black py-4">No sessions recorded</div>
+                 <div className="text-center text-neutral-500 text-[10px] uppercase font-black py-4 bg-white/[0.02] rounded-[24px]">No sessions recorded</div>
                ) : (
                  client.sessionHistory.map(session => (
                     <div key={session.id} onClick={() => setExpandedSession(expandedSession === session.id ? null : session.id)} className={`bg-white/[0.02] border ${expandedSession === session.id ? 'border-white/20 bg-black' : 'border-white/[0.04]'} p-4 rounded-[24px] cursor-pointer`}>
@@ -328,7 +329,7 @@ const ClientDetailView = ({ client, onBack, activeTab, setActiveTab }) => {
                           <div className="flex items-center gap-4"><div className="w-8 h-8 rounded-full bg-white/[0.03] flex items-center justify-center text-[11px] font-black">{session.id}</div><div><p className="text-[13px] font-bold text-white">{session.focus}</p><p className="text-[9px] text-neutral-600 uppercase">{session.date}</p></div></div>
                           <ChevronDown className={`w-4 h-4 transition-transform ${expandedSession === session.id ? 'rotate-180' : ''}`} />
                        </div>
-                       {expandedSession === session.id && <div className="mt-5 pt-5 border-t border-white/[0.05] animate-in fade-in"><p className="text-[9px] font-black text-neutral-600 uppercase mb-2">Training Content</p><p className="text-[12px] text-white/80 leading-relaxed mb-4">{session.exercises}</p><p className="text-[12px] text-emerald-400 italic">" {session.note} "</p></div>}
+                       {expandedSession === session.id && <div className="mt-5 pt-5 border-t border-white/[0.05] animate-slide-up"><p className="text-[9px] font-black text-neutral-600 uppercase mb-2">Training Content</p><p className="text-[12px] text-white/80 leading-relaxed mb-4">{session.exercises}</p><p className="text-[12px] text-emerald-400 italic">" {session.note} "</p></div>}
                     </div>
                  ))
                )}
@@ -348,19 +349,14 @@ export default function App() {
   const [detailTab, setDetailTab] = useState('overview');
   
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
-  
-  // STATE MỚI: Quản lý danh sách học viên rỗng
   const [clients, setClients] = useState([]); 
-  const [isAddClientOpen, setIsAddClientOpen] = useState(false);
 
   const handleBack = () => { setSelectedClient(null); setDetailTab('overview'); };
 
-  // HÀM XỬ LÝ KHI LƯU HỌC VIÊN MỚI
   const handleAddClient = (data) => {
     const newClient = {
       id: Date.now(),
       name: data.name,
-      // Tạo avatar ngẫu nhiên cực đẹp dựa vào tên
       avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${data.name}&backgroundColor=eceff4`, 
       goal: data.goal,
       package: { total: data.sessions, bonus: 0, completed: 0, remaining: data.sessions },
@@ -368,14 +364,12 @@ export default function App() {
       startStats: { weight: "--", bodyFat: "--", height: "--", date: new Date().toLocaleDateString('en-GB'), waist: "--", chest: "--" },
       currentStats: { weight: "--", bodyFat: "--", height: "--", date: new Date().toLocaleDateString('en-GB'), waist: "--", chest: "--" },
       targetWeight: "--",
-      photos: {
-        before: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=400&auto=format&fit=crop",
-        after: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=400&auto=format&fit=crop"
-      },
+      photos: { before: "", after: "" },
       sessionHistory: []
     };
     setClients([...clients, newClient]);
-    setIsAddClientOpen(false);
+    // Trở về tab Danh sách học viên
+    setActiveTab('clients'); 
   };
 
   if (!session) {
@@ -397,13 +391,13 @@ export default function App() {
         {!selectedClient ? (
           <>
             {activeTab === 'home' && <DashboardView onSelectClient={setSelectedClient} />}
-            {/* Tab danh sách Học viên */}
-            {activeTab === 'clients' && <ClientListView clients={clients} onSelectClient={setSelectedClient} onOpenAdd={() => setIsAddClientOpen(true)} />}
+            {activeTab === 'clients' && <ClientListView clients={clients} onSelectClient={setSelectedClient} onOpenAdd={() => setActiveTab('add_client')} />}
             
-            <FloatingBottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+            {/* View Thêm Học Viên thay cho Popup */}
+            {activeTab === 'add_client' && <AddClientView onBack={() => setActiveTab('clients')} onSave={handleAddClient} />}
             
-            {/* Modal thêm học viên */}
-            <AddClientModal isOpen={isAddClientOpen} onClose={() => setIsAddClientOpen(false)} onSave={handleAddClient} />
+            {/* Ẩn thanh Bottom Nav khi đang ở màn hình Thêm Học Viên để rộng rãi gõ phím */}
+            {activeTab !== 'add_client' && <FloatingBottomNav activeTab={activeTab} setActiveTab={setActiveTab} />}
           </>
         ) : (
           <>
