@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, Calendar, MessageSquare, Users, ArrowLeft, MoreHorizontal, Award, BarChart3, Dumbbell, Utensils, CreditCard, Plus, CheckCircle2, X } from 'lucide-react';
+import { Home, Calendar, MessageSquare, Users, ArrowLeft, MoreHorizontal, Award, BarChart3, Dumbbell, Utensils, CreditCard, Plus, CheckCircle2, X, LogOut } from 'lucide-react';
 import { supabase } from './supabaseClient'; 
 
 // Import các thành phần đã tách
@@ -23,7 +23,12 @@ const GlobalStyles = () => (
 );
 
 export default function App() {
-  const [session, setSession] = useState(null); 
+  // 1. Khởi tạo session từ localStorage nếu có
+  const [session, setSession] = useState(() => {
+    const saved = localStorage.getItem('aesthetic_hub_session');
+    return saved ? JSON.parse(saved) : null;
+  });
+
   const [activeTab, setActiveTab] = useState('home');
   const [selectedClient, setSelectedClient] = useState(null);
   const [detailTab, setDetailTab] = useState('overview');
@@ -34,7 +39,20 @@ export default function App() {
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
   const [activeWorkoutGroup, setActiveWorkoutGroup] = useState(null);
 
+  // 2. Hàm Login: Vừa set state vừa lưu vào trình duyệt
+  const handleLogin = (userData) => {
+    setSession(userData);
+    localStorage.setItem('aesthetic_hub_session', JSON.stringify(userData));
+  };
+
+  // 3. Hàm Logout: Xóa sạch dấu vết
+  const handleLogout = () => {
+    setSession(null);
+    localStorage.removeItem('aesthetic_hub_session');
+  };
+
   const fetchClients = async () => {
+    if (!session) return;
     setIsLoading(true);
     const { data, error } = await supabase.from('clients').select('*');
     if (error) console.error('Error:', error.message);
@@ -56,10 +74,8 @@ export default function App() {
 
   useEffect(() => { if (session) fetchClients(); }, [session, activeTab]);
 
-  // Hàm xử lý khi kết thúc buổi tập (Trừ session)
   const handleFinishWorkout = async (timeInSeconds) => {
     const newRemaining = selectedClient.package.remaining - 1;
-    
     const { error } = await supabase
       .from('clients')
       .update({ sessions: newRemaining.toString() })
@@ -70,8 +86,7 @@ export default function App() {
     } else {
       alert(`Chúc mừng! Buổi tập kết thúc. Còn lại ${newRemaining} buổi.`);
       setIsPlayerOpen(false);
-      fetchClients(); // Load lại để update số buổi ở Client Pool
-      // Update local state để UI Detail nhảy số luôn
+      fetchClients();
       setSelectedClient({
         ...selectedClient, 
         package: { ...selectedClient.package, remaining: newRemaining }
@@ -79,7 +94,12 @@ export default function App() {
     }
   };
 
-  if (!session) return <div className="bg-black h-screen flex justify-center"><AuthScreen onLogin={setSession} /></div>;
+  // Nếu chưa có session thì hiện màn hình Login
+  if (!session) return (
+    <div className="bg-black h-screen flex justify-center">
+      <AuthScreen onLogin={handleLogin} />
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-[#050505] text-neutral-200 flex justify-center font-sans">
@@ -88,10 +108,24 @@ export default function App() {
         
         {!selectedClient ? (
           <>
-            {activeTab === 'home' && <DashboardView onSelectClient={setSelectedClient} />}
+            {activeTab === 'home' && <DashboardView onSelectClient={setSelectedClient} onLogout={handleLogout} />}
             {activeTab === 'clients' && <ClientListView clients={clients} isLoading={isLoading} onSelectClient={setSelectedClient} onOpenAdd={() => setActiveTab('add_client')} />}
             {activeTab === 'add_client' && <AddClientView onBack={() => setActiveTab('clients')} onSave={fetchClients} />}
-            {activeTab !== 'add_client' && <FloatingBottomNav activeTab={activeTab} setActiveTab={setActiveTab} />}
+            
+            {/* Thanh điều hướng chính (Có thêm nút Logout để test) */}
+            {activeTab !== 'add_client' && (
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[85%] max-w-[320px] bg-black/80 backdrop-blur-3xl border border-white/10 rounded-[32px] p-1.5 flex justify-between z-50 shadow-2xl">
+        <button onClick={() => setActiveTab('home')} className={`relative flex-1 py-4 rounded-[26px] flex justify-center items-center ${activeTab === 'home' ? 'text-white bg-white/5' : 'text-neutral-600'}`}>
+          <Home className="w-5 h-5" />
+        </button>
+        <button onClick={() => setActiveTab('calendar')} className={`relative flex-1 py-4 rounded-[26px] flex justify-center items-center ${activeTab === 'calendar' ? 'text-white bg-white/5' : 'text-neutral-600'}`}>
+          <Calendar className="w-5 h-5" />
+        </button>
+        <button onClick={() => setActiveTab('clients')} className={`relative flex-1 py-4 rounded-[26px] flex justify-center items-center ${activeTab === 'clients' ? 'text-white bg-white/5' : 'text-neutral-600'}`}>
+          <Users className="w-5 h-5" />
+        </button>
+      </div>
+    )}
           </>
         ) : (
           <div className="h-screen bg-[#0a0a0a] animate-slide-up flex flex-col p-6 overflow-y-auto hide-scrollbar">
@@ -99,8 +133,8 @@ export default function App() {
             
             <div className="flex items-center gap-5 mb-10">
               <div className="relative">
-                <img src={selectedClient.avatar} className="w-20 h-20 rounded-full border border-white/10 bg-white" alt="avt" />
-                <div className="absolute -bottom-1 -right-1 bg-blue-500 text-white rounded-full p-1 border-2 border-black">
+                <img src={selectedClient.avatar} className="w-20 h-20 rounded-full border border-white/10 bg-white shadow-2xl" alt="avt" />
+                <div className="absolute -bottom-1 -right-1 bg-blue-500 text-white rounded-full p-1.5 border-2 border-black">
                   <Dumbbell className="w-3 h-3" />
                 </div>
               </div>
@@ -134,7 +168,6 @@ export default function App() {
               )}
             </div>
 
-            {/* Workout Player Overlay */}
             {isPlayerOpen && activeWorkoutGroup && (
               <WorkoutPlayer 
                 sessionData={activeWorkoutGroup}
@@ -149,17 +182,3 @@ export default function App() {
     </div>
   );
 }
-
-const FloatingBottomNav = ({ activeTab, setActiveTab }) => {
-  const items = [{ id: 'home', icon: Home }, { id: 'calendar', icon: Calendar }, { id: 'clients', icon: Users }];
-  return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[85%] max-w-[320px] bg-black/80 backdrop-blur-3xl border border-white/10 rounded-[32px] p-1.5 flex justify-between z-50">
-      {items.map(item => (
-        <button key={item.id} onClick={() => setActiveTab(item.id)} className={`relative flex-1 py-4 rounded-[26px] flex justify-center items-center ${activeTab === item.id ? 'text-white' : 'text-neutral-600'}`}>
-          {activeTab === item.id && <div className="absolute inset-0 bg-white/5 rounded-[26px] border border-white/10 shadow-inner"></div>}
-          <item.icon className="w-5 h-5 relative z-10" />
-        </button>
-      ))}
-    </div>
-  );
-};
