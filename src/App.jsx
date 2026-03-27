@@ -5,40 +5,8 @@ import {
   TrendingUp, Activity, ArrowLeft, MoreHorizontal, MessageSquare,
   AlertCircle, Coffee, CheckCircle2, Circle, Droplets, Target, Flame, 
   Clock, Camera, History, ChevronDown, Award, BarChart3, Scale, Percent, X,
-  Lock, User // Đã thêm 2 icon này cho màn hình Login
+  Lock, User, UserPlus // Đã thêm icon UserPlus
 } from 'lucide-react';
-
-// --- DỮ LIỆU MẪU (MOCK DATABASE) ---
-const CLIENT_POOL = {
-  1: { 
-    id: 1, 
-    name: "Mr. Hau", 
-    avatar: "https://i.pravatar.cc/150?u=anhhau", 
-    goal: "Cutting Phase 1", 
-    package: { total: 50, bonus: 2, completed: 46, remaining: 6 }, 
-    status: "active",
-    startStats: { weight: "85.0 kg", bodyFat: "28.5%", height: "160cm", date: "30/01/2026", waist: "98cm", chest: "105cm" },
-    currentStats: { weight: "79.3 kg", bodyFat: "24.0%", height: "160cm", date: "18/03/2026", waist: "90cm", chest: "102cm" },
-    targetWeight: "76 kg",
-    photos: {
-      before: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=400&auto=format&fit=crop",
-      after: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=400&auto=format&fit=crop"
-    },
-    sessionHistory: [
-      { id: 46, date: "16/03/2026", focus: "Push Day", note: "Tăng tạ Bench Press thêm 5kg. Năng lượng tốt.", exercises: "Bench Press, Shoulder Press, Dips" },
-      { id: 45, date: "14/03/2026", focus: "Legs Day", note: "Form Squat cải thiện rõ rệt.", exercises: "Squats, Leg Press, Lunges" },
-    ]
-  },
-  2: { id: 2, name: "Thai Hung", avatar: "https://i.pravatar.cc/150?u=thaihung", goal: "Lean, Get Fit", package: { total: 72, bonus: 2, completed: 70, remaining: 4 }, status: "warning" },
-};
-
-const DAILY_SCHEDULES = {
-  "18": [
-    { ...CLIENT_POOL[1], time: "07:30", ampm: "AM", timestamp: 7.5 },
-    { ...CLIENT_POOL[2], time: "09:00", ampm: "AM", timestamp: 9 },
-    { ...CLIENT_POOL[1], time: "04:30", ampm: "PM", timestamp: 16.5 }
-  ]
-};
 
 // --- STYLES & ANIMATIONS ---
 const GlobalStyles = () => (
@@ -56,13 +24,11 @@ const GlobalStyles = () => (
 // --- GIAO DIỆN ĐĂNG NHẬP / ĐĂNG KÝ (AUTH SCREEN) ---
 const AuthScreen = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
-  const [username, setUsername] = useState(''); // Sử dụng Username thay cho Email
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("Submit:", username, password);
-    // Tạm thời giả lập đăng nhập thành công
     onLogin({ username }); 
   };
 
@@ -88,27 +54,12 @@ const AuthScreen = ({ onLogin }) => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
               <User className="w-5 h-5 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
-              <input 
-                type="text" 
-                placeholder="Username" 
-                required 
-                value={username} 
-                onChange={(e) => setUsername(e.target.value)} 
-                className="w-full bg-black/50 border border-white/10 rounded-[20px] py-4 pl-12 pr-4 text-white text-sm outline-none focus:border-blue-500 transition-colors" 
-              />
+              <input type="text" placeholder="Username" required value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-[20px] py-4 pl-12 pr-4 text-white text-sm outline-none focus:border-blue-500 transition-colors" />
             </div>
             <div className="relative">
               <Lock className="w-5 h-5 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
-              <input 
-                type="password" 
-                placeholder="Password" 
-                required 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                className="w-full bg-black/50 border border-white/10 rounded-[20px] py-4 pl-12 pr-4 text-white text-sm outline-none focus:border-blue-500 transition-colors" 
-              />
+              <input type="password" placeholder="Password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-[20px] py-4 pl-12 pr-4 text-white text-sm outline-none focus:border-blue-500 transition-colors" />
             </div>
-
             <button type="submit" className="w-full bg-white text-black font-bold py-4 rounded-[20px] mt-2 flex items-center justify-center gap-2 hover:bg-neutral-200 active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]">
               {isLogin ? 'Access Portal' : 'Create Account'} <ArrowLeft className="w-4 h-4 rotate-180" />
             </button>
@@ -120,7 +71,6 @@ const AuthScreen = ({ onLogin }) => {
 };
 
 // --- CÁC THÀNH PHẦN ĐIỀU HƯỚNG ---
-
 const FloatingBottomNav = ({ activeTab, setActiveTab }) => {
   const navItems = [{ id: 'home', icon: Home }, { id: 'calendar', icon: Calendar }, { id: 'messages', icon: MessageSquare }, { id: 'clients', icon: Users }];
   return (
@@ -148,61 +98,115 @@ const DetailActionNav = ({ onRecordWorkout, activeTab, setActiveTab }) => (
 // --- MODAL GHI NHẬN BUỔI TẬP ---
 const RecordWorkoutModal = ({ isOpen, onClose, clientName }) => {
   if (!isOpen) return null;
-
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center pointer-events-none">
-      <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto transition-opacity animate-in fade-in duration-300" 
-        onClick={onClose}
-      ></div>
-      
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto transition-opacity animate-in fade-in duration-300" onClick={onClose}></div>
       <div className="w-full max-w-[420px] bg-[#1a1a1c] border-t border-white/10 rounded-t-[32px] p-6 pointer-events-auto animate-in slide-in-from-bottom-full duration-300 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
         <div className="flex justify-between items-center mb-6">
-          <div>
-            <h3 className="text-white text-xl font-medium tracking-tight">Record Session</h3>
-            <p className="text-blue-400 text-[10px] font-black uppercase tracking-wider mt-1">{clientName}</p>
-          </div>
-          <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors">
-            <X className="w-5 h-5" />
-          </button>
+          <div><h3 className="text-white text-xl font-medium tracking-tight">Record Session</h3><p className="text-blue-400 text-[10px] font-black uppercase tracking-wider mt-1">{clientName}</p></div>
+          <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"><X className="w-5 h-5" /></button>
         </div>
-        
         <div className="space-y-5 mb-8">
-          <div>
-            <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-2 block">Workout Focus</label>
-            <input type="text" placeholder="VD: Push Day, Legs, Fullbody..." className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors" />
-          </div>
-          <div>
-            <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-2 block">Exercises & Weights</label>
-            <input type="text" placeholder="VD: Bench Press 60kg, Squat 80kg..." className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors" />
-          </div>
-          <div>
-            <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-2 block">Coach Notes</label>
-            <textarea rows="3" placeholder="Đánh giá thể lực, form tập..." className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors resize-none"></textarea>
-          </div>
+          <div><label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-2 block">Workout Focus</label><input type="text" placeholder="VD: Push Day, Legs, Fullbody..." className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors" /></div>
+          <div><label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-2 block">Exercises & Weights</label><input type="text" placeholder="VD: Bench Press 60kg, Squat 80kg..." className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors" /></div>
+          <div><label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-2 block">Coach Notes</label><textarea rows="3" placeholder="Đánh giá thể lực, form tập..." className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors resize-none"></textarea></div>
         </div>
-
-        <button onClick={onClose} className="w-full bg-white text-black font-bold py-4 rounded-[20px] flex items-center justify-center gap-2 hover:bg-neutral-200 active:scale-[0.98] transition-all shadow-lg">
-          <CheckCircle2 className="w-5 h-5" /> Save Workout
-        </button>
+        <button onClick={onClose} className="w-full bg-white text-black font-bold py-4 rounded-[20px] flex items-center justify-center gap-2 hover:bg-neutral-200 active:scale-[0.98] transition-all shadow-lg"><CheckCircle2 className="w-5 h-5" /> Save Workout</button>
       </div>
     </div>
   );
 };
 
-// --- GIAO DIỆN TRANG CHỦ (MILESTONE TIMELINE) ---
+// --- MODAL THÊM HỌC VIÊN MỚI ---
+const AddClientModal = ({ isOpen, onClose, onSave }) => {
+  const [name, setName] = useState('');
+  const [goal, setGoal] = useState('');
+  const [sessions, setSessions] = useState('');
 
+  if (!isOpen) return null;
+
+  const handleSave = () => {
+    if (!name) return; // Bắt buộc nhập tên
+    onSave({ name, goal: goal || 'General Fitness', sessions: Number(sessions) || 12 });
+    setName(''); setGoal(''); setSessions('');
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end justify-center pointer-events-none">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto transition-opacity animate-in fade-in duration-300" onClick={onClose}></div>
+      <div className="w-full max-w-[420px] bg-[#1a1a1c] border-t border-white/10 rounded-t-[32px] p-6 pointer-events-auto animate-in slide-in-from-bottom-full duration-300 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h3 className="text-white text-xl font-medium tracking-tight">New Client</h3>
+            <p className="text-neutral-500 text-[10px] font-black uppercase tracking-wider mt-1">Client Pool</p>
+          </div>
+          <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="space-y-5 mb-8">
+          <div>
+            <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-2 block">Full Name</label>
+            <input type="text" value={name} onChange={e=>setName(e.target.value)} placeholder="VD: Thai Hung..." className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors" />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-2 block">Primary Goal</label>
+            <input type="text" value={goal} onChange={e=>setGoal(e.target.value)} placeholder="VD: Fat Loss, Muscle Gain..." className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors" />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-2 block">Total Sessions (Package)</label>
+            <input type="number" value={sessions} onChange={e=>setSessions(e.target.value)} placeholder="VD: 12, 24, 36..." className="w-full bg-black/50 border border-white/10 rounded-[16px] p-4 text-white text-sm outline-none focus:border-blue-500 transition-colors" />
+          </div>
+        </div>
+        <button onClick={handleSave} className="w-full bg-white text-black font-bold py-4 rounded-[20px] flex items-center justify-center gap-2 hover:bg-neutral-200 active:scale-[0.98] transition-all shadow-lg"><UserPlus className="w-5 h-5" /> Add Client</button>
+      </div>
+    </div>
+  );
+};
+
+// --- GIAO DIỆN DANH SÁCH HỌC VIÊN (CLIENTS TAB) ---
+const ClientListView = ({ clients, onSelectClient, onOpenAdd }) => {
+  return (
+    <div className="h-screen flex flex-col relative z-10 bg-gradient-to-b from-[#2a2a2c] via-[#121212] to-[#000000] px-6 py-8 pb-32 overflow-y-auto hide-scrollbar">
+      <div className="flex justify-between items-center mb-8 shrink-0">
+         <div>
+            <h1 className="text-2xl font-medium text-white tracking-tight">Client Pool</h1>
+            <p className="text-neutral-500 text-[10px] font-black uppercase tracking-widest mt-1">Total: {clients.length} Active</p>
+         </div>
+         <button onClick={onOpenAdd} className="p-3 bg-white text-black rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all"><UserPlus className="w-5 h-5" /></button>
+      </div>
+
+      {clients.length === 0 ? (
+         <div className="flex flex-col items-center justify-center h-64 text-center mt-10">
+            <Users className="w-12 h-12 mb-4 text-neutral-600/50" />
+            <p className="text-sm text-neutral-400">No clients yet.</p>
+            <p className="text-[10px] mt-2 text-neutral-500 uppercase tracking-widest">Click the + button to add</p>
+         </div>
+      ) : (
+         <div className="space-y-4">
+            {clients.map(c => (
+              <div key={c.id} onClick={() => onSelectClient(c)} className="bg-white/[0.03] border border-white/5 p-4 rounded-[24px] flex items-center gap-4 cursor-pointer hover:bg-white/[0.05] transition-all active:scale-[0.98]">
+                 <img src={c.avatar} className="w-12 h-12 rounded-full border border-white/10" />
+                 <div className="flex-1 min-w-0">
+                    <h3 className="text-white font-medium text-sm truncate">{c.name}</h3>
+                    <p className="text-blue-400 text-[10px] font-bold uppercase truncate mt-0.5">{c.goal}</p>
+                 </div>
+                 <div className="text-right mr-3">
+                    <p className="text-[10px] font-black text-neutral-500 uppercase">Left</p>
+                    <p className="text-sm font-bold text-white">{c.package.remaining}</p>
+                 </div>
+                 <ChevronRight className="w-4 h-4 text-neutral-600" />
+              </div>
+            ))}
+         </div>
+      )}
+    </div>
+  );
+};
+
+// --- GIAO DIỆN TRANG CHỦ (MILESTONE TIMELINE) ---
 const DashboardView = ({ onSelectClient }) => {
   const [selectedDate, setSelectedDate] = useState("18");
-  const [currentTime, setCurrentTime] = useState(new Date());
-  
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const nowHour = currentTime.getHours() + currentTime.getMinutes() / 60;
-  const sessions = DAILY_SCHEDULES[selectedDate] || [];
+  // Xóa data demo, timeline sẽ trống để chờ nối API
+  const sessions = []; 
 
   return (
     <div className="h-screen flex flex-col relative z-10 bg-gradient-to-b from-[#2a2a2c] via-[#121212] to-[#000000]">
@@ -233,34 +237,14 @@ const DashboardView = ({ onSelectClient }) => {
 
       <div className="flex-1 overflow-y-auto px-6 pb-32 hide-scrollbar">
         <div className="relative border-l border-white/5 ml-[54px] pl-6 space-y-8">
-          {sessions.map((session, i) => {
-            const isLive = nowHour >= session.timestamp && nowHour <= session.timestamp + 1;
-            const isUpcoming = (session.timestamp - nowHour <= 0.25) && (session.timestamp - nowHour > 0);
-            const isPast = nowHour > session.timestamp + 1;
-
-            let cardStyles = isLive ? 'bg-black border-white/30 shadow-2xl animate-glow-pulse scale-[1.02]' : 
-                             isUpcoming ? 'bg-black/60 border-white/10 animate-pulse' :
-                             isPast ? 'bg-white/[0.01] border-white/[0.02] opacity-30 grayscale' : 'bg-white/[0.03] border-white/[0.05] opacity-60';
-
-            return (
-              <div key={i} onClick={() => onSelectClient(session)} className={`relative p-4 rounded-[26px] border transition-all cursor-pointer active:scale-95 ${cardStyles}`}>
-                <div className="absolute right-full mr-6 top-1/2 -translate-y-1/2 text-right whitespace-nowrap">
-                   <p className={`text-xs font-black ${isLive || isUpcoming ? 'text-white' : 'text-neutral-600'}`}>{session.time}</p>
-                   <p className="text-[8px] font-bold text-neutral-700">{session.ampm}</p>
-                </div>
-                <div className={`absolute right-[calc(100%+20px)] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-black z-10 transition-all ${isLive ? 'bg-white shadow-[0_0_10px_white]' : 'bg-neutral-800'}`}></div>
-                
-                <div className="flex items-center gap-4">
-                  <img src={session.avatar} className="w-11 h-11 rounded-full border border-white/10" />
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-white font-medium text-sm truncate">{session.name}</h3>
-                    <p className="text-neutral-500 text-[10px] font-bold uppercase truncate">{session.goal}</p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-neutral-700" />
-                </div>
-              </div>
-            );
-          })}
+          {sessions.length === 0 ? (
+             <div className="text-center text-neutral-500 text-[10px] uppercase font-black tracking-widest mt-10">No sessions scheduled</div>
+          ) : (
+             sessions.map((session, i) => (
+               // ... logic cũ ...
+               <div key={i}></div>
+             ))
+          )}
         </div>
       </div>
     </div>
@@ -268,10 +252,9 @@ const DashboardView = ({ onSelectClient }) => {
 }
 
 // --- GIAO DIỆN HỒ SƠ CHI TIẾT (CLIENT PROFILE) ---
-
 const ClientDetailView = ({ client, onBack, activeTab, setActiveTab }) => {
   const [expandedSession, setExpandedSession] = useState(null);
-  const completedRatio = (client.package.completed / (client.package.total + client.package.bonus)) * 100;
+  const completedRatio = client.package.total > 0 ? (client.package.completed / (client.package.total + client.package.bonus)) * 100 : 0;
 
   return (
     <div className="h-screen flex flex-col relative z-20 bg-[#0a0a0a] animate-in slide-in-from-right duration-500 overflow-hidden">
@@ -284,7 +267,6 @@ const ClientDetailView = ({ client, onBack, activeTab, setActiveTab }) => {
       </div>
 
       <div className="flex-1 overflow-y-auto hide-scrollbar pb-40 relative z-10 px-6">
-        
         <div className="flex items-center gap-5 mt-4 mb-8">
            <div className="relative shrink-0">
               <img src={client.avatar} className="w-20 h-20 rounded-full border-2 border-white/10 shadow-2xl" alt={client.name}/>
@@ -303,10 +285,7 @@ const ClientDetailView = ({ client, onBack, activeTab, setActiveTab }) => {
         <div className="mb-8">
            <div className="flex bg-white/[0.03] backdrop-blur-xl p-1 rounded-[20px] border border-white/[0.05]">
               {['overview', 'workout', 'nutrition'].map(tab => (
-                <button 
-                  key={tab} onClick={() => setActiveTab(tab)}
-                  className={`flex-1 py-3 text-[10px] font-bold tracking-wider uppercase rounded-[16px] transition-all ${activeTab === tab ? 'bg-black text-white shadow-lg border border-white/10' : 'text-neutral-600'}`}
-                >
+                <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-3 text-[10px] font-bold tracking-wider uppercase rounded-[16px] transition-all ${activeTab === tab ? 'bg-black text-white shadow-lg border border-white/10' : 'text-neutral-600'}`}>
                   {tab}
                 </button>
               ))}
@@ -340,15 +319,19 @@ const ClientDetailView = ({ client, onBack, activeTab, setActiveTab }) => {
 
             <div className="space-y-2 pb-8">
                <h3 className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-3">Session Log</h3>
-               {client.sessionHistory.map(session => (
-                  <div key={session.id} onClick={() => setExpandedSession(expandedSession === session.id ? null : session.id)} className={`bg-white/[0.02] border ${expandedSession === session.id ? 'border-white/20 bg-black' : 'border-white/[0.04]'} p-4 rounded-[24px] cursor-pointer`}>
-                     <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-4"><div className="w-8 h-8 rounded-full bg-white/[0.03] flex items-center justify-center text-[11px] font-black">{session.id}</div><div><p className="text-[13px] font-bold text-white">{session.focus}</p><p className="text-[9px] text-neutral-600 uppercase">{session.date}</p></div></div>
-                        <ChevronDown className={`w-4 h-4 transition-transform ${expandedSession === session.id ? 'rotate-180' : ''}`} />
-                     </div>
-                     {expandedSession === session.id && <div className="mt-5 pt-5 border-t border-white/[0.05] animate-in fade-in"><p className="text-[9px] font-black text-neutral-600 uppercase mb-2">Training Content</p><p className="text-[12px] text-white/80 leading-relaxed mb-4">{session.exercises}</p><p className="text-[12px] text-emerald-400 italic">" {session.note} "</p></div>}
-                  </div>
-               ))}
+               {client.sessionHistory.length === 0 ? (
+                 <div className="text-center text-neutral-500 text-[10px] uppercase font-black py-4">No sessions recorded</div>
+               ) : (
+                 client.sessionHistory.map(session => (
+                    <div key={session.id} onClick={() => setExpandedSession(expandedSession === session.id ? null : session.id)} className={`bg-white/[0.02] border ${expandedSession === session.id ? 'border-white/20 bg-black' : 'border-white/[0.04]'} p-4 rounded-[24px] cursor-pointer`}>
+                       <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-4"><div className="w-8 h-8 rounded-full bg-white/[0.03] flex items-center justify-center text-[11px] font-black">{session.id}</div><div><p className="text-[13px] font-bold text-white">{session.focus}</p><p className="text-[9px] text-neutral-600 uppercase">{session.date}</p></div></div>
+                          <ChevronDown className={`w-4 h-4 transition-transform ${expandedSession === session.id ? 'rotate-180' : ''}`} />
+                       </div>
+                       {expandedSession === session.id && <div className="mt-5 pt-5 border-t border-white/[0.05] animate-in fade-in"><p className="text-[9px] font-black text-neutral-600 uppercase mb-2">Training Content</p><p className="text-[12px] text-white/80 leading-relaxed mb-4">{session.exercises}</p><p className="text-[12px] text-emerald-400 italic">" {session.note} "</p></div>}
+                    </div>
+                 ))
+               )}
             </div>
           </div>
         )}
@@ -359,15 +342,42 @@ const ClientDetailView = ({ client, onBack, activeTab, setActiveTab }) => {
 
 // --- COMPONENT CHÍNH ---
 export default function App() {
-  const [session, setSession] = useState(null); // Quản lý trạng thái Đăng nhập
+  const [session, setSession] = useState(null); 
   const [activeTab, setActiveTab] = useState('home');
   const [selectedClient, setSelectedClient] = useState(null);
   const [detailTab, setDetailTab] = useState('overview');
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
+  
+  // STATE MỚI: Quản lý danh sách học viên rỗng
+  const [clients, setClients] = useState([]); 
+  const [isAddClientOpen, setIsAddClientOpen] = useState(false);
 
   const handleBack = () => { setSelectedClient(null); setDetailTab('overview'); };
 
-  // NẾU CHƯA ĐĂNG NHẬP -> HIỂN THỊ MÀN HÌNH LOGIN
+  // HÀM XỬ LÝ KHI LƯU HỌC VIÊN MỚI
+  const handleAddClient = (data) => {
+    const newClient = {
+      id: Date.now(),
+      name: data.name,
+      // Tạo avatar ngẫu nhiên cực đẹp dựa vào tên
+      avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${data.name}&backgroundColor=eceff4`, 
+      goal: data.goal,
+      package: { total: data.sessions, bonus: 0, completed: 0, remaining: data.sessions },
+      status: "active",
+      startStats: { weight: "--", bodyFat: "--", height: "--", date: new Date().toLocaleDateString('en-GB'), waist: "--", chest: "--" },
+      currentStats: { weight: "--", bodyFat: "--", height: "--", date: new Date().toLocaleDateString('en-GB'), waist: "--", chest: "--" },
+      targetWeight: "--",
+      photos: {
+        before: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=400&auto=format&fit=crop",
+        after: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=400&auto=format&fit=crop"
+      },
+      sessionHistory: []
+    };
+    setClients([...clients, newClient]);
+    setIsAddClientOpen(false);
+  };
+
   if (!session) {
     return (
       <div className="min-h-screen bg-[#050505] font-sans flex justify-center selection:bg-white/20">
@@ -378,7 +388,6 @@ export default function App() {
     );
   }
 
-  // NẾU ĐÃ ĐĂNG NHẬP -> HIỂN THỊ GIAO DIỆN APP CHÍNH
   return (
     <div className="min-h-screen bg-[#050505] text-neutral-200 font-sans flex justify-center selection:bg-white/20">
       <div className="w-full max-w-[420px] h-screen relative shadow-2xl md:border-x border-white/[0.05] overflow-hidden flex flex-col bg-black">
@@ -388,18 +397,19 @@ export default function App() {
         {!selectedClient ? (
           <>
             {activeTab === 'home' && <DashboardView onSelectClient={setSelectedClient} />}
-            {activeTab === 'clients' && <div className="p-10 text-2xl font-light">Client List Module</div>}
+            {/* Tab danh sách Học viên */}
+            {activeTab === 'clients' && <ClientListView clients={clients} onSelectClient={setSelectedClient} onOpenAdd={() => setIsAddClientOpen(true)} />}
+            
             <FloatingBottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+            
+            {/* Modal thêm học viên */}
+            <AddClientModal isOpen={isAddClientOpen} onClose={() => setIsAddClientOpen(false)} onSave={handleAddClient} />
           </>
         ) : (
           <>
             <ClientDetailView client={selectedClient} onBack={handleBack} activeTab={detailTab} setActiveTab={setDetailTab} />
-            <DetailActionNav onRecordWorkout={() => setIsModalOpen(true)} activeTab={detailTab} setActiveTab={setDetailTab} />
-            <RecordWorkoutModal 
-               isOpen={isModalOpen} 
-               onClose={() => setIsModalOpen(false)} 
-               clientName={selectedClient.name} 
-            />
+            <DetailActionNav onRecordWorkout={() => setIsRecordModalOpen(true)} activeTab={detailTab} setActiveTab={setDetailTab} />
+            <RecordWorkoutModal isOpen={isRecordModalOpen} onClose={() => setIsRecordModalOpen(false)} clientName={selectedClient.name} />
           </>
         )}
       </div>
