@@ -87,17 +87,10 @@ const ProfileTab = ({ client, onDelete }) => {
 
     setIsUploadingAvatar(true);
     try {
-      // Xóa avatar cũ nếu có
-      try {
-        await supabase.storage.from('client-avatars').remove([`${client.id}/avatar`]);
-      } catch (err) {
-        // Không quan trọng nếu không có avatar cũ
-      }
-
-      // Upload avatar mới
+      // Upload avatar mới — upsert: true sẽ tự ghi đè file cũ
       const { error: uploadError } = await supabase.storage
         .from('client-avatars')
-        .upload(`${client.id}/avatar`, file);
+        .upload(`${client.id}/avatar`, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
@@ -136,17 +129,10 @@ const ProfileTab = ({ client, onDelete }) => {
     if (!file) return;
 
     try {
-      // Xóa ảnh cũ
-      try {
-        await supabase.storage.from('client-progress').remove([`${client.id}/${type}/photo`]);
-      } catch (err) {
-        // OK
-      }
-
-      // Upload ảnh mới
+      // Upload ảnh mới — upsert: true sẽ tự ghi đè file cũ
       const { error } = await supabase.storage
         .from('client-progress')
-        .upload(`${client.id}/${type}/photo-${Date.now()}`, file);
+        .upload(`${client.id}/${type}/photo`, file, { upsert: true });
 
       if (error) throw error;
 
