@@ -30,6 +30,8 @@ const ProfileTab = ({ client, onDelete }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [progressPhotos, setProgressPhotos] = useState({ before: null, after: null });
   const [newInbodyRecord, setNewInbodyRecord] = useState({ weight: '', muscle_mass: '', body_fat: '', visceral_fat: '' });
+  const [uploadError, setUploadError] = useState('');
+  const [isUploadingProgress, setIsUploadingProgress] = useState(false);
 
   // Edit state
   const [editData, setEditData] = useState({
@@ -59,21 +61,25 @@ const ProfileTab = ({ client, onDelete }) => {
     const afterFileName = `client-${client.id}-after`;
 
     try {
+      console.log('[Progress Photo] Fetching before:', beforeFileName);
       const { data: beforeUrl } = supabase.storage
         .from('client-progress')
         .getPublicUrl(beforeFileName);
+      console.log('[Progress Photo] Before URL:', beforeUrl.publicUrl);
       setProgressPhotos(p => ({ ...p, before: beforeUrl.publicUrl }));
     } catch (err) {
-      // File chưa tồn tại
+      console.error('[Progress Photo] Before fetch error:', err);
     }
 
     try {
+      console.log('[Progress Photo] Fetching after:', afterFileName);
       const { data: afterUrl } = supabase.storage
         .from('client-progress')
         .getPublicUrl(afterFileName);
+      console.log('[Progress Photo] After URL:', afterUrl.publicUrl);
       setProgressPhotos(p => ({ ...p, after: afterUrl.publicUrl }));
     } catch (err) {
-      // File chưa tồn tại
+      console.error('[Progress Photo] After fetch error:', err);
     }
   };
 
@@ -131,19 +137,34 @@ const ProfileTab = ({ client, onDelete }) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setIsUploadingProgress(true);
+    setUploadError('');
+
     try {
       const fileName = `client-${client.id}-${type}`;
+      console.log(`[Progress Photo] Uploading ${type}: ${fileName}`);
 
       // Upload ảnh mới — upsert: true sẽ tự ghi đè file cũ
-      const { error } = await supabase.storage
+      const { data, error } = await supabase.storage
         .from('client-progress')
         .upload(fileName, file, { upsert: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Progress Photo] Upload error:', error);
+        throw new Error(`Upload failed: ${error.message}`);
+      }
 
+      console.log('[Progress Photo] Upload success:', data);
+
+      // Fetch updated photos
       await fetchProgressPhotos();
+      console.log('[Progress Photo] Fetch completed');
     } catch (err) {
-      alert('Lỗi upload: ' + err.message);
+      console.error('[Progress Photo] Catch error:', err);
+      setUploadError(`Lỗi upload: ${err.message}`);
+      alert(`Lỗi upload: ${err.message}`);
+    } finally {
+      setIsUploadingProgress(false);
     }
   };
 
@@ -276,11 +297,23 @@ const ProfileTab = ({ client, onDelete }) => {
       {/* 5. PROGRESS PHOTOS */}
       <div className="space-y-4">
         <p className="text-[9px] font-black uppercase text-neutral-600 tracking-widest">Ảnh tiến độ</p>
+
+        {uploadError && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-[12px] p-3">
+            <p className="text-red-400 text-[11px] font-medium">{uploadError}</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
           {/* BEFORE */}
           <label className="group cursor-pointer">
             <div className="aspect-square rounded-[16px] bg-white/[0.03] border border-white/[0.08] flex items-center justify-center overflow-hidden hover:border-white/20 transition-all relative">
-              {progressPhotos.before ? (
+              {isUploadingProgress ? (
+                <div className="text-center">
+                  <RefreshCw className="w-6 h-6 text-white/30 animate-spin mx-auto mb-2" />
+                  <p className="text-[8px] text-neutral-600 font-black">Uploading...</p>
+                </div>
+              ) : progressPhotos.before ? (
                 <img src={progressPhotos.before} alt="before" className="w-full h-full object-cover" />
               ) : (
                 <div className="text-center">
@@ -289,13 +322,18 @@ const ProfileTab = ({ client, onDelete }) => {
                 </div>
               )}
             </div>
-            <input type="file" accept="image/*" onChange={(e) => handleProgressPhotoUpload(e, 'before')} className="hidden" />
+            <input type="file" accept="image/*" onChange={(e) => handleProgressPhotoUpload(e, 'before')} className="hidden" disabled={isUploadingProgress} />
           </label>
 
           {/* AFTER */}
           <label className="group cursor-pointer">
             <div className="aspect-square rounded-[16px] bg-white/[0.03] border border-white/[0.08] flex items-center justify-center overflow-hidden hover:border-white/20 transition-all relative">
-              {progressPhotos.after ? (
+              {isUploadingProgress ? (
+                <div className="text-center">
+                  <RefreshCw className="w-6 h-6 text-white/30 animate-spin mx-auto mb-2" />
+                  <p className="text-[8px] text-neutral-600 font-black">Uploading...</p>
+                </div>
+              ) : progressPhotos.after ? (
                 <img src={progressPhotos.after} alt="after" className="w-full h-full object-cover" />
               ) : (
                 <div className="text-center">
@@ -304,7 +342,7 @@ const ProfileTab = ({ client, onDelete }) => {
                 </div>
               )}
             </div>
-            <input type="file" accept="image/*" onChange={(e) => handleProgressPhotoUpload(e, 'after')} className="hidden" />
+            <input type="file" accept="image/*" onChange={(e) => handleProgressPhotoUpload(e, 'after')} className="hidden" disabled={isUploadingProgress} />
           </label>
         </div>
       </div>

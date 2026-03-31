@@ -20,8 +20,8 @@ const ClientDetailView = ({ client, onBack, onDelete }) => {
   const renderContent = () => {
     switch (activeSubTab) {
       case 'profile':   return <ProfileTab client={client} onDelete={openDeleteModal} />;
-      case 'package':   return <PackageTab client={client} />;
-      case 'sessions':  return <SessionsTab clientId={client.id} />;
+      case 'package':   return <PackageTab client={client} readOnly={false} />;
+      case 'sessions':  return <SessionsTab clientId={client.id} readOnly={false} />;
       case 'nutrition': return <NutritionTab client={client} />;
       case 'payment':   return <PaymentTab client={client} />;
       default:          return <ProfileTab client={client} onDelete={openDeleteModal} />;

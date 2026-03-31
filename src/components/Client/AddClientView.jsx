@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
-import { ArrowLeft, RefreshCw, User, Target, Utensils, HeartPulse, ChevronDown, CheckCircle2, Clock, Mail, Calendar as CalendarIcon } from 'lucide-react';
-import { supabase } from '../../supabaseClient';
+import { ArrowLeft, RefreshCw, User, Target, Utensils, HeartPulse, ChevronDown, CheckCircle2, Clock, Mail, Calendar as CalendarIcon, KeyRound, ShieldCheck } from 'lucide-react';
+import { supabase, createClientAuthAccount } from '../../supabaseClient';
 
-const AddClientView = ({ onBack, onSave }) => {
+const AddClientView = ({ onBack, onSave, coachEmail }) => {
   // 1. Khai báo state chuẩn khớp 100% với Schema Supabase bảng 'clients'
   const initialFormState = {
-    name: '', phone: '', email: '', gender: 'Nam', dob: '', 
+    name: '', phone: '', email: '', gender: 'Nam', dob: '',
     height: '', weight: '', goal: '',
-    traininghistory: '', jobtype: '', trainingtime: '', targetduration: '', 
-    cookinghabit: '', dietaryrestriction: '', favoritefoods: '', avoidfoods: '', 
-    cookingtime: '', foodbudget: '', medicalconditions: '', 
-    supplements: '', sleephabits: '', commitmentlevel: 'Sẵn sàng tuân thủ 100%'
+    traininghistory: '', jobtype: '', trainingtime: '', targetduration: '',
+    cookinghabit: '', dietaryrestriction: '', favoritefoods: '', avoidfoods: '',
+    cookingtime: '', foodbudget: '', medicalconditions: '',
+    supplements: '', sleephabits: '', commitmentlevel: 'Sẵn sàng tuân thủ 100%',
   };
+
+  // Password riêng (không lưu vào DB, chỉ dùng để tạo auth account)
+  const [clientPassword, setClientPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState(initialFormState);
   const [expandedSection, setExpandedSection] = useState('basic');
@@ -60,29 +64,45 @@ const AddClientView = ({ onBack, onSave }) => {
     setIsSyncing(false);
   };
 
-  // 3. HÀM SAVE: Chỉ gửi đi các trường hợp lệ
+  // 3. HÀM SAVE: Tạo auth account + lưu client record
   const handleSave = async () => {
     if (!formData.name || !formData.phone) return alert("Họ tên và SĐT là bắt buộc!");
+    if (!clientPassword || clientPassword.length < 6) return alert("Mật khẩu học viên phải ít nhất 6 ký tự!");
+
     setIsSaving(true);
-    
+
+    // Bước 1: Tạo tài khoản Supabase Auth cho học viên (dùng SĐT làm username)
+    const { userId, error: authError } = await createClientAuthAccount(formData.phone, clientPassword);
+
+    if (authError) {
+      alert("Lỗi tạo tài khoản: " + authError);
+      setIsSaving(false);
+      return;
+    }
+
+    // Bước 2: Lưu client record vào DB
     const allowedKeys = Object.keys(initialFormState);
     const cleanPayload = {};
-    
     allowedKeys.forEach(key => {
       if (formData[key] !== undefined && formData[key] !== null) {
         cleanPayload[key] = formData[key];
       }
     });
 
-    const { error } = await supabase.from('clients').insert([cleanPayload]);
-    
+    // Gắn auth_user_id, username (= SĐT), và coach_email
+    cleanPayload.auth_user_id = userId;
+    cleanPayload.username = formData.phone.replace(/\s/g, '');
+    cleanPayload.coach_email = coachEmail || null;
+
+    const { error: dbError } = await supabase.from('clients').insert([cleanPayload]);
+
     setIsSaving(false);
-    if (!error) { 
-      alert("Đã lưu hồ sơ học viên thành công!");
-      onSave(); 
-      onBack(); 
-    } else { 
-      alert("Lỗi khi lưu: " + error.message); 
+    if (!dbError) {
+      alert(`✅ Đã tạo xong!\n\nThông tin đăng nhập cho học viên:\n• Username: ${formData.phone}\n• Mật khẩu: ${clientPassword}\n\nHãy chia sẻ thông tin này cho học viên.`);
+      onSave();
+      onBack();
+    } else {
+      alert("Lỗi khi lưu: " + dbError.message);
     }
   };
 
@@ -109,6 +129,47 @@ const AddClientView = ({ onBack, onSave }) => {
               <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Họ và Tên *" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
               <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="Số điện thoại *" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
               <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="Email" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+
+              {/* ---- ĐĂNG NHẬP HỌC VIÊN ---- */}
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-[16px] p-4 space-y-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Tài khoản học viên</p>
+                </div>
+
+                {/* Username = SĐT (hiển thị readonly) */}
+                <div>
+                  <p className="text-[9px] text-neutral-600 mb-1 ml-1">Username (tự động = SĐT)</p>
+                  <div className="w-full bg-black/30 border border-white/5 rounded-xl p-3 text-neutral-500 text-sm font-mono">
+                    {formData.phone || '(nhập SĐT phía trên)'}
+                  </div>
+                </div>
+
+                {/* Password do coach đặt */}
+                <div>
+                  <p className="text-[9px] text-neutral-600 mb-1 ml-1">Mật khẩu (coach tạo, cấp cho HV)</p>
+                  <div className="relative">
+                    <KeyRound className="w-4 h-4 text-emerald-500/60 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={clientPassword}
+                      onChange={(e) => setClientPassword(e.target.value)}
+                      placeholder="Đặt mật khẩu cho học viên (≥6 ký tự)"
+                      className="w-full bg-black/40 border border-emerald-500/20 rounded-xl py-3 pl-10 pr-16 text-white text-sm outline-none focus:border-emerald-500/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-neutral-600 uppercase tracking-widest"
+                    >
+                      {showPassword ? 'Ẩn' : 'Hiện'}
+                    </button>
+                  </div>
+                  <p className="text-[9px] text-neutral-600 mt-1 ml-1">
+                    Sau khi lưu, app sẽ hiện thông tin đăng nhập để bạn chia sẻ cho học viên.
+                  </p>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <input type="date" name="dob" value={formData.dob} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-neutral-400 text-xs outline-none" />
                 <select name="gender" value={formData.gender} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-neutral-400 text-sm outline-none"><option>Nam</option><option>Nữ</option></select>

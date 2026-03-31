@@ -9,6 +9,7 @@ import ClientListView from './components/Client/ClientListView';
 import AddClientView from './components/Client/AddClientView';
 import CoachProfileView from './components/Dashboard/CoachProfileView';
 import ClientDetailView from './components/Client/ClientDetailView';
+import ClientPortalApp from './components/ClientPortal/ClientPortalApp';
 
 // --- STYLES ---
 const GlobalStyles = () => (
@@ -24,9 +25,14 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
-  // State riêng cho thông tin coach (avatar, full_name, dob...)
-  // Tách khỏi session để không phụ thuộc vào cấu trúc Supabase session object
+  // Role: 'coach' | 'client' | 'unknown' | null
+  const [userRole, setUserRole] = useState(null);
+
+  // Coach profile (từ bảng coaches)
   const [coachProfile, setCoachProfile] = useState(null);
+
+  // Client profile (từ bảng clients, dùng cho client portal)
+  const [clientProfile, setClientProfile] = useState(null);
 
   const [activeTab, setActiveTab] = useState('home');
   const [selectedClient, setSelectedClient] = useState(null);
@@ -34,53 +40,106 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [showCoachProfile, setShowCoachProfile] = useState(false);
 
-  // Fetch coach profile từ bảng coaches (sau khi có session)
-  const fetchCoachProfile = async (sess) => {
-    if (!sess?.user?.email) return;
-    const { data } = await supabase
+  // ============================================================
+  // Phát hiện role sau khi đăng nhập
+  // ============================================================
+  const detectRole = async (sess) => {
+    if (!sess?.user) return;
+
+    // 1. Kiểm tra bảng coaches
+    const { data: coach } = await supabase
       .from('coaches')
       .select('*')
       .eq('email', sess.user.email)
       .maybeSingle();
-    if (data) setCoachProfile(data);
+
+    if (coach) {
+      setCoachProfile(coach);
+      setUserRole('coach');
+      return;
+    }
+
+    // 2. Kiểm tra bảng clients (theo auth_user_id)
+    const { data: client } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('auth_user_id', sess.user.id)
+      .maybeSingle();
+
+    if (client) {
+      setClientProfile(client);
+      setUserRole('client');
+      return;
+    }
+
+    // 3. Lần đầu client đăng nhập → thử link bằng username từ metadata
+    const metaUsername = sess.user.user_metadata?.username;
+    if (metaUsername) {
+      const { data: clientByUsername } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('username', metaUsername)
+        .is('auth_user_id', null)
+        .maybeSingle();
+
+      if (clientByUsername) {
+        // Gắn auth_user_id vào client record
+        await supabase
+          .from('clients')
+          .update({ auth_user_id: sess.user.id })
+          .eq('id', clientByUsername.id);
+
+        setClientProfile({ ...clientByUsername, auth_user_id: sess.user.id });
+        setUserRole('client');
+        return;
+      }
+    }
+
+    setUserRole('unknown');
   };
 
   // Lắng nghe auth state từ Supabase
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      fetchCoachProfile(session);
+      if (session) detectRole(session);
       setIsAuthLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      fetchCoachProfile(session);
+      if (session) detectRole(session);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleLogin = (supabaseSession) => {
+  const handleLogin = (supabaseSession, roleHint) => {
     setSession(supabaseSession);
-    fetchCoachProfile(supabaseSession);
+    detectRole(supabaseSession);
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setSession(null);
     setCoachProfile(null);
+    setClientProfile(null);
+    setUserRole(null);
   };
 
-  // Gọi lại sau khi CoachProfileView lưu thành công → refresh avatar/name
+  // Gọi lại sau khi CoachProfileView lưu thành công → refresh
   const handleProfileUpdated = () => {
-    fetchCoachProfile(session);
+    if (session) detectRole(session);
   };
 
   const fetchClients = async () => {
     if (!session) return;
     setIsLoading(true);
-    const { data, error } = await supabase.from('clients').select('*');
+    // Filter theo coach_email để mỗi coach chỉ thấy client của mình
+    const coachEmailVal = session.user?.email;
+    const query = supabase.from('clients').select('*');
+    if (coachEmailVal) query.eq('coach_email', coachEmailVal);
+    const { data, error } = await query;
     if (error) console.error('Error:', error.message);
     else if (data) {
       setClients(data.map(db => ({
@@ -106,7 +165,7 @@ export default function App() {
   useEffect(() => { if (session) fetchClients(); }, [session, activeTab]);
 
   // Loading screen khi Supabase đang restore session
-  if (isAuthLoading) {
+  if (isAuthLoading || (session && !userRole)) {
     return (
       <div className="bg-black h-screen flex justify-center items-center">
         <div className="text-center">
@@ -118,6 +177,40 @@ export default function App() {
   }
 
   if (!session) return <div className="bg-black h-screen flex justify-center"><AuthScreen onLogin={handleLogin} /></div>;
+
+  // ==== CLIENT PORTAL ====
+  if (userRole === 'client') {
+    return (
+      <div className="min-h-screen bg-[#050505] text-neutral-200 flex justify-center font-sans">
+        <div className="w-full max-w-[420px] h-screen relative overflow-hidden bg-black flex flex-col border-x border-white/[0.05] shadow-2xl">
+          <GlobalStyles />
+          <ClientPortalApp
+            session={session}
+            clientProfile={clientProfile}
+            onLogout={handleLogout}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // ==== UNKNOWN ROLE ====
+  if (userRole === 'unknown') {
+    return (
+      <div className="bg-black h-screen flex justify-center items-center px-6">
+        <div className="text-center">
+          <p className="text-neutral-400 text-sm mb-4">Tài khoản chưa được liên kết.</p>
+          <p className="text-neutral-600 text-xs mb-6">Liên hệ coach của bạn để được cấp quyền truy cập.</p>
+          <button
+            onClick={handleLogout}
+            className="px-6 py-3 bg-white/5 border border-white/10 rounded-full text-white text-xs hover:bg-white/10 transition-all"
+          >
+            Đăng xuất
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#050505] text-neutral-200 flex justify-center font-sans">
@@ -156,6 +249,7 @@ export default function App() {
               <AddClientView
                 onBack={() => setActiveTab('clients')}
                 onSave={fetchClients}
+                coachEmail={session?.user?.email}
               />
             )}
 
