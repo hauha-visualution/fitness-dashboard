@@ -55,24 +55,25 @@ const ProfileTab = ({ client, onDelete }) => {
   };
 
   const fetchProgressPhotos = async () => {
-    const { data: beforeFiles } = await supabase.storage
-      .from('client-progress')
-      .list(`${client.id}/before`);
-    const { data: afterFiles } = await supabase.storage
-      .from('client-progress')
-      .list(`${client.id}/after`);
+    const beforeFileName = `client-${client.id}-before`;
+    const afterFileName = `client-${client.id}-after`;
 
-    if (beforeFiles?.[0]) {
-      const { data: url } = supabase.storage
+    try {
+      const { data: beforeUrl } = supabase.storage
         .from('client-progress')
-        .getPublicUrl(`${client.id}/before/${beforeFiles[0].name}`);
-      setProgressPhotos(p => ({ ...p, before: url.publicUrl }));
+        .getPublicUrl(beforeFileName);
+      setProgressPhotos(p => ({ ...p, before: beforeUrl.publicUrl }));
+    } catch (err) {
+      // File chưa tồn tại
     }
-    if (afterFiles?.[0]) {
-      const { data: url } = supabase.storage
+
+    try {
+      const { data: afterUrl } = supabase.storage
         .from('client-progress')
-        .getPublicUrl(`${client.id}/after/${afterFiles[0].name}`);
-      setProgressPhotos(p => ({ ...p, after: url.publicUrl }));
+        .getPublicUrl(afterFileName);
+      setProgressPhotos(p => ({ ...p, after: afterUrl.publicUrl }));
+    } catch (err) {
+      // File chưa tồn tại
     }
   };
 
@@ -87,14 +88,16 @@ const ProfileTab = ({ client, onDelete }) => {
 
     setIsUploadingAvatar(true);
     try {
+      const fileName = `client-${client.id}-avatar`;
+
       // Upload avatar mới — upsert: true sẽ tự ghi đè file cũ
       const { error: uploadError } = await supabase.storage
         .from('client-avatars')
-        .upload(`${client.id}/avatar`, file, { upsert: true });
+        .upload(fileName, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage.from('client-avatars').getPublicUrl(`${client.id}/avatar`);
+      const { data } = supabase.storage.from('client-avatars').getPublicUrl(fileName);
 
       // Cập nhật avatar_url trong clients table
       await supabase.from('clients').update({ avatar_url: data.publicUrl }).eq('id', client.id);
@@ -129,10 +132,12 @@ const ProfileTab = ({ client, onDelete }) => {
     if (!file) return;
 
     try {
+      const fileName = `client-${client.id}-${type}`;
+
       // Upload ảnh mới — upsert: true sẽ tự ghi đè file cũ
       const { error } = await supabase.storage
         .from('client-progress')
-        .upload(`${client.id}/${type}/photo`, file, { upsert: true });
+        .upload(fileName, file, { upsert: true });
 
       if (error) throw error;
 
