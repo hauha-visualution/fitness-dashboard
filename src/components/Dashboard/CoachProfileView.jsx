@@ -63,9 +63,9 @@ const CoachProfileView = ({ session, coachProfile, onBack, onProfileUpdated }) =
     setIsSaving(true);
 
     const updatePayload = {
-      full_name: coachData.full_name,
-      avatar_url: coachData.avatar_url,
-      dob: coachData.dob,
+      full_name: coachData.full_name || null,
+      avatar_url: coachData.avatar_url || null,
+      dob: coachData.dob || null,  // Chuyển empty string thành null
       email: coachEmail,
     };
 
