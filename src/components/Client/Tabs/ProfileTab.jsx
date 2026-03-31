@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Scale, Activity, Percent, Flame, Plus, X, RefreshCw, Save } from 'lucide-react'; // Đã đổi Percentage thành Percent
+import { Scale, Activity, Percent, Flame, Plus, X, RefreshCw, Save, Phone, Calendar, Target, Clock, Dumbbell, CheckCircle } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
+
+const InfoRow = ({ label, value, color }) => (
+  <div className="flex justify-between items-start border-b border-white/[0.03] pb-4 last:border-0 last:pb-0">
+    <span className="text-[10px] text-neutral-600 uppercase font-black tracking-widest shrink-0">{label}</span>
+    <span className={`text-xs text-right max-w-[60%] leading-relaxed ${color || 'text-white'}`}>{value || '--'}</span>
+  </div>
+);
 
 const ProfileTab = ({ client }) => {
   const [inbodyRecords, setInbodyRecords] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  
-  // State cho form nhập mới
-  const [newRecord, setNewRecord] = useState({
-    weight: '',
-    muscle_mass: '',
-    body_fat: '',
-    visceral_fat: ''
-  });
+  const [newRecord, setNewRecord] = useState({ weight: '', muscle_mass: '', body_fat: '', visceral_fat: '' });
 
   const fetchInBody = async () => {
     const { data } = await supabase
@@ -24,14 +24,11 @@ const ProfileTab = ({ client }) => {
     if (data) setInbodyRecords(data);
   };
 
-  useEffect(() => {
-    fetchInBody();
-  }, [client.id]);
+  useEffect(() => { fetchInBody(); }, [client.id]);
 
   const handleSaveRecord = async () => {
-    if (!newRecord.weight) return alert("Hạo ơi, ít nhất phải có Cân nặng chứ!");
+    if (!newRecord.weight) return alert("Ít nhất phải có Cân nặng!");
     setIsSaving(true);
-    
     const { error } = await supabase.from('inbody_records').insert([{
       client_id: client.id,
       weight: parseFloat(newRecord.weight),
@@ -40,47 +37,93 @@ const ProfileTab = ({ client }) => {
       visceral_fat: parseFloat(newRecord.visceral_fat),
       recorded_at: new Date().toISOString()
     }]);
-
     if (!error) {
       await fetchInBody();
       setIsModalOpen(false);
       setNewRecord({ weight: '', muscle_mass: '', body_fat: '', visceral_fat: '' });
     } else {
-      alert("Lỗi rồi Hạo: " + error.message);
+      alert("Lỗi: " + error.message);
     }
     setIsSaving(false);
   };
 
   const first = inbodyRecords[0] || {};
   const latest = inbodyRecords[inbodyRecords.length - 1] || {};
-
   const getProgress = (val) => val ? `${Math.min((val / 100) * 100, 100)}%` : '0%';
 
+  // Format dob từ YYYY-MM-DD → DD/MM/YYYY
+  const formatDob = (dob) => {
+    if (!dob) return '--';
+    const d = new Date(dob);
+    if (isNaN(d)) return dob;
+    return d.toLocaleDateString('vi-VN');
+  };
+
   return (
-    <div className="space-y-8 animate-slide-up relative">
-      
-      {/* 1. Basic Metrics */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white/[0.03] border border-white/[0.08] rounded-[28px] p-6 text-center shadow-inner">
-          <p className="text-white text-xl font-medium tracking-tight">{client.height || '--'} cm</p>
-          <p className="text-[9px] font-black uppercase text-neutral-600 tracking-widest mt-1">Height</p>
+    <div className="space-y-6 animate-slide-up relative">
+
+      {/* 1. Thông tin cơ bản */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white/[0.03] border border-white/[0.08] rounded-[24px] p-5 text-center">
+          <p className="text-white text-lg font-medium tracking-tight">{client.height || '--'} <span className="text-xs text-neutral-500">cm</span></p>
+          <p className="text-[9px] font-black uppercase text-neutral-600 tracking-widest mt-1">Chiều cao</p>
         </div>
-        <div className="bg-white/[0.03] border border-white/[0.08] rounded-[28px] p-6 text-center shadow-inner">
-          <p className="text-white text-xl font-medium tracking-tight">{client.gender || '--'}</p>
-          <p className="text-[9px] font-black uppercase text-neutral-600 tracking-widest mt-1">Gender</p>
+        <div className="bg-white/[0.03] border border-white/[0.08] rounded-[24px] p-5 text-center">
+          <p className="text-white text-lg font-medium tracking-tight">{client.weight || '--'} <span className="text-xs text-neutral-500">kg</span></p>
+          <p className="text-[9px] font-black uppercase text-neutral-600 tracking-widest mt-1">Cân nặng</p>
+        </div>
+        <div className="bg-white/[0.03] border border-white/[0.08] rounded-[24px] p-5 text-center">
+          <p className="text-white text-lg font-medium tracking-tight">{client.gender || '--'}</p>
+          <p className="text-[9px] font-black uppercase text-neutral-600 tracking-widest mt-1">Giới tính</p>
+        </div>
+        <div className="bg-white/[0.03] border border-white/[0.08] rounded-[24px] p-5 text-center">
+          <p className="text-white text-lg font-medium tracking-tight">{formatDob(client.dob)}</p>
+          <p className="text-[9px] font-black uppercase text-neutral-600 tracking-widest mt-1">Ngày sinh</p>
         </div>
       </div>
 
-      {/* 2. Medical Notes */}
-      <div className="bg-white/[0.03] border border-white/[0.08] rounded-[32px] p-6">
-        <p className="text-[10px] font-black uppercase text-neutral-500 tracking-[0.2em] mb-4">Medical / Notes</p>
-        <p className="text-sm text-neutral-300 leading-relaxed font-light italic opacity-80">
-          {client.medicalconditions || "Không có ghi chú y tế"}
-        </p>
+      {/* 2. Liên hệ */}
+      {client.phone && (
+        <div className="bg-white/[0.03] border border-white/[0.08] rounded-[24px] p-5 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+            <Phone className="w-4 h-4 text-neutral-500" />
+          </div>
+          <div>
+            <p className="text-[9px] font-black uppercase text-neutral-600 tracking-widest">Số điện thoại</p>
+            <p className="text-white text-sm font-medium mt-0.5">{client.phone}</p>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Mục tiêu & Tập luyện */}
+      <div className="bg-white/[0.02] border border-white/[0.05] rounded-[32px] p-6 space-y-5">
+        <p className="text-[10px] font-black uppercase text-neutral-500 tracking-[0.2em]">Mục tiêu & Tập luyện</p>
+        <InfoRow label="Thời gian đạt" value={client.targetduration} />
+        <InfoRow label="Lịch sử tập" value={client.traininghistory} />
+        <InfoRow label="Thời lượng/ngày" value={client.trainingtime} />
+        <InfoRow
+          label="Cam kết"
+          value={client.commitmentlevel}
+          color={client.commitmentlevel?.toLowerCase().includes('sẵn sàng') ? 'text-green-400' : 'text-yellow-400'}
+        />
       </div>
 
-      {/* 3. Add New Record Button - Đã kích hoạt Click */}
-      <button 
+      {/* 4. Y tế */}
+      <div className="bg-white/[0.02] border border-white/[0.05] rounded-[32px] p-6 space-y-5">
+        <p className="text-[10px] font-black uppercase text-neutral-500 tracking-[0.2em]">Y tế & Sức khoẻ</p>
+        <InfoRow label="Bệnh lý" value={client.medicalconditions} color="text-orange-300" />
+        <InfoRow label="Thực phẩm bổ sung" value={client.supplements} />
+      </div>
+
+      {/* 5. Lifestyle */}
+      <div className="bg-white/[0.02] border border-white/[0.05] rounded-[32px] p-6 space-y-5">
+        <p className="text-[10px] font-black uppercase text-neutral-500 tracking-[0.2em]">Lifestyle</p>
+        <InfoRow label="Công việc" value={client.jobtype} />
+        <InfoRow label="Giấc ngủ" value={client.sleephabits} />
+      </div>
+
+      {/* 6. InBody — Nhập chỉ số */}
+      <button
         onClick={() => setIsModalOpen(true)}
         className="w-full bg-white/[0.03] border border-white/[0.08] rounded-[32px] p-5 flex items-center gap-4 active:scale-95 transition-all group"
       >
@@ -88,20 +131,19 @@ const ProfileTab = ({ client }) => {
           <Plus className="text-white w-6 h-6" />
         </div>
         <div className="text-left">
-          <p className="text-white font-bold text-sm">Nhập chỉ số mới</p>
+          <p className="text-white font-bold text-sm">Nhập chỉ số InBody</p>
           <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mt-0.5">Inbody 270 Template</p>
         </div>
       </button>
 
-      {/* 4. InBody Comparison */}
+      {/* 7. InBody Comparison */}
       <div className="space-y-6">
         <p className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.2em] text-center">So sánh Initial vs Latest</p>
-        
         <div className="space-y-6">
           {[
             { label: 'Cân nặng', key: 'weight', unit: 'kg', icon: Scale },
             { label: 'Cơ xương (SMM)', key: 'muscle_mass', unit: 'kg', icon: Activity },
-            { label: 'Tỷ lệ mỡ (PBF)', key: 'body_fat', unit: '%', icon: Percent }, // Đã sửa Percentage -> Percent
+            { label: 'Tỷ lệ mỡ (PBF)', key: 'body_fat', unit: '%', icon: Percent },
             { label: 'Mỡ nội tạng', key: 'visceral_fat', unit: 'Level', icon: Flame },
           ].map((item) => (
             <div key={item.key} className="flex items-center gap-4">
@@ -116,8 +158,8 @@ const ProfileTab = ({ client }) => {
                   </p>
                 </div>
                 <div className="h-[6px] bg-white/[0.05] rounded-full overflow-hidden flex">
-                    <div className="h-full bg-blue-500/20 rounded-full transition-all duration-1000" style={{ width: getProgress(first[item.key]) }}></div>
-                    <div className="h-full bg-blue-500 rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(59,130,246,0.5)]" style={{ width: getProgress(latest[item.key]) }}></div>
+                  <div className="h-full bg-blue-500/20 rounded-full transition-all duration-1000" style={{ width: getProgress(first[item.key]) }}></div>
+                  <div className="h-full bg-blue-500 rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(59,130,246,0.5)]" style={{ width: getProgress(latest[item.key]) }}></div>
                 </div>
               </div>
             </div>
@@ -125,32 +167,14 @@ const ProfileTab = ({ client }) => {
         </div>
       </div>
 
-      {/* 5. Lifestyle & Habits */}
-      <div className="bg-white/[0.02] border border-white/[0.05] rounded-[32px] p-6 space-y-6">
-        <p className="text-[10px] font-black uppercase text-neutral-500 tracking-[0.2em]">Lifestyle & Habits</p>
-        <div className="space-y-5">
-            {[
-                { label: 'Công việc', val: client.jobtype },
-                { label: 'Giấc ngủ', val: client.sleephabits },
-                { label: 'Món cần tránh', val: client.avoidfoods, color: 'text-red-400 font-medium' },
-            ].map((hab, idx) => (
-                <div key={idx} className="flex justify-between items-start border-b border-white/[0.03] pb-4 last:border-0 last:pb-0">
-                    <span className="text-[10px] text-neutral-600 uppercase font-black tracking-widest">{hab.label}</span>
-                    <span className={`text-xs text-right max-w-[60%] leading-relaxed ${hab.color || 'text-white'}`}>{hab.val || '--'}</span>
-                </div>
-            ))}
-        </div>
-      </div>
-
-      {/* --- MODAL NHẬP CHỈ SỐ (AESTHETIC STYLE) --- */}
+      {/* Modal nhập InBody */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center px-4 pb-10 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center px-4 pb-10 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-[380px] bg-[#1a1a1c] border border-white/10 rounded-[40px] p-8 shadow-2xl animate-slide-up">
             <div className="flex justify-between items-center mb-8">
               <h3 className="text-white font-medium text-lg tracking-tight">Nhập chỉ số InBody</h3>
-              <button onClick={() => setIsModalOpen(false)} className="p-2 bg-white/5 rounded-full text-neutral-500"><X className="w-5 h-5"/></button>
+              <button onClick={() => setIsModalOpen(false)} className="p-2 bg-white/5 rounded-full text-neutral-500"><X className="w-5 h-5" /></button>
             </div>
-
             <div className="grid grid-cols-2 gap-4 mb-8">
               {[
                 { label: 'Cân nặng (kg)', key: 'weight', icon: Scale },
@@ -160,20 +184,17 @@ const ProfileTab = ({ client }) => {
               ].map(field => (
                 <div key={field.key} className="space-y-2">
                   <label className="text-[9px] font-black uppercase text-neutral-600 ml-2 tracking-widest">{field.label}</label>
-                  <div className="relative">
-                    <input 
-                      type="number" 
-                      value={newRecord[field.key]}
-                      onChange={(e) => setNewRecord({...newRecord, [field.key]: e.target.value})}
-                      className="w-full bg-black/40 border border-white/5 rounded-2xl p-4 text-white text-sm outline-none focus:border-blue-500/50 transition-all"
-                      placeholder="0.0"
-                    />
-                  </div>
+                  <input
+                    type="number"
+                    value={newRecord[field.key]}
+                    onChange={(e) => setNewRecord({ ...newRecord, [field.key]: e.target.value })}
+                    className="w-full bg-black/40 border border-white/5 rounded-2xl p-4 text-white text-sm outline-none focus:border-blue-500/50 transition-all"
+                    placeholder="0.0"
+                  />
                 </div>
               ))}
             </div>
-
-            <button 
+            <button
               onClick={handleSaveRecord}
               disabled={isSaving}
               className="w-full bg-blue-500 text-white font-black py-5 rounded-[24px] flex items-center justify-center gap-2 shadow-xl shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-50"
@@ -184,7 +205,6 @@ const ProfileTab = ({ client }) => {
           </div>
         </div>
       )}
-
     </div>
   );
 };
