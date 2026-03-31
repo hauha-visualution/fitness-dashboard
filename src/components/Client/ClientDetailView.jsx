@@ -19,13 +19,17 @@ const ClientDetailView = ({ client, onBack, onDelete }) => {
 
   const renderContent = () => {
     switch (activeSubTab) {
-      case 'profile':   return <ProfileTab client={client} />;
+      case 'profile':   return <ProfileTab client={client} onDelete={openDeleteModal} />;
       case 'package':   return <PackageTab client={client} />;
       case 'sessions':  return <SessionsTab clientId={client.id} />;
       case 'nutrition': return <NutritionTab client={client} />;
       case 'payment':   return <PaymentTab client={client} />;
-      default:          return <ProfileTab client={client} />;
+      default:          return <ProfileTab client={client} onDelete={openDeleteModal} />;
     }
+  };
+
+  const openDeleteModal = (clientId) => {
+    setShowDeleteModal(true);
   };
 
   // Xác minh credentials của coach trước khi xóa
@@ -94,7 +98,7 @@ const ClientDetailView = ({ client, onBack, onDelete }) => {
       </div>
 
       {/* CONTEXTUAL BOTTOM NAV */}
-      <div className="absolute bottom-24 left-1/2 -translate-x-1/2 w-[92%] bg-black/80 backdrop-blur-3xl border border-white/10 rounded-[32px] p-1.5 flex justify-between z-50 shadow-2xl">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[92%] bg-black/80 backdrop-blur-3xl border border-white/10 rounded-[32px] p-1.5 flex justify-between z-50 shadow-2xl">
         {[
           { id: 'profile', icon: User, label: 'Profile' },
           { id: 'package', icon: Package, label: 'Gói tập' },
@@ -113,19 +117,6 @@ const ClientDetailView = ({ client, onBack, onDelete }) => {
             <span className="text-[7px] font-black uppercase tracking-tighter">{tab.label}</span>
           </button>
         ))}
-      </div>
-
-      {/* NÚT XÓA — Ở cuối cùng */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[92%] z-50">
-        <button
-          onClick={() => { setShowDeleteModal(true); setConfirmUsername(''); setConfirmPassword(''); setDeleteError(''); }}
-          className="w-full bg-red-500/20 border border-red-500/30 rounded-[24px] py-4 text-red-400 font-black uppercase text-[11px] tracking-widest hover:bg-red-500/30 active:scale-95 transition-all"
-        >
-          <div className="flex items-center justify-center gap-2">
-            <Trash2 className="w-4 h-4" />
-            Xóa học viên này
-          </div>
-        </button>
       </div>
 
       {/* MODAL XÓA VỚI XÁC NHẬN */}
