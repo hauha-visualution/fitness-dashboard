@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 
-const DashboardView = ({ session, onSelectClient, onLogout, onOpenProfile }) => {
+const DashboardView = ({ session, coachProfile, onSelectClient, onLogout, onOpenProfile }) => {
   const today = new Date();
   const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState(today);
@@ -29,17 +29,17 @@ const DashboardView = ({ session, onSelectClient, onLogout, onOpenProfile }) => 
           className="flex items-center gap-4 cursor-pointer active:scale-95 transition-all group"
         >
           <div className="relative">
-            <img 
-              src={session?.avatar_url || "https://i.pravatar.cc/150?u=coach"} 
-              className="w-12 h-12 rounded-full border border-white/10 grayscale-[20%] object-cover" 
-              alt="avatar" 
+            <img
+              src={coachProfile?.avatar_url || "https://i.pravatar.cc/150?u=coach"}
+              className="w-12 h-12 rounded-full border border-white/10 grayscale-[20%] object-cover"
+              alt="avatar"
             />
             <div className="absolute inset-0 rounded-full border border-white/0 group-hover:border-white/20 transition-all"></div>
           </div>
           <div>
             <p className="text-neutral-500 text-[9px] font-black uppercase tracking-widest">Aesthetics Hub</p>
             <h1 className="text-xl font-medium text-white tracking-tight">
-              {session?.full_name || 'Coach Hạo'}
+              {coachProfile?.full_name || session?.user?.user_metadata?.username || 'Coach'}
             </h1>
           </div>
         </div>

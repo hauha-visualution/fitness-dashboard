@@ -21,9 +21,12 @@ const GlobalStyles = () => (
 );
 
 export default function App() {
-  // session = Supabase session object thật (có .user.user_metadata.username, .user.id, ...)
   const [session, setSession] = useState(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true); // Chờ Supabase restore session khi refresh
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+
+  // State riêng cho thông tin coach (avatar, full_name, dob...)
+  // Tách khỏi session để không phụ thuộc vào cấu trúc Supabase session object
+  const [coachProfile, setCoachProfile] = useState(null);
 
   const [activeTab, setActiveTab] = useState('home');
   const [selectedClient, setSelectedClient] = useState(null);
@@ -31,29 +34,47 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [showCoachProfile, setShowCoachProfile] = useState(false);
 
-  // Lắng nghe trạng thái auth từ Supabase
-  // → Tự động restore session khi user refresh trang (Supabase lưu token vào localStorage nội bộ)
+  // Fetch coach profile từ bảng coaches (sau khi có session)
+  const fetchCoachProfile = async (sess) => {
+    if (!sess?.user?.email) return;
+    const { data } = await supabase
+      .from('coaches')
+      .select('*')
+      .eq('email', sess.user.email)
+      .maybeSingle();
+    if (data) setCoachProfile(data);
+  };
+
+  // Lắng nghe auth state từ Supabase
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      fetchCoachProfile(session);
       setIsAuthLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      fetchCoachProfile(session);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const handleLogin = (supabaseSession) => {
-    // Supabase tự xử lý lưu token, mình chỉ cần set state
     setSession(supabaseSession);
+    fetchCoachProfile(supabaseSession);
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setSession(null);
+    setCoachProfile(null);
+  };
+
+  // Gọi lại sau khi CoachProfileView lưu thành công → refresh avatar/name
+  const handleProfileUpdated = () => {
+    fetchCoachProfile(session);
   };
 
   const fetchClients = async () => {
@@ -84,7 +105,7 @@ export default function App() {
 
   useEffect(() => { if (session) fetchClients(); }, [session, activeTab]);
 
-  // Đang chờ Supabase check session → hiển thị màn hình loading
+  // Loading screen khi Supabase đang restore session
   if (isAuthLoading) {
     return (
       <div className="bg-black h-screen flex justify-center items-center">
@@ -106,14 +127,16 @@ export default function App() {
         {showCoachProfile ? (
           <CoachProfileView
             session={session}
+            coachProfile={coachProfile}
             onBack={() => setShowCoachProfile(false)}
-            onUpdateSession={handleLogin}
+            onProfileUpdated={handleProfileUpdated}
           />
         ) : !selectedClient ? (
           <>
             {activeTab === 'home' && (
               <DashboardView
                 session={session}
+                coachProfile={coachProfile}
                 onSelectClient={setSelectedClient}
                 onLogout={handleLogout}
                 onOpenProfile={() => setShowCoachProfile(true)}
