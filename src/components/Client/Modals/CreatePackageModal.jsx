@@ -164,8 +164,8 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
 
   // ─── RENDER ───────────────────────────────────────────────
   return (
-    <div className="fixed inset-0 z-[500] flex items-end bg-black/70 backdrop-blur-sm">
-      <div className="w-full bg-[#0d0d0d] border-t border-white/10 rounded-t-[32px] max-h-[96vh] overflow-y-auto hide-scrollbar animate-slide-up">
+    <div className="fixed inset-x-0 bottom-0 top-[66px] z-[500] flex items-end bg-black/60 backdrop-blur-sm">
+      <div className="w-full bg-[#0d0d0d] border-t border-white/10 rounded-t-[32px] max-h-full overflow-y-auto hide-scrollbar animate-slide-up">
 
         {/* Header — compact single row */}
         <div className="sticky top-0 bg-[#0d0d0d]/95 backdrop-blur-xl z-10 px-5 pt-4 pb-3 border-b border-white/[0.06]">
