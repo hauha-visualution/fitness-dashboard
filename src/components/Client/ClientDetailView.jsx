@@ -71,25 +71,21 @@ const ClientDetailView = ({ client, onBack, onDelete }) => {
   return (
     <div className="h-screen bg-[#0a0a0a] flex flex-col relative animate-slide-up">
 
-      {/* HEADER */}
-      <div className="p-6 flex justify-between items-center shrink-0 z-10">
-        <button onClick={onBack} className="p-3 bg-white/5 border border-white/10 rounded-full text-white active:scale-90 transition-all">
-          <ArrowLeft className="w-5 h-5" />
+      {/* HEADER — compact single row ~56px */}
+      <div className="px-4 py-3 flex items-center gap-3 shrink-0 z-10 border-b border-white/[0.04]">
+        <button onClick={onBack} className="p-2 bg-white/5 border border-white/10 rounded-full text-white active:scale-90 transition-all shrink-0">
+          <ArrowLeft className="w-4 h-4" />
         </button>
-        <div className="flex gap-2">
-          <button className="p-3 bg-white/[0.03] border border-white/[0.08] rounded-full text-neutral-600">
-            <MoreHorizontal className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-
-      {/* CLIENT MINI HEADER */}
-      <div className="px-6 flex items-center gap-5 mb-8 shrink-0">
-        <img src={client.avatar} className="w-16 h-16 rounded-full border border-white/10 bg-white shadow-2xl" alt="avt" />
+        <img src={client.avatar} className="w-8 h-8 rounded-full border border-white/10 bg-white shrink-0" alt="avt" />
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-medium text-white truncate">{client.name}</h1>
-          <p className="text-blue-400 text-[9px] font-black uppercase tracking-widest mt-1">{client.goal}</p>
+          <h1 className="text-sm font-semibold text-white truncate leading-tight">{client.name}</h1>
+          {client.goal && (
+            <p className="text-blue-400 text-[8px] font-black uppercase tracking-widest truncate">{client.goal}</p>
+          )}
         </div>
+        <button className="p-2 bg-white/[0.03] border border-white/[0.08] rounded-full text-neutral-600 shrink-0">
+          <MoreHorizontal className="w-4 h-4" />
+        </button>
       </div>
 
       {/* CONTENT AREA */}
