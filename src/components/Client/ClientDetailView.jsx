@@ -9,7 +9,7 @@ import SessionsTab from './Tabs/SessionsTab';
 import NutritionTab from './Tabs/NutritionTab';
 import PaymentTab from './Tabs/PaymentTab';
 
-const ClientDetailView = ({ client, onBack, onDelete }) => {
+const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey }) => {
   const [activeSubTab, setActiveSubTab] = useState('profile');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [confirmUsername, setConfirmUsername] = useState('');
@@ -21,14 +21,14 @@ const ClientDetailView = ({ client, onBack, onDelete }) => {
     switch (activeSubTab) {
       case 'profile':   return <ProfileTab client={client} onDelete={openDeleteModal} />;
       case 'package':   return <PackageTab client={client} readOnly={false} />;
-      case 'sessions':  return <SessionsTab clientId={client.id} readOnly={false} />;
+      case 'sessions':  return <SessionsTab clientId={client.id} client={client} readOnly={false} onOpenQuickLog={onOpenQuickLog} refreshKey={refreshKey} />;
       case 'nutrition': return <NutritionTab client={client} />;
       case 'payment':   return <PaymentTab client={client} readOnly={false} />;
       default:          return <ProfileTab client={client} onDelete={openDeleteModal} />;
     }
   };
 
-  const openDeleteModal = (clientId) => {
+  const openDeleteModal = () => {
     setShowDeleteModal(true);
   };
 

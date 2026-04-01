@@ -7,6 +7,12 @@ const toLocalISOString = (d) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
+const formatShortSessionDate = (dateStr) => {
+  if (!dateStr) return '--/--';
+  const [, month, day] = dateStr.split('-');
+  return `${day}/${month}`;
+};
+
 const createExerciseDraft = (id) => ({
   id,
   name: '',
@@ -15,15 +21,16 @@ const createExerciseDraft = (id) => ({
   video_url: '',
 });
 
-const QuickLogSheet = ({ onClose, session, onSaved }) => {
+const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) => {
   const [todaySessions, setTodaySessions] = useState([]);
-  const [selectedSessionId, setSelectedSessionId] = useState(null);
-  const [isManualSessionMode, setIsManualSessionMode] = useState(false);
+  const [selectedSessionId, setSelectedSessionId] = useState(initialSelection?.sessionId ?? null);
+  const [isManualSessionMode, setIsManualSessionMode] = useState(initialSelection?.manualMode ?? false);
   
   const [clients, setClients] = useState([]);
-  const [selectedClientId, setSelectedClientId] = useState(null);
+  const [selectedClientId, setSelectedClientId] = useState(initialSelection?.clientId ?? null);
   const [clientSessions, setClientSessions] = useState([]);
   const [loadingClientSessions, setLoadingClientSessions] = useState(false);
+  const [showAllClientSessions, setShowAllClientSessions] = useState(false);
 
   const exerciseIdRef = useRef(1);
   const [exercises, setExercises] = useState([createExerciseDraft('exercise-0')]);
@@ -84,39 +91,60 @@ const QuickLogSheet = ({ onClose, session, onSaved }) => {
     const enriched = (sData || []).map(s => ({ ...s, client_name: clientMap[s.client_id]?.name }));
     setTodaySessions(enriched);
     
-    if (enriched.length > 0) {
+    if (!selectedSessionId && enriched.length > 0) {
       const inProgress = enriched.find(s => s.status === 'in_progress');
       if (inProgress) setSelectedSessionId(inProgress.id);
       else setSelectedSessionId(enriched[0].id);
     }
     setLoading(false);
-  }, [session]);
+  }, [selectedSessionId, session]);
 
   const fetchClientSessions = useCallback(async (clientId) => {
     if (!clientId) {
       setClientSessions([]);
-      return;
+      return [];
     }
 
     setLoadingClientSessions(true);
+    const now = new Date();
+    const toDateTime = (sessionItem) => new Date(`${sessionItem.scheduled_date}T${sessionItem.scheduled_time}`);
+
     const { data, error } = await supabase
       .from('sessions')
       .select('id, session_number, scheduled_date, scheduled_time, status')
       .eq('client_id', clientId)
       .in('status', ['scheduled', 'in_progress'])
-      .order('scheduled_date', { ascending: false })
-      .order('scheduled_time', { ascending: false });
+      .order('scheduled_date', { ascending: true })
+      .order('scheduled_time', { ascending: true });
 
     if (error) {
       console.error('Load client sessions error:', error.message);
       setClientSessions([]);
       setLoadingClientSessions(false);
       alert(`Không tải được danh sách buổi tập: ${error.message}`);
-      return;
+      return [];
     }
 
-    setClientSessions(data || []);
+    const sortedSessions = [...(data || [])].sort((a, b) => {
+      if (a.status === 'in_progress' && b.status !== 'in_progress') return -1;
+      if (b.status === 'in_progress' && a.status !== 'in_progress') return 1;
+
+      const aDate = toDateTime(a);
+      const bDate = toDateTime(b);
+      const aDiff = aDate.getTime() - now.getTime();
+      const bDiff = bDate.getTime() - now.getTime();
+
+      const aPriority = aDiff >= 0 ? 0 : 1;
+      const bPriority = bDiff >= 0 ? 0 : 1;
+      if (aPriority !== bPriority) return aPriority - bPriority;
+
+      if (aPriority === 0) return aDiff - bDiff;
+      return bDate.getTime() - aDate.getTime();
+    });
+
+    setClientSessions(sortedSessions);
     setLoadingClientSessions(false);
+    return sortedSessions;
   }, []);
 
   // Fetch today's sessions
@@ -156,6 +184,7 @@ const QuickLogSheet = ({ onClose, session, onSaved }) => {
     setIsManualSessionMode(false);
     setSelectedClientId(null);
     setClientSessions([]);
+    setShowAllClientSessions(false);
     setSelectedSessionId(sessionId);
   };
 
@@ -164,12 +193,17 @@ const QuickLogSheet = ({ onClose, session, onSaved }) => {
     setSelectedSessionId(null);
     setSelectedClientId(null);
     setClientSessions([]);
+    setShowAllClientSessions(false);
   };
 
   const handleSelectClient = async (clientId) => {
     setSelectedClientId(clientId);
     setSelectedSessionId(null);
-    await fetchClientSessions(clientId);
+    setShowAllClientSessions(false);
+    const sortedSessions = await fetchClientSessions(clientId);
+    if (sortedSessions.length > 0) {
+      setSelectedSessionId(sortedSessions[0].id);
+    }
   };
 
   const handleSave = async (status) => {
@@ -230,14 +264,20 @@ const QuickLogSheet = ({ onClose, session, onSaved }) => {
 
   const selectedSession = todaySessions.find(s => s.id === selectedSessionId);
   const manuallySelectedSession = clientSessions.find(s => s.id === selectedSessionId);
+  const visibleClientSessions = showAllClientSessions ? clientSessions : clientSessions.slice(0, 8);
+  const initialSession = initialSelection?.sessionId === selectedSessionId ? initialSelection : null;
   const selectedClientName = isManualSessionMode
     ? clients.find(c => c.id === selectedClientId)?.name
-    : selectedSession?.client_name;
+    : selectedSession?.client_name || initialSession?.clientName;
   const selectedSessionTime = isManualSessionMode
     ? (manuallySelectedSession
         ? `${manuallySelectedSession.scheduled_date} • ${manuallySelectedSession.scheduled_time?.slice(0, 5)}`
         : 'Chọn một buổi tập')
-    : selectedSession?.scheduled_time?.slice(0, 5);
+    : (selectedSession
+        ? selectedSession.scheduled_time?.slice(0, 5)
+        : initialSession?.scheduledDate
+          ? `${initialSession.scheduledDate} • ${initialSession.scheduledTime?.slice(0, 5)}`
+          : initialSession?.scheduledTime?.slice(0, 5));
   const hasSingleWorkoutData = exercises.some(ex => ex.name.trim());
 
   // --- RENDERS ---
@@ -303,7 +343,7 @@ const QuickLogSheet = ({ onClose, session, onSaved }) => {
                 onClick={handleStartManualSessionSelection}
                 className={`shrink-0 px-4 py-2 border rounded-[12px] text-sm transition-all flex items-center gap-1 ${isManualSessionMode ? 'bg-blue-500/10 border-blue-500/30 text-blue-400 font-medium' : 'bg-white/[0.04] border-white/[0.08] text-blue-400/50 block border-dashed'}`}
              >
-                + Tự tạo
+                + Chọn học viên
              </button>
            </div>
         </div>
@@ -331,33 +371,53 @@ const QuickLogSheet = ({ onClose, session, onSaved }) => {
                      Học viên này chưa có session nào ở trạng thái scheduled hoặc in_progress.
                    </div>
                  ) : (
-                   clientSessions.map(sessionOption => (
-                     <button
-                       key={sessionOption.id}
-                       onClick={() => setSelectedSessionId(sessionOption.id)}
-                       className={`w-full text-left px-4 py-3 rounded-[14px] border transition-all ${
-                         selectedSessionId === sessionOption.id
-                           ? 'bg-white/[0.08] border-white/20 text-white'
-                           : 'bg-white/[0.03] border-white/[0.06] text-neutral-400 hover:bg-white/[0.05]'
-                       }`}
-                     >
-                       <div className="flex items-center justify-between gap-3">
-                         <div>
-                           <p className="text-sm font-semibold">Buổi #{sessionOption.session_number}</p>
-                           <p className="text-[11px] text-neutral-500 mt-1">
-                             {sessionOption.scheduled_date} • {sessionOption.scheduled_time?.slice(0, 5)}
-                           </p>
+                   <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+                     {visibleClientSessions.map(sessionOption => (
+                       <button
+                         key={sessionOption.id}
+                         onClick={() => setSelectedSessionId(sessionOption.id)}
+                         className={`shrink-0 min-w-[132px] rounded-[18px] border px-4 py-3 text-left transition-all ${
+                           selectedSessionId === sessionOption.id
+                             ? 'bg-white text-black border-white shadow-[0_10px_30px_rgba(255,255,255,0.08)]'
+                             : 'bg-white/[0.03] border-white/[0.06] text-neutral-300 hover:bg-white/[0.05]'
+                         }`}
+                       >
+                         <div className="flex items-start justify-between gap-2">
+                           <div>
+                             <p className={`text-[10px] font-black uppercase tracking-widest ${selectedSessionId === sessionOption.id ? 'text-black/50' : 'text-neutral-600'}`}>
+                               Buổi #{String(sessionOption.session_number).padStart(2, '0')}
+                             </p>
+                             <p className={`text-sm font-semibold mt-1 ${selectedSessionId === sessionOption.id ? 'text-black' : 'text-white'}`}>
+                               {formatShortSessionDate(sessionOption.scheduled_date)}
+                             </p>
+                             <p className={`text-[11px] mt-0.5 ${selectedSessionId === sessionOption.id ? 'text-black/60' : 'text-neutral-500'}`}>
+                               {sessionOption.scheduled_time?.slice(0, 5)}
+                             </p>
+                           </div>
+                           <div className={`text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-full ${
+                             sessionOption.status === 'in_progress'
+                               ? selectedSessionId === sessionOption.id
+                                 ? 'bg-blue-500/15 text-blue-700'
+                                 : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'
+                               : selectedSessionId === sessionOption.id
+                                 ? 'bg-black/5 text-black/55'
+                                 : 'bg-white/[0.04] border border-white/[0.08] text-neutral-500'
+                           }`}>
+                             {sessionOption.status === 'in_progress' ? 'Lưu tạm' : 'Chưa tập'}
+                           </div>
                          </div>
-                         <div className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${
-                           sessionOption.status === 'in_progress'
-                             ? 'bg-blue-500/10 border border-blue-500/20 text-blue-400'
-                             : 'bg-white/[0.04] border border-white/[0.08] text-neutral-500'
-                         }`}>
-                           {sessionOption.status === 'in_progress' ? 'Lưu tạm' : 'Chưa tập'}
-                         </div>
-                       </div>
-                     </button>
-                   ))
+                       </button>
+                     ))}
+                   </div>
+                 )}
+
+                 {!loadingClientSessions && clientSessions.length > 8 && (
+                   <button
+                     onClick={() => setShowAllClientSessions(prev => !prev)}
+                     className="w-full py-3 rounded-[14px] border border-white/[0.08] bg-white/[0.03] text-[11px] font-black uppercase tracking-wider text-neutral-400 hover:bg-white/[0.05] transition-all"
+                   >
+                     {showAllClientSessions ? 'Thu gọn danh sách' : `Xem thêm ${clientSessions.length - 8} buổi`}
+                   </button>
                  )}
                </div>
              )}

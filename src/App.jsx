@@ -41,6 +41,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [showCoachProfile, setShowCoachProfile] = useState(false);
   const [showQuickLog, setShowQuickLog] = useState(false);
+  const [quickLogSelection, setQuickLogSelection] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   // ============================================================
@@ -190,6 +191,16 @@ export default function App() {
     } else alert("Lỗi khi xóa: " + error.message);
   };
 
+  const openQuickLog = (selection = null) => {
+    setQuickLogSelection(selection);
+    setShowQuickLog(true);
+  };
+
+  const closeQuickLog = () => {
+    setShowQuickLog(false);
+    setQuickLogSelection(null);
+  };
+
   useEffect(() => {
     if (!session) return;
     const timeoutId = window.setTimeout(() => {
@@ -266,6 +277,7 @@ export default function App() {
                 coachProfile={coachProfile}
                 refreshKey={refreshKey}
                 onSelectClient={setSelectedClient}
+                onOpenQuickLog={openQuickLog}
                 onLogout={handleLogout}
                 onOpenProfile={() => setShowCoachProfile(true)}
               />
@@ -300,7 +312,7 @@ export default function App() {
                 
                 {/* FAB - Quick Log */}
                 <div className="flex justify-center items-center w-[80px]">
-                  <button onClick={() => setShowQuickLog(true)} className="w-12 h-12 bg-white rounded-full flex items-center justify-center -mt-4 active:scale-90 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+                  <button onClick={() => openQuickLog()} className="w-12 h-12 bg-white rounded-full flex items-center justify-center -mt-4 active:scale-90 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]">
                     <Plus className="w-5 h-5 text-black" />
                   </button>
                 </div>
@@ -313,14 +325,23 @@ export default function App() {
               </div>
             )}
 
-            {/* Quick Log Sheet Overlay */}
-            {showQuickLog && <QuickLogSheet session={session} onClose={() => setShowQuickLog(false)} onSaved={() => setRefreshKey(k=>k+1)} />}
           </>
         ) : (
           <ClientDetailView
             client={selectedClient}
             onBack={() => setSelectedClient(null)}
             onDelete={handleDeleteClient}
+            onOpenQuickLog={openQuickLog}
+            refreshKey={refreshKey}
+          />
+        )}
+
+        {showQuickLog && (
+          <QuickLogSheet
+            session={session}
+            initialSelection={quickLogSelection}
+            onClose={closeQuickLog}
+            onSaved={() => setRefreshKey(k => k + 1)}
           />
         )}
       </div>

@@ -30,7 +30,7 @@ const generateAvatarBadgeColor = (name) => {
   return colors[index] + '/20 text-' + colors[index].replace('bg-', '').replace('-500', '-400');
 };
 
-const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onLogout, onOpenProfile }) => {
+const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOpenQuickLog, onLogout, onOpenProfile }) => {
   const today = new Date();
   const [weekStart, setWeekStart] = useState(getWeekStart(today));
   const [selectedDate, setSelectedDate] = useState(today);
@@ -243,15 +243,13 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onLo
             const colorClass = generateAvatarBadgeColor(s.client?.name || 'A');
 
             return (
-              <button
+              <div
                 key={s.id}
-                type="button"
-                onClick={() => s.client && onSelectClient?.(s.client)}
                 className={`rounded-[20px] border px-4 py-3.5 flex items-center gap-3 transition-all animate-slide-up ${
                   isCompleted ? 'bg-white/[0.02] border-white/[0.04] opacity-50' : 
                   isCancelled ? 'bg-red-500/5 border-red-500/10 opacity-70' :
                   isInProgress ? 'bg-white/[0.06] border-white/20' : 'bg-white/[0.03] border-white/[0.05]'
-                } ${s.client ? 'active:scale-[0.99] cursor-pointer' : ''}`}
+                }`}
               >
                 {/* Time */}
                 <div className="text-center shrink-0 w-12">
@@ -262,16 +260,24 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onLo
                 <div className="w-px h-8 bg-white/[0.06] shrink-0" />
 
                 {/* Avatar Initials */}
-                <div className={`w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-xs font-bold ${colorClass}`}>
+                <button
+                  type="button"
+                  onClick={() => s.client && onSelectClient?.(s.client)}
+                  className={`w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-xs font-bold ${colorClass} active:scale-95 transition-all`}
+                >
                   {initials}
-                </div>
+                </button>
 
-                <div className="flex-1 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => s.client && onSelectClient?.(s.client)}
+                  className="flex-1 min-w-0 text-left active:scale-[0.99] transition-all"
+                >
                   <p className={`text-sm font-medium truncate ${isCancelled ? 'text-red-300' : 'text-white'}`}>{s.client?.name || 'Unknown'}</p>
                   <p className="text-[9px] text-neutral-600 font-black uppercase tracking-wider">
                     Buổi #{s.session_number}
                   </p>
-                </div>
+                </button>
 
                 {/* Status Badges */}
                 {isCompleted && (
@@ -294,7 +300,23 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onLo
                     Chưa tập
                   </div>
                 )}
-              </button>
+                {!isCompleted && !isCancelled && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenQuickLog?.({
+                      sessionId: s.id,
+                      clientId: s.client_id,
+                      clientName: s.client?.name,
+                      scheduledDate: s.scheduled_date,
+                      scheduledTime: s.scheduled_time,
+                      manualMode: false,
+                    })}
+                    className="shrink-0 px-3 py-2 rounded-[12px] bg-blue-500/10 border border-blue-500/20 text-[10px] font-black uppercase tracking-wider text-blue-400 active:scale-95 transition-all"
+                  >
+                    Log
+                  </button>
+                )}
+              </div>
             );
           })}
         </div>

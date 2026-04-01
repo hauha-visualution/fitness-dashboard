@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Dumbbell, CheckCircle2, Clock, Calendar, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import { Dumbbell, CheckCircle2, Clock, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -29,7 +29,7 @@ const isPast = (dateStr) => {
 };
 
 // ─── SessionsTab ─────────────────────────────────────────────
-const SessionsTab = ({ clientId, readOnly = false }) => {
+const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refreshKey = 0 }) => {
   const [packages, setPackages] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +50,12 @@ const SessionsTab = ({ clientId, readOnly = false }) => {
     setLoading(false);
   }, [clientId]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void fetchData();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchData, refreshKey]);
 
   // Mark session as completed
   const markDone = async (sessionId) => {
@@ -100,9 +105,9 @@ const SessionsTab = ({ clientId, readOnly = false }) => {
         const isActive = pkg.status === 'active';
         const isExpanded = expandedPkg === pkg.id || (expandedPkg === 'active' && isActive);
 
-        // Find next upcoming session
-        const nextSession = pkgSessions.find(s => s.status === 'scheduled');
-        const upcomingSessions = pkgSessions.filter(s => s.status === 'scheduled');
+        // Find next relevant session
+        const nextSession = pkgSessions.find(s => s.status === 'in_progress') || pkgSessions.find(s => s.status === 'scheduled');
+        const upcomingSessions = pkgSessions.filter(s => ['scheduled', 'in_progress'].includes(s.status));
         const doneSessions = pkgSessions.filter(s => s.status === 'completed');
 
         return (
@@ -152,12 +157,13 @@ const SessionsTab = ({ clientId, readOnly = false }) => {
                       const { dayLabel, short } = formatSessionDate(sess.scheduled_date);
                       const today = isToday(sess.scheduled_date);
                       const past = isPast(sess.scheduled_date);
+                      const isInProgress = sess.status === 'in_progress';
 
                       return (
                         <div
                           key={sess.id}
                           className={`flex items-center gap-3 rounded-[16px] px-4 py-3 transition-all ${
-                            today ? 'bg-blue-500/15 border border-blue-500/20' : 'bg-white/[0.02]'
+                            isInProgress ? 'bg-blue-500/12 border border-blue-500/25' : today ? 'bg-blue-500/15 border border-blue-500/20' : 'bg-white/[0.02]'
                           }`}
                         >
                           {/* Session number */}
@@ -172,29 +178,47 @@ const SessionsTab = ({ clientId, readOnly = false }) => {
 
                           {/* Date & time */}
                           <div className="flex-1">
-                            <p className={`text-xs font-medium ${today ? 'text-blue-300' : 'text-white'}`}>
-                              {short} {today && <span className="text-[9px] font-black text-blue-400 ml-1">HÔM NAY</span>}
+                            <p className={`text-xs font-medium ${today || isInProgress ? 'text-blue-300' : 'text-white'}`}>
+                              {short}
+                              {today && <span className="text-[9px] font-black text-blue-400 ml-1">HÔM NAY</span>}
+                              {isInProgress && <span className="text-[9px] font-black text-blue-400 ml-1">ĐANG TẬP</span>}
                             </p>
                             <p className="text-[10px] text-neutral-600">{sess.scheduled_time?.slice(0, 5)}</p>
                           </div>
 
                           {/* Mark done button (coach only) */}
                           {!readOnly && (
-                            <button
-                              onClick={() => markDone(sess.id)}
-                              disabled={markingId === sess.id}
-                              className={`flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-[10px] font-black uppercase transition-all active:scale-90 ${
-                                past || today
-                                  ? 'bg-emerald-500/15 border border-emerald-500/25 text-emerald-400'
-                                  : 'bg-white/[0.04] border border-white/[0.08] text-neutral-600'
-                              }`}
-                            >
-                              {markingId === sess.id
-                                ? <RefreshCw className="w-3 h-3 animate-spin" />
-                                : <CheckCircle2 className="w-3 h-3" />
-                              }
-                              Done
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => onOpenQuickLog?.({
+                                  sessionId: sess.id,
+                                  clientId,
+                                  clientName: client?.name,
+                                  scheduledDate: sess.scheduled_date,
+                                  scheduledTime: sess.scheduled_time,
+                                  manualMode: false,
+                                })}
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-[10px] font-black uppercase transition-all active:scale-90 bg-blue-500/10 border border-blue-500/20 text-blue-400"
+                              >
+                                <Clock className="w-3 h-3" />
+                                Log
+                              </button>
+                              <button
+                                onClick={() => markDone(sess.id)}
+                                disabled={markingId === sess.id}
+                                className={`flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-[10px] font-black uppercase transition-all active:scale-90 ${
+                                  past || today || isInProgress
+                                    ? 'bg-emerald-500/15 border border-emerald-500/25 text-emerald-400'
+                                    : 'bg-white/[0.04] border border-white/[0.08] text-neutral-600'
+                                }`}
+                              >
+                                {markingId === sess.id
+                                  ? <RefreshCw className="w-3 h-3 animate-spin" />
+                                  : <CheckCircle2 className="w-3 h-3" />
+                                }
+                                Done
+                              </button>
+                            </div>
                           )}
                         </div>
                       );
