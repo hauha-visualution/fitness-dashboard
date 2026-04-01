@@ -22,6 +22,24 @@ const QuickLogSheet = ({ onClose, session }) => {
   const [showCreateTemplate, setShowCreateTemplate] = useState(false);
   const [cancelReason, setCancelReason] = useState('Bận đột xuất');
   const [customReason, setCustomReason] = useState('');
+  
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(null);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+
+  const fetchTemplates = async () => {
+    const coachEmail = session?.user?.email;
+    if (!coachEmail) return;
+    setLoadingTemplates(true);
+    const { data: tmpls } = await supabase
+      .from('workout_templates')
+      .select('id, name, template_exercises(*)')
+      .eq('coach_email', coachEmail)
+      .order('created_at', { ascending: false });
+    
+    if (tmpls) setTemplates(tmpls);
+    setLoadingTemplates(false);
+  };
 
   // Fetch today's sessions
   useEffect(() => {
@@ -58,19 +76,30 @@ const QuickLogSheet = ({ onClose, session }) => {
       setLoading(false);
     };
     fetchToday();
+    fetchTemplates();
   }, [session]);
 
   const handleSave = async (status) => {
     if (!selectedSessionId || selectedSessionId === 'new') return; // skipping custom creation logic for now
     
     setSaving(true);
+    
+    let finalWorkoutData = null;
+    if (segment === 'pack' && selectedTemplateId) {
+      const selectedTmpl = templates.find(t => t.id === selectedTemplateId);
+      if (selectedTmpl && selectedTmpl.template_exercises) {
+        finalWorkoutData = selectedTmpl.template_exercises;
+      }
+    }
+    
     const updates = { 
         status, 
         feeling, 
         notes, 
         completed_at: status === 'completed' ? new Date().toISOString() : null,
         cancelled_at: status === 'cancelled' ? new Date().toISOString() : null,
-        cancel_reason: status === 'cancelled' ? (cancelReason === 'Lý do khác' ? customReason : cancelReason) : null
+        cancel_reason: status === 'cancelled' ? (cancelReason === 'Lý do khác' ? customReason : cancelReason) : null,
+        ...(finalWorkoutData ? { workout_data: finalWorkoutData } : {})
     };
     
     await supabase.from('sessions').update(updates).eq('id', selectedSessionId);
@@ -157,13 +186,32 @@ const QuickLogSheet = ({ onClose, session }) => {
 
         {/* Placeholder for Body based on Segment */}
         {segment === 'pack' ? (
-           <div className="bg-white/[0.02] border border-white/[0.05] rounded-[16px] p-4 text-center">
-             <PenTool className="w-6 h-6 mx-auto mb-2 text-neutral-700" />
-             <p className="text-xs text-neutral-500 mb-3">(Tính năng chọn Template Exercises sẽ nằm ở đây)</p>
-             <button onClick={() => setShowCreateTemplate(true)} className="px-4 py-2 border border-white/10 rounded-[12px] text-xs font-bold text-white bg-white/5 active:scale-95 transition-all">
+           <div className="flex flex-col gap-3">
+             {loadingTemplates ? (
+               <div className="text-center text-sm text-neutral-500 py-4">Đang tải gói bài tập...</div>
+             ) : templates.length === 0 ? (
+               <div className="bg-white/[0.02] border border-white/[0.05] rounded-[16px] p-4 text-center">
+                 <PenTool className="w-6 h-6 mx-auto mb-2 text-neutral-700" />
+                 <p className="text-xs text-neutral-500 mb-3">Chưa có gói bài tập nào.</p>
+               </div>
+             ) : (
+               <div className="grid grid-cols-2 gap-2">
+                 {templates.map(t => (
+                   <button 
+                     key={t.id} 
+                     onClick={() => setSelectedTemplateId(t.id)}
+                     className={`p-3 rounded-[16px] border text-left flex flex-col gap-1 transition-all ${selectedTemplateId === t.id ? 'bg-blue-500/10 border-blue-500/30' : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05]'}`}
+                   >
+                     <p className={`font-semibold text-sm line-clamp-2 leading-snug ${selectedTemplateId === t.id ? 'text-blue-400' : 'text-white'}`}>{t.name}</p>
+                     <p className="text-[10px] text-neutral-500 font-medium">{t.template_exercises?.length || 0} bài tập</p>
+                   </button>
+                 ))}
+               </div>
+             )}
+             <button onClick={() => setShowCreateTemplate(true)} className="mt-2 w-full py-3.5 border border-dashed border-white/20 rounded-[14px] text-xs font-bold text-neutral-400 hover:text-white hover:bg-white/5 active:scale-95 transition-all">
                + Tạo gói bài tập mới
              </button>
-             {showCreateTemplate && <CreateTemplateModal session={session} onClose={() => setShowCreateTemplate(false)} />}
+             {showCreateTemplate && <CreateTemplateModal session={session} onClose={() => { setShowCreateTemplate(false); fetchTemplates(); }} />}
            </div>
         ) : (
            <textarea placeholder="Ghi chú các bài tập đã thực hiện..." className="w-full bg-white/[0.02] border border-white/[0.05] rounded-[14px] py-3 px-4 text-white text-sm outline-none focus:border-white/20 resize-none h-24" />
