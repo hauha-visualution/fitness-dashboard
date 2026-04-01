@@ -188,9 +188,20 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                 {upcomingSessions.length > 0 && (
                   <>
                     {isActive && (
-                      <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest py-2 px-1">
-                        Sắp tới · {upcomingSessions.length} buổi
-                      </p>
+                      <div className="flex items-center justify-between gap-3 py-2 px-1">
+                        <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">
+                          Sắp tới · {upcomingSessions.length} buổi
+                        </p>
+                        {!readOnly && nextSession && (
+                          <button
+                            onClick={() => openExtraModal(nextSession)}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-[10px] font-black uppercase transition-all active:scale-90 bg-white/[0.05] border border-white/[0.08] text-white"
+                          >
+                            <Plus className="w-3 h-3" />
+                            Thêm buổi phát sinh
+                          </button>
+                        )}
+                      </div>
                     )}
                     {upcomingSessions.map(sess => {
                       const { dayLabel, short } = formatSessionDate(sess.scheduled_date);
@@ -234,7 +245,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                                   className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-[10px] font-black uppercase transition-all active:scale-90 bg-white/[0.04] border border-white/[0.08] text-neutral-400"
                                 >
                                   <Plus className="w-3 h-3" />
-                                  Extra
+                                  Thêm buổi
                                 </button>
                               )}
                               <button

@@ -98,11 +98,11 @@ BEGIN
 
   SELECT COUNT(*)
   INTO v_slot_count
-  FROM sessions
-  WHERE package_id = v_target.package_id
-    AND status IN ('scheduled', 'in_progress')
-    AND COALESCE(session_kind, 'fixed') = 'fixed'
-    AND session_number > v_target.session_number;
+  FROM sessions s
+  WHERE s.package_id = v_target.package_id
+    AND s.status IN ('scheduled', 'in_progress')
+    AND COALESCE(s.session_kind, 'fixed') = 'fixed'
+    AND s.session_number > v_target.session_number;
 
   v_slot_count := v_slot_count + 1;
 
@@ -155,12 +155,12 @@ BEGIN
 
   FOR v_future IN
     SELECT id
-    FROM sessions
-    WHERE package_id = v_target.package_id
-      AND status IN ('scheduled', 'in_progress')
-      AND COALESCE(session_kind, 'fixed') = 'fixed'
-      AND session_number > v_target.session_number
-    ORDER BY session_number
+    FROM sessions s
+    WHERE s.package_id = v_target.package_id
+      AND s.status IN ('scheduled', 'in_progress')
+      AND COALESCE(s.session_kind, 'fixed') = 'fixed'
+      AND s.session_number > v_target.session_number
+    ORDER BY s.session_number
   LOOP
     UPDATE sessions
     SET
@@ -211,11 +211,11 @@ BEGIN
 
   SELECT id
   INTO v_overflow_id
-  FROM sessions
-  WHERE package_id = v_anchor.package_id
-    AND status IN ('scheduled', 'in_progress')
-    AND COALESCE(session_kind, 'fixed') = 'fixed'
-  ORDER BY session_number DESC, scheduled_date DESC, scheduled_time DESC
+  FROM sessions s
+  WHERE s.package_id = v_anchor.package_id
+    AND s.status IN ('scheduled', 'in_progress')
+    AND COALESCE(s.session_kind, 'fixed') = 'fixed'
+  ORDER BY s.session_number DESC, s.scheduled_date DESC, s.scheduled_time DESC
   LIMIT 1
   FOR UPDATE;
 
@@ -225,10 +225,10 @@ BEGIN
 
   UPDATE sessions
   SET session_number = session_number + 1
-  WHERE package_id = v_anchor.package_id
-    AND status IN ('scheduled', 'in_progress')
-    AND COALESCE(session_kind, 'fixed') = 'fixed'
-    AND session_number >= v_anchor.session_number;
+  WHERE sessions.package_id = v_anchor.package_id
+    AND sessions.status IN ('scheduled', 'in_progress')
+    AND COALESCE(sessions.session_kind, 'fixed') = 'fixed'
+    AND sessions.session_number >= v_anchor.session_number;
 
   UPDATE sessions
   SET

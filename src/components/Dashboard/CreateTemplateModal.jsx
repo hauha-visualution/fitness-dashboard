@@ -10,7 +10,15 @@ const createExerciseDraft = (id) => ({
   video_url: '',
 });
 
-const CreateTemplateModal = ({ onClose, session }) => {
+const normalizeExerciseDraft = (exercise, fallbackSortOrder) => ({
+  name: exercise.name.trim(),
+  sets: Math.max(1, Number(exercise.sets) || 1),
+  reps: Math.max(1, Number(exercise.reps) || 1),
+  sort_order: fallbackSortOrder,
+  video_url: exercise.video_url.trim() || null,
+});
+
+const CreateTemplateModal = ({ onClose, onCreated, session }) => {
   const [templateName, setTemplateName] = useState('');
   
   // Clients assignment
@@ -23,6 +31,7 @@ const CreateTemplateModal = ({ onClose, session }) => {
   
   const [saving, setSaving] = useState(false);
   const [draggedIdx, setDraggedIdx] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Fetch coach's clients
   useEffect(() => {
@@ -40,15 +49,18 @@ const CreateTemplateModal = ({ onClose, session }) => {
   };
 
   const updateExercise = (id, field, value) => {
+    setErrorMessage('');
     setExercises(prev => prev.map(ex => ex.id === id ? { ...ex, [field]: value } : ex));
   };
 
   const removeExercise = (id) => {
+    setErrorMessage('');
     setExercises(prev => prev.filter(ex => ex.id !== id));
   };
 
   const addExercise = () => {
     const nextId = `template-exercise-${exerciseIdRef.current++}`;
+    setErrorMessage('');
     setExercises(prev => [...prev, createExerciseDraft(nextId)]);
   };
 
@@ -80,47 +92,79 @@ const CreateTemplateModal = ({ onClose, session }) => {
 
   // Save logic
   const handleSave = async () => {
-    if (!templateName.trim() || exercises.length === 0) return;
-    
+    const cleanName = templateName.trim();
+    const cleanedExercises = exercises
+      .map((exercise, idx) => normalizeExerciseDraft(exercise, idx))
+      .filter(exercise => exercise.name);
+
+    if (!cleanName) {
+      setErrorMessage('Vui lòng nhập tên gói bài tập.');
+      return;
+    }
+
+    if (cleanedExercises.length === 0) {
+      setErrorMessage('Cần ít nhất 1 bài tập có tên để tạo gói.');
+      return;
+    }
+
+    if (cleanedExercises.length !== exercises.length) {
+      setErrorMessage('Một số bài tập đang để trống tên. Hãy điền hoặc xoá trước khi lưu.');
+      return;
+    }
+
     setSaving(true);
+    setErrorMessage('');
     const coachEmail = session?.user?.email;
     if (!coachEmail) {
-      console.error('Session or coach_email is missing. Cannot save template.');
+      setErrorMessage('Không tìm thấy thông tin coach. Hãy đăng nhập lại rồi thử lại.');
       setSaving(false);
       return;
     }
-    // 1. Insert Template
-    const { data: tmplData, error: tmplErr } = await supabase
-      .from('workout_templates')
-      .insert({ coach_email: coachEmail, name: templateName })
-      .select('id')
-      .single();
-      
-    if (tmplErr) { console.error('Tmpl Error:', tmplErr); setSaving(false); return; }
-    const templateId = tmplData.id;
 
-    // 2. Insert exercises
-    const exDocs = exercises.map((ex, idx) => ({
-      template_id: templateId,
-      name: ex.name,
-      sets: ex.sets,
-      reps: ex.reps,
-      sort_order: idx,
-      video_url: ex.video_url || null
-    }));
-    await supabase.from('template_exercises').insert(exDocs);
+    try {
+      // 1. Insert template
+      const { data: tmplData, error: tmplErr } = await supabase
+        .from('workout_templates')
+        .insert({ coach_email: coachEmail, name: cleanName })
+        .select('id')
+        .single();
 
-    // 3. Insert assignments if any
-    if (selectedClientIds.length > 0) {
-      const assignDocs = selectedClientIds.map(clientId => ({
+      if (tmplErr) {
+        throw tmplErr;
+      }
+
+      const templateId = tmplData.id;
+
+      // 2. Insert exercises
+      const exDocs = cleanedExercises.map(exercise => ({
         template_id: templateId,
-        client_id: clientId
+        ...exercise,
       }));
-      await supabase.from('template_assignments').insert(assignDocs);
-    }
+      const { error: exerciseError } = await supabase.from('template_exercises').insert(exDocs);
+      if (exerciseError) {
+        throw exerciseError;
+      }
 
-    setSaving(false);
-    onClose();
+      // 3. Insert assignments if any
+      if (selectedClientIds.length > 0) {
+        const assignDocs = selectedClientIds.map(clientId => ({
+          template_id: templateId,
+          client_id: clientId,
+        }));
+        const { error: assignmentError } = await supabase.from('template_assignments').insert(assignDocs);
+        if (assignmentError) {
+          throw assignmentError;
+        }
+      }
+
+      onCreated?.();
+      onClose();
+    } catch (error) {
+      console.error('Create template error:', error);
+      setErrorMessage(error.message || 'Không thể tạo gói bài tập. Vui lòng thử lại.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -145,7 +189,7 @@ const CreateTemplateModal = ({ onClose, session }) => {
            {/* Section 1: Template Name */}
            <div>
              <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Tên gói bài tập</label>
-             <input type="text" value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="VD: Full body A — Thứ 4" className="w-full bg-white/[0.04] border border-white/[0.1] rounded-[14px] py-3 px-4 text-white text-sm font-medium outline-none focus:border-white/30 transition-all" />
+             <input type="text" value={templateName} onChange={e => { setTemplateName(e.target.value); setErrorMessage(''); }} placeholder="VD: Full body A — Thứ 4" className="w-full bg-white/[0.04] border border-white/[0.1] rounded-[14px] py-3 px-4 text-white text-sm font-medium outline-none focus:border-white/30 transition-all" />
            </div>
 
            {/* Section 2: Assign To */}
@@ -215,13 +259,20 @@ const CreateTemplateModal = ({ onClose, session }) => {
         </div>
 
         {/* Footer */}
-        <div className="bg-[#0d0d0d]/95 backdrop-blur-xl shrink-0 p-5 pt-3 border-t border-white/[0.06] flex gap-3 pb-8">
+        <div className="bg-[#0d0d0d]/95 backdrop-blur-xl shrink-0 p-5 pt-3 border-t border-white/[0.06] pb-8">
+           {errorMessage && (
+             <div className="mb-3 rounded-[16px] border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+               {errorMessage}
+             </div>
+           )}
+           <div className="flex gap-3">
            <button onClick={onClose} disabled={saving} className="flex-1 py-4 bg-white/[0.04] border border-white/[0.08] text-white font-bold rounded-[18px] active:scale-95 transition-all text-sm disabled:opacity-50">
              Huỷ
            </button>
            <button onClick={handleSave} disabled={saving || !templateName.trim() || exercises.length === 0} className="flex-1 py-4 bg-white text-black font-bold rounded-[18px] active:scale-[0.98] transition-all text-sm disabled:opacity-50">
              {saving ? 'Đang tạo...' : 'Tạo gói bài tập'}
            </button>
+           </div>
         </div>
 
       </div>
