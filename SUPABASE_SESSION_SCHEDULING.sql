@@ -224,7 +224,7 @@ BEGIN
   END IF;
 
   UPDATE sessions
-  SET session_number = session_number + 1
+  SET session_number = sessions.session_number + 1
   WHERE sessions.package_id = v_anchor.package_id
     AND sessions.status IN ('scheduled', 'in_progress')
     AND COALESCE(sessions.session_kind, 'fixed') = 'fixed'

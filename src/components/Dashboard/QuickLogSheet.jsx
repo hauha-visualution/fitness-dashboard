@@ -481,7 +481,13 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
              <button onClick={() => setShowCreateTemplate(true)} className="mt-2 w-full py-3.5 border border-dashed border-white/20 rounded-[14px] text-xs font-bold text-neutral-400 hover:text-white hover:bg-white/5 active:scale-95 transition-all">
                + Tạo gói bài tập mới
              </button>
-             {showCreateTemplate && <CreateTemplateModal session={session} onClose={() => { setShowCreateTemplate(false); fetchTemplates(); }} />}
+             {showCreateTemplate && (
+               <CreateTemplateModal
+                 session={session}
+                 onClose={() => setShowCreateTemplate(false)}
+                 onCreated={() => fetchTemplates()}
+               />
+             )}
            </div>
         ) : (
            <div className="flex flex-col gap-3">

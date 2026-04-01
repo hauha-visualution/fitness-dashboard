@@ -45,6 +45,7 @@ const CreateTemplateModal = ({ onClose, onCreated, session }) => {
   }, [session]);
 
   const toggleClient = (id) => {
+    setErrorMessage('');
     setSelectedClientIds(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
   };
 
@@ -170,7 +171,7 @@ const CreateTemplateModal = ({ onClose, onCreated, session }) => {
   return (
     <div className="fixed inset-0 z-[500] flex">
       {/* Overlay */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { if (!saving) onClose(); }} />
       
       {/* Sheet / Full modal */}
       <div className="absolute bottom-0 w-full h-[92vh] bg-[#0d0d0d] border-t border-white/10 rounded-t-[32px] flex flex-col overflow-hidden animate-slide-up shadow-2xl">
@@ -179,7 +180,7 @@ const CreateTemplateModal = ({ onClose, onCreated, session }) => {
         <div className="bg-[#0d0d0d]/95 backdrop-blur-xl z-10 px-6 pt-5 pb-4 border-b border-white/[0.06] flex flex-col shrink-0 gap-3">
           <div className="flex justify-between items-center">
             <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-widest shrink-0">Tạo Gói Mới</span>
-            <button onClick={onClose} className="p-1.5 bg-white/[0.04] border border-white/[0.08] rounded-full text-neutral-500 active:scale-90 transition-all shrink-0"><X className="w-4 h-4" /></button>
+            <button onClick={onClose} disabled={saving} className="p-1.5 bg-white/[0.04] border border-white/[0.08] rounded-full text-neutral-500 active:scale-90 transition-all shrink-0 disabled:opacity-40"><X className="w-4 h-4" /></button>
           </div>
         </div>
 

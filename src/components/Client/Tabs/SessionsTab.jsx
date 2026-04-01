@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { Dumbbell, CheckCircle2, Clock, ChevronDown, ChevronUp, RefreshCw, Plus, X } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 
@@ -316,7 +317,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
           </div>
         );
       })}
-      {showExtraModal && (
+      {showExtraModal && ReactDOM.createPortal(
         <div className="fixed inset-0 z-[220] flex items-end justify-center px-4 bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-[420px] bg-[#111113] border border-white/10 rounded-t-[28px] p-5 pb-8 animate-slide-up">
             <div className="flex items-center justify-between mb-4">
@@ -378,7 +379,8 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
