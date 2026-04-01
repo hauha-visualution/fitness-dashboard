@@ -216,7 +216,7 @@ const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) =
   };
 
   return (
-    <div className="h-screen bg-[#0a0a0a] flex flex-col relative overflow-hidden">
+    <div className="h-screen bg-[#0a0a0a] flex flex-col relative">
 
       {/* Top bar (hiển thị khi không ở home) */}
       {activeTab !== 'home' && (

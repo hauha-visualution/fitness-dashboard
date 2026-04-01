@@ -69,7 +69,7 @@ const ClientDetailView = ({ client, onBack, onDelete }) => {
   };
 
   return (
-    <div className="h-screen bg-[#0a0a0a] flex flex-col relative overflow-hidden animate-slide-up">
+    <div className="h-screen bg-[#0a0a0a] flex flex-col relative animate-slide-up">
 
       {/* HEADER */}
       <div className="p-6 flex justify-between items-center shrink-0 z-10">

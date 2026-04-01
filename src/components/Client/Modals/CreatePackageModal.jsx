@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   X, ChevronRight, ChevronLeft, CheckCircle2, RefreshCw,
-  Calendar, Clock, Zap, Package, Gift, DollarSign
+  Calendar, Clock, Package, Gift
 } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 
@@ -16,6 +16,7 @@ const DAY_LABELS = [
   { day: 0, short: 'CN', full: 'Chủ nhật' },
 ];
 const SESSION_PRESETS = [8, 10, 12, 20, 24];
+const DURATIONS = [45, 60, 75, 90];
 const DAY_VI = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
 // ─── UTILITIES ───────────────────────────────────────────────
@@ -49,22 +50,33 @@ const formatPrice = (raw) => {
   return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
+const addMinutes = (timeStr, minutes) => {
+  if (!timeStr) return '';
+  const [h, m] = timeStr.split(':').map(Number);
+  const total = h * 60 + m + minutes;
+  const endH = Math.floor(total / 60) % 24;
+  const endM = total % 60;
+  return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+};
+
 // ─── MAIN COMPONENT ──────────────────────────────────────────
 const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => {
   // Step 1: package info
   const [step, setStep] = useState(1);
-  const [sessionPreset, setSessionPreset] = useState(12);
-  const [customSessions, setCustomSessions] = useState('');
+  // Use single sessionCount state, null = custom mode
+  const [selectedPreset, setSelectedPreset] = useState(12);
+  const [customValue, setCustomValue] = useState('');
   const [priceDisplay, setPriceDisplay] = useState('');
   const [bonusSessions, setBonusSessions] = useState(0);
 
   // Step 2: schedule
   const [startDate, setStartDate] = useState('');
   const [schedule, setSchedule] = useState([]); // [{ day, time }]
+  const [sessionDuration, setSessionDuration] = useState(60); // minutes
   const [isCreating, setIsCreating] = useState(false);
 
   // Computed
-  const sessionCount = customSessions !== '' ? (parseInt(customSessions) || 0) : sessionPreset;
+  const sessionCount = customValue !== '' ? (parseInt(customValue) || 0) : selectedPreset;
   const totalSessions = sessionCount + bonusSessions;
   const priceRaw = priceDisplay.replace(/\./g, '');
   const previewSessions = useMemo(
@@ -92,58 +104,62 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
   const isDaySelected = (day) => schedule.some(s => s.day === day);
 
   // ─── VALIDATION ───────────────────────────────────────────
-  const step1Valid = sessionCount >= 1 && sessionCount <= 200 && bonusSessions >= 0;
+  const step1Valid = sessionCount >= 1 && sessionCount <= 200;
   const step2Valid = startDate && schedule.length > 0 && previewSessions.length === totalSessions;
 
   // ─── SAVE ─────────────────────────────────────────────────
   const handleSave = async () => {
-    if (!step2Valid) return;
+    if (!step2Valid || isCreating) return;
     setIsCreating(true);
 
-    // Insert package
-    const { data: pkg, error: pkgErr } = await supabase
-      .from('packages')
-      .insert([{
+    try {
+      // Insert package
+      const { data: pkg, error: pkgErr } = await supabase
+        .from('packages')
+        .insert([{
+          client_id: clientId,
+          package_number: packageNumber,
+          session_count: sessionCount,
+          bonus_sessions: bonusSessions,
+          total_sessions: totalSessions,
+          price: parseInt(priceRaw) || 0,
+          start_date: startDate,
+          weekly_schedule: schedule,
+          status: 'active',
+        }])
+        .select()
+        .single();
+
+      if (pkgErr) {
+        alert('Lỗi tạo gói: ' + pkgErr.message);
+        setIsCreating(false);
+        return;
+      }
+
+      // Bulk insert sessions
+      const rows = previewSessions.map(s => ({
         client_id: clientId,
-        package_number: packageNumber,
-        session_count: sessionCount,
-        bonus_sessions: bonusSessions,
-        total_sessions: totalSessions,
-        price: parseInt(priceRaw) || 0,
-        start_date: startDate,
-        weekly_schedule: schedule,
-        status: 'active',
-      }])
-      .select()
-      .single();
+        package_id: pkg.id,
+        session_number: s.number,
+        scheduled_date: s.date.toISOString().split('T')[0],
+        scheduled_time: s.time,
+        status: 'scheduled',
+      }));
 
-    if (pkgErr) {
-      alert('Lỗi tạo gói: ' + pkgErr.message);
+      const { error: sessErr } = await supabase.from('sessions').insert(rows);
+
+      if (sessErr) {
+        alert('Lỗi tạo lịch: ' + sessErr.message);
+        setIsCreating(false);
+        return;
+      }
+
+      onCreated();
+      onClose();
+    } catch (err) {
+      alert('Lỗi: ' + err.message);
       setIsCreating(false);
-      return;
     }
-
-    // Bulk insert sessions
-    const rows = previewSessions.map(s => ({
-      client_id: clientId,
-      package_id: pkg.id,
-      session_number: s.number,
-      scheduled_date: s.date.toISOString().split('T')[0],
-      scheduled_time: s.time,
-      status: 'scheduled',
-    }));
-
-    const { error: sessErr } = await supabase.from('sessions').insert(rows);
-
-    if (sessErr) {
-      alert('Lỗi tạo lịch buổi tập: ' + sessErr.message);
-      setIsCreating(false);
-      return;
-    }
-
-    setIsCreating(false);
-    onCreated();
-    onClose();
   };
 
   // ─── RENDER ───────────────────────────────────────────────
@@ -152,17 +168,17 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
       <div className="w-full bg-[#0d0d0d] border-t border-white/10 rounded-t-[32px] max-h-[92vh] overflow-y-auto hide-scrollbar animate-slide-up">
 
         {/* Header */}
-        <div className="sticky top-0 bg-[#0d0d0d]/95 backdrop-blur-xl z-10 px-6 pt-6 pb-4 border-b border-white/[0.06]">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-white font-medium text-lg">Tạo Gói Tập Mới</h3>
-              <p className="text-[10px] font-black text-neutral-600 uppercase tracking-widest mt-0.5">
-                Gói #{String(packageNumber).padStart(2, '0')}
-              </p>
+        <div className="sticky top-0 bg-[#0d0d0d]/95 backdrop-blur-xl z-10 px-6 pt-5 pb-4 border-b border-white/[0.06]">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <Package className="w-4 h-4 text-blue-400" />
+              <div>
+                <h3 className="text-white font-medium">Tạo gói #{String(packageNumber).padStart(2, '0')}</h3>
+              </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2.5 bg-white/[0.04] border border-white/[0.08] rounded-full text-neutral-500 active:scale-90 transition-all"
+              className="p-2 bg-white/[0.04] border border-white/[0.08] rounded-full text-neutral-500 active:scale-90 transition-all"
             >
               <X className="w-4 h-4" />
             </button>
@@ -172,19 +188,13 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
             {[1, 2].map(s => (
               <div
                 key={s}
-                className={`h-1 flex-1 rounded-full transition-all duration-500 ${
-                  s <= step ? 'bg-white' : 'bg-white/10'
-                }`}
+                className={`h-1 flex-1 rounded-full transition-all duration-500 ${s <= step ? 'bg-white' : 'bg-white/10'}`}
               />
             ))}
           </div>
-          <div className="flex justify-between mt-2">
-            <span className={`text-[9px] font-black uppercase tracking-widest ${step >= 1 ? 'text-white' : 'text-neutral-700'}`}>
-              Thông tin gói
-            </span>
-            <span className={`text-[9px] font-black uppercase tracking-widest ${step >= 2 ? 'text-white' : 'text-neutral-700'}`}>
-              Lịch tập
-            </span>
+          <div className="flex justify-between mt-1.5">
+            <span className={`text-[9px] font-black uppercase tracking-widest ${step >= 1 ? 'text-neutral-400' : 'text-neutral-700'}`}>Thông tin gói</span>
+            <span className={`text-[9px] font-black uppercase tracking-widest ${step >= 2 ? 'text-neutral-400' : 'text-neutral-700'}`}>Lịch tập</span>
           </div>
         </div>
 
@@ -192,22 +202,20 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
 
           {/* ═══ STEP 1: Package Info ═══ */}
           {step === 1 && (
-            <div className="space-y-6 pt-6">
+            <div className="space-y-5 pt-5">
 
-              {/* Số buổi */}
+              {/* Số buổi mua */}
               <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Zap className="w-4 h-4 text-blue-400" />
-                  <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Số buổi tập</p>
-                </div>
-                <div className="grid grid-cols-5 gap-2 mb-3">
+                <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Số buổi mua</p>
+                <div className="grid grid-cols-5 gap-2 mb-2.5">
                   {SESSION_PRESETS.map(p => (
                     <button
                       key={p}
-                      onClick={() => { setSessionPreset(p); setCustomSessions(''); }}
-                      className={`py-3.5 rounded-[18px] font-black text-sm transition-all active:scale-95 ${
-                        sessionPreset === p && customSessions === ''
-                          ? 'bg-white text-black shadow-lg'
+                      type="button"
+                      onClick={() => { setSelectedPreset(p); setCustomValue(''); }}
+                      className={`py-3.5 rounded-[16px] font-black text-sm transition-all active:scale-95 ${
+                        selectedPreset === p && customValue === ''
+                          ? 'bg-white text-black'
                           : 'bg-white/[0.04] border border-white/[0.08] text-neutral-400'
                       }`}
                     >
@@ -219,91 +227,89 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                   type="number"
                   min="1"
                   max="200"
-                  placeholder="Tùy chọn khác..."
-                  value={customSessions}
-                  onChange={e => { setCustomSessions(e.target.value); setSessionPreset(null); }}
-                  className="w-full bg-white/[0.03] border border-white/[0.08] rounded-[18px] py-3 px-4 text-white text-sm outline-none focus:border-white/20"
+                  placeholder="Số khác..."
+                  value={customValue}
+                  onChange={e => { setCustomValue(e.target.value); setSelectedPreset(null); }}
+                  onFocus={() => setSelectedPreset(null)}
+                  className="w-full bg-white/[0.03] border border-white/[0.08] rounded-[14px] py-2.5 px-4 text-white text-sm outline-none focus:border-white/20"
                 />
               </div>
 
-              {/* Giá tiền */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <DollarSign className="w-4 h-4 text-emerald-400" />
-                  <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Giá tiền</p>
-                </div>
+              {/* Giá + buổi tặng - cùng hàng */}
+              <div className="space-y-2.5">
+                <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Giá & khuyến mãi</p>
+
+                {/* Giá tiền */}
                 <div className="relative">
                   <input
                     type="text"
                     inputMode="numeric"
-                    placeholder="5.000.000"
+                    placeholder="Giá tiền (VNĐ)..."
                     value={priceDisplay}
                     onChange={e => setPriceDisplay(formatPrice(e.target.value))}
-                    className="w-full bg-white/[0.03] border border-white/[0.08] rounded-[18px] py-3 pl-4 pr-14 text-white text-sm outline-none focus:border-white/20"
+                    className="w-full bg-white/[0.03] border border-white/[0.08] rounded-[14px] py-2.5 pl-4 pr-14 text-white text-sm outline-none focus:border-white/20"
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-neutral-600">VNĐ</span>
                 </div>
+
+                {/* Buổi tặng - compact inline */}
+                <div className="flex items-center justify-between bg-white/[0.02] border border-white/[0.06] rounded-[14px] px-4 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <Gift className="w-3.5 h-3.5 text-purple-400" />
+                    <span className="text-xs text-neutral-400">Buổi tặng thêm</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setBonusSessions(Math.max(0, bonusSessions - 1))}
+                      className="w-7 h-7 bg-white/[0.06] border border-white/[0.1] rounded-full text-white flex items-center justify-center active:scale-90 font-bold text-base leading-none"
+                    >
+                      –
+                    </button>
+                    <span className="text-white font-medium w-5 text-center">{bonusSessions}</span>
+                    <button
+                      type="button"
+                      onClick={() => setBonusSessions(bonusSessions + 1)}
+                      className="w-7 h-7 bg-white/[0.06] border border-white/[0.1] rounded-full text-white flex items-center justify-center active:scale-90 font-bold text-base leading-none"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              {/* Buổi tặng */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Gift className="w-4 h-4 text-purple-400" />
-                  <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Buổi tặng thêm</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => setBonusSessions(Math.max(0, bonusSessions - 1))}
-                    className="w-10 h-10 bg-white/[0.04] border border-white/[0.08] rounded-full text-white font-bold text-xl flex items-center justify-center active:scale-90"
-                  >
-                    –
-                  </button>
-                  <span className="text-2xl font-light text-white w-8 text-center">{bonusSessions}</span>
-                  <button
-                    onClick={() => setBonusSessions(bonusSessions + 1)}
-                    className="w-10 h-10 bg-white/[0.04] border border-white/[0.08] rounded-full text-white font-bold text-xl flex items-center justify-center active:scale-90"
-                  >
-                    +
-                  </button>
-                  <span className="text-xs text-neutral-600 ml-2">buổi tặng</span>
-                </div>
-              </div>
-
-              {/* Summary card */}
-              <div className="bg-gradient-to-br from-blue-500/15 to-purple-500/10 border border-white/10 rounded-[24px] p-5">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Tổng kết</span>
-                  <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">
-                    Gói #{String(packageNumber).padStart(2, '0')}
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-3 text-center">
-                  <div>
-                    <p className="text-2xl font-light text-white">{sessionCount}</p>
-                    <p className="text-[8px] font-black text-neutral-600 uppercase">Buổi mua</p>
+              {/* Summary compact */}
+              <div className="bg-white/[0.03] border border-white/[0.08] rounded-[20px] px-5 py-4">
+                <div className="flex items-center justify-around">
+                  <div className="text-center">
+                    <p className="text-2xl font-light text-white">{sessionCount || 0}</p>
+                    <p className="text-[8px] font-black text-neutral-600 uppercase mt-0.5">Mua</p>
                   </div>
-                  <div>
-                    <p className="text-2xl font-light text-purple-400">+{bonusSessions}</p>
-                    <p className="text-[8px] font-black text-neutral-600 uppercase">Tặng thêm</p>
+                  <div className="text-neutral-700 text-lg font-light">+</div>
+                  <div className="text-center">
+                    <p className="text-2xl font-light text-purple-400">{bonusSessions}</p>
+                    <p className="text-[8px] font-black text-neutral-600 uppercase mt-0.5">Tặng</p>
                   </div>
-                  <div className="bg-white/5 rounded-[16px] py-2">
+                  <div className="text-neutral-700 text-lg font-light">=</div>
+                  <div className="text-center bg-white/[0.05] rounded-[14px] px-4 py-2">
                     <p className="text-2xl font-bold text-white">{totalSessions}</p>
-                    <p className="text-[8px] font-black text-emerald-400 uppercase">Tổng buổi</p>
+                    <p className="text-[8px] font-black text-emerald-400 uppercase mt-0.5">Tổng buổi</p>
                   </div>
                 </div>
-                {priceDisplay && (
-                  <p className="text-center text-sm text-neutral-400 mt-3">
-                    {priceDisplay} <span className="text-neutral-600 text-xs">VNĐ</span>
+                {priceDisplay ? (
+                  <p className="text-center text-xs text-neutral-500 mt-3 pt-3 border-t border-white/[0.05]">
+                    {priceDisplay} <span className="text-neutral-700">VNĐ</span>
                   </p>
-                )}
+                ) : null}
               </div>
 
               <button
+                type="button"
                 onClick={() => setStep(2)}
                 disabled={!step1Valid}
                 className="w-full bg-white text-black font-bold py-4 rounded-[20px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Tiếp theo: Cài lịch tập
+                Cài lịch tập
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -311,39 +317,53 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
 
           {/* ═══ STEP 2: Schedule ═══ */}
           {step === 2 && (
-            <div className="space-y-6 pt-6">
+            <div className="space-y-5 pt-5">
 
               {/* Ngày bắt đầu */}
               <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Calendar className="w-4 h-4 text-blue-400" />
-                  <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Ngày bắt đầu gói</p>
-                </div>
+                <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-2.5">Ngày bắt đầu</p>
                 <input
                   type="date"
                   value={startDate}
                   onChange={e => setStartDate(e.target.value)}
                   min={new Date().toISOString().split('T')[0]}
-                  className="w-full bg-white/[0.03] border border-white/[0.08] rounded-[18px] py-3 px-4 text-white text-sm outline-none focus:border-white/20"
+                  className="w-full bg-white/[0.03] border border-white/[0.08] rounded-[14px] py-2.5 px-4 text-white text-sm outline-none focus:border-white/20"
                 />
               </div>
 
-              {/* Chọn ngày trong tuần */}
+              {/* Thời lượng mỗi buổi */}
               <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Clock className="w-4 h-4 text-orange-400" />
-                  <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">
-                    Lịch tập hàng tuần (chọn ngày)
-                  </p>
+                <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-2.5">Thời lượng mỗi buổi</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {DURATIONS.map(d => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setSessionDuration(d)}
+                      className={`py-2.5 rounded-[12px] font-black text-xs transition-all active:scale-95 ${
+                        sessionDuration === d
+                          ? 'bg-white text-black'
+                          : 'bg-white/[0.04] border border-white/[0.08] text-neutral-400'
+                      }`}
+                    >
+                      {d}'
+                    </button>
+                  ))}
                 </div>
-                <div className="grid grid-cols-7 gap-1.5 mb-4">
+              </div>
+
+              {/* Chọn ngày tập */}
+              <div>
+                <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-2.5">Ngày tập hàng tuần</p>
+                <div className="grid grid-cols-7 gap-1.5 mb-3">
                   {DAY_LABELS.map(({ day, short }) => (
                     <button
                       key={day}
+                      type="button"
                       onClick={() => toggleDay(day)}
-                      className={`py-3 rounded-[14px] font-black text-[11px] transition-all active:scale-90 ${
+                      className={`py-2.5 rounded-[12px] font-black text-[11px] transition-all active:scale-90 ${
                         isDaySelected(day)
-                          ? 'bg-white text-black shadow-lg'
+                          ? 'bg-white text-black'
                           : 'bg-white/[0.04] border border-white/[0.08] text-neutral-500'
                       }`}
                     >
@@ -352,24 +372,27 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                   ))}
                 </div>
 
-                {/* Per-day time picker */}
+                {/* Per-day time picker with end time */}
                 {schedule.length > 0 && (
                   <div className="space-y-2">
                     {schedule.map(({ day, time }) => {
                       const dayInfo = DAY_LABELS.find(d => d.day === day);
+                      const endTime = addMinutes(time, sessionDuration);
                       return (
                         <div
                           key={day}
-                          className="flex items-center gap-3 bg-white/[0.03] border border-white/[0.06] rounded-[16px] px-4 py-3"
+                          className="flex items-center gap-3 bg-white/[0.03] border border-white/[0.06] rounded-[14px] px-4 py-2.5"
                         >
-                          <span className="text-white font-black text-xs w-14">{dayInfo?.full}</span>
-                          <Clock className="w-3.5 h-3.5 text-neutral-600" />
+                          <span className="text-white font-black text-[11px] w-12 shrink-0">{dayInfo?.short}</span>
                           <input
                             type="time"
                             value={time}
                             onChange={e => updateDayTime(day, e.target.value)}
-                            className="bg-transparent text-white text-sm outline-none flex-1 font-medium"
+                            className="bg-transparent text-white text-sm outline-none font-medium"
                           />
+                          <span className="text-neutral-600 text-[10px]">→</span>
+                          <span className="text-neutral-400 text-[11px] font-medium">{endTime}</span>
+                          <span className="text-neutral-700 text-[9px] ml-auto">{sessionDuration}'</span>
                         </div>
                       );
                     })}
@@ -380,54 +403,57 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
               {/* Preview sessions */}
               {previewSessions.length > 0 && (
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">
-                      Preview lịch ({previewSessions.length} buổi)
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">
+                      Preview · {previewSessions.length} buổi
                     </p>
                     {previewSessions.length === totalSessions && (
-                      <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">✓ Đủ {totalSessions} buổi</span>
+                      <span className="text-[9px] font-black text-emerald-400">✓ Đủ {totalSessions} buổi</span>
                     )}
                   </div>
-                  <div className="space-y-1.5 max-h-[200px] overflow-y-auto hide-scrollbar">
+                  <div className="space-y-1.5 max-h-[180px] overflow-y-auto hide-scrollbar">
                     {previewSessions.map(s => (
                       <div
                         key={s.number}
-                        className="flex items-center gap-3 bg-white/[0.02] rounded-[12px] px-3 py-2.5"
+                        className="flex items-center gap-3 bg-white/[0.02] rounded-[10px] px-3 py-2"
                       >
-                        <span className="text-[10px] font-black text-neutral-600 w-7">#{s.number}</span>
+                        <span className="text-[10px] font-black text-neutral-600 w-6 shrink-0">#{s.number}</span>
                         <span className="text-xs text-white flex-1">{formatDate(s.date)}</span>
-                        <span className="text-[11px] font-medium text-neutral-400">{s.time}</span>
+                        <span className="text-[11px] text-neutral-500">{s.time}</span>
+                        <span className="text-neutral-700 text-[10px]">→ {addMinutes(s.time, sessionDuration)}</span>
                       </div>
                     ))}
                   </div>
                   {previewSessions.length < totalSessions && (
                     <p className="text-[10px] text-yellow-500/80 mt-2">
-                      ⚠️ Chỉ tạo được {previewSessions.length}/{totalSessions} buổi. Kiểm tra ngày bắt đầu và lịch.
+                      ⚠️ Chỉ tạo được {previewSessions.length}/{totalSessions} buổi
                     </p>
                   )}
                 </div>
               )}
 
               {schedule.length === 0 && (
-                <div className="text-center py-8 text-neutral-700">
-                  <Calendar className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                <div className="text-center py-6 text-neutral-700">
+                  <Calendar className="w-7 h-7 mx-auto mb-2 opacity-30" />
                   <p className="text-[10px] font-black uppercase tracking-widest">Chọn ngày tập để xem preview</p>
                 </div>
               )}
 
               {/* Footer buttons */}
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-3 pt-1">
                 <button
+                  type="button"
                   onClick={() => setStep(1)}
-                  className="flex-none px-5 py-4 bg-white/[0.04] border border-white/[0.08] rounded-[20px] text-white flex items-center gap-2 font-bold text-sm active:scale-95 transition-all"
+                  className="flex-none px-5 py-3.5 bg-white/[0.04] border border-white/[0.08] rounded-[18px] text-white flex items-center gap-2 font-bold text-sm active:scale-95 transition-all"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   Quay lại
                 </button>
                 <button
+                  type="button"
                   onClick={handleSave}
                   disabled={!step2Valid || isCreating}
-                  className="flex-1 bg-white text-black font-bold py-4 rounded-[20px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex-1 bg-white text-black font-bold py-3.5 rounded-[18px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {isCreating
                     ? <><RefreshCw className="w-4 h-4 animate-spin" /> Đang tạo...</>
