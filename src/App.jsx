@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, Calendar, Users } from 'lucide-react';
+import { Home, Users, Plus } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
 // Import các thành phần chính
@@ -8,7 +8,7 @@ import DashboardView from './components/Dashboard/DashboardView';
 import ClientListView from './components/Client/ClientListView';
 import AddClientView from './components/Client/AddClientView';
 import CoachProfileView from './components/Dashboard/CoachProfileView';
-import CalendarView from './components/Dashboard/CalendarView';
+import QuickLogSheet from './components/Dashboard/QuickLogSheet';
 import ClientDetailView from './components/Client/ClientDetailView';
 import ClientPortalApp from './components/ClientPortal/ClientPortalApp';
 
@@ -40,6 +40,7 @@ export default function App() {
   const [clients, setClients] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showCoachProfile, setShowCoachProfile] = useState(false);
+  const [showQuickLog, setShowQuickLog] = useState(false);
 
   // ============================================================
   // Phát hiện role sau khi đăng nhập
@@ -261,10 +262,7 @@ export default function App() {
                 onOpenProfile={() => setShowCoachProfile(true)}
               />
             )}
-
-            {activeTab === 'calendar' && (
-              <CalendarView session={session} />
-            )}
+            {/* Removed CalendarView */}
 
             {activeTab === 'clients' && (
               <ClientListView
@@ -285,12 +283,30 @@ export default function App() {
 
             {/* Nav chính của Coach */}
             {activeTab !== 'add_client' && (
-              <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[85%] max-w-[320px] bg-black/80 backdrop-blur-3xl border border-white/10 rounded-[32px] p-1.5 flex justify-between z-50 shadow-2xl">
-                <button onClick={() => setActiveTab('home')} className={`relative flex-1 py-4 rounded-[26px] flex justify-center items-center ${activeTab === 'home' ? 'text-white bg-white/5' : 'text-neutral-600'}`}><Home className="w-5 h-5" /></button>
-                <button onClick={() => setActiveTab('calendar')} className={`relative flex-1 py-4 rounded-[26px] flex justify-center items-center ${activeTab === 'calendar' ? 'text-white bg-white/5' : 'text-neutral-600'}`}><Calendar className="w-5 h-5" /></button>
-                <button onClick={() => setActiveTab('clients')} className={`relative flex-1 py-4 rounded-[26px] flex justify-center items-center ${activeTab === 'clients' ? 'text-white bg-white/5' : 'text-neutral-600'}`}><Users className="w-5 h-5" /></button>
+              <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-[320px] bg-black/80 backdrop-blur-3xl border border-white/10 rounded-[32px] p-1.5 flex justify-between z-50 shadow-2xl">
+                {/* Home Tab */}
+                <button onClick={() => setActiveTab('home')} className={`flex-1 py-4 rounded-[26px] flex flex-col items-center justify-center gap-1 transition-all ${activeTab === 'home' ? 'bg-white/5 text-white' : 'text-neutral-600 scale-90 opacity-50'}`}>
+                  <Home className="w-5 h-5" />
+                  <span className="text-[7px] font-black uppercase tracking-tighter">Home</span>
+                </button>
+                
+                {/* FAB - Quick Log */}
+                <div className="flex justify-center items-center w-[80px]">
+                  <button onClick={() => setShowQuickLog(true)} className="w-12 h-12 bg-white rounded-full flex items-center justify-center -mt-4 active:scale-90 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+                    <Plus className="w-5 h-5 text-black" />
+                  </button>
+                </div>
+                
+                {/* Members Tab */}
+                <button onClick={() => setActiveTab('clients')} className={`flex-1 py-4 rounded-[26px] flex flex-col items-center justify-center gap-1 transition-all ${activeTab === 'clients' ? 'bg-white/5 text-white' : 'text-neutral-600 scale-90 opacity-50'}`}>
+                  <Users className="w-5 h-5" />
+                  <span className="text-[7px] font-black uppercase tracking-tighter">Members</span>
+                </button>
               </div>
             )}
+
+            {/* Quick Log Sheet Overlay */}
+            {showQuickLog && <QuickLogSheet onClose={() => setShowQuickLog(false)} />}
           </>
         ) : (
           <ClientDetailView
