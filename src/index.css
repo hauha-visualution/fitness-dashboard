@@ -1,1 +1,19 @@
 @import "tailwindcss";
+
+/* ── Global font: Nunito ─────────────────────────────── */
+* {
+  font-family: 'Nunito', sans-serif;
+}
+
+body {
+  font-family: 'Nunito', sans-serif;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Default headings / labels use lighter weight */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+}

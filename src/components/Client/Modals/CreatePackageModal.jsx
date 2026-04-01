@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   X, ChevronRight, ChevronLeft, CheckCircle2, RefreshCw,
-  Calendar, Clock, Package, Gift
+  Calendar, Clock, Gift
 } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 
@@ -167,34 +167,30 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
     <div className="fixed inset-0 z-[200] flex items-end bg-black/70 backdrop-blur-sm">
       <div className="w-full bg-[#0d0d0d] border-t border-white/10 rounded-t-[32px] max-h-[92vh] overflow-y-auto hide-scrollbar animate-slide-up">
 
-        {/* Header */}
-        <div className="sticky top-0 bg-[#0d0d0d]/95 backdrop-blur-xl z-10 px-6 pt-5 pb-4 border-b border-white/[0.06]">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <Package className="w-4 h-4 text-blue-400" />
-              <div>
-                <h3 className="text-white font-medium">Tạo gói #{String(packageNumber).padStart(2, '0')}</h3>
-              </div>
+        {/* Header — compact single row */}
+        <div className="sticky top-0 bg-[#0d0d0d]/95 backdrop-blur-xl z-10 px-5 pt-4 pb-3 border-b border-white/[0.06]">
+          <div className="flex items-center gap-3">
+            {/* Step pills */}
+            <div className="flex gap-1.5 flex-1">
+              {[1, 2].map(s => (
+                <div
+                  key={s}
+                  className={`h-1 flex-1 rounded-full transition-all duration-500 ${s <= step ? 'bg-white' : 'bg-white/10'}`}
+                />
+              ))}
             </div>
+            {/* Title */}
+            <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-widest shrink-0">
+              Gói #{String(packageNumber).padStart(2, '0')} · {step === 1 ? 'Thông tin' : 'Lịch tập'}
+            </span>
+            {/* Close */}
             <button
+              type="button"
               onClick={onClose}
-              className="p-2 bg-white/[0.04] border border-white/[0.08] rounded-full text-neutral-500 active:scale-90 transition-all"
+              className="p-1.5 bg-white/[0.04] border border-white/[0.08] rounded-full text-neutral-500 active:scale-90 transition-all shrink-0"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
-          </div>
-          {/* Step indicator */}
-          <div className="flex gap-2">
-            {[1, 2].map(s => (
-              <div
-                key={s}
-                className={`h-1 flex-1 rounded-full transition-all duration-500 ${s <= step ? 'bg-white' : 'bg-white/10'}`}
-              />
-            ))}
-          </div>
-          <div className="flex justify-between mt-1.5">
-            <span className={`text-[9px] font-black uppercase tracking-widest ${step >= 1 ? 'text-neutral-400' : 'text-neutral-700'}`}>Thông tin gói</span>
-            <span className={`text-[9px] font-black uppercase tracking-widest ${step >= 2 ? 'text-neutral-400' : 'text-neutral-700'}`}>Lịch tập</span>
           </div>
         </div>
 
@@ -202,7 +198,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
 
           {/* ═══ STEP 1: Package Info ═══ */}
           {step === 1 && (
-            <div className="space-y-5 pt-5">
+            <div className="space-y-4 pt-4">
 
               {/* Số buổi mua */}
               <div>
@@ -317,7 +313,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
 
           {/* ═══ STEP 2: Schedule ═══ */}
           {step === 2 && (
-            <div className="space-y-5 pt-5">
+            <div className="space-y-4 pt-4">
 
               {/* Ngày bắt đầu */}
               <div>
