@@ -309,6 +309,8 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
                       clientName: s.client?.name,
                       scheduledDate: s.scheduled_date,
                       scheduledTime: s.scheduled_time,
+                      packageId: s.package_id,
+                      sessionKind: s.session_kind,
                       manualMode: false,
                     })}
                     className="shrink-0 px-3 py-2 rounded-[12px] bg-blue-500/10 border border-blue-500/20 text-[10px] font-black uppercase tracking-wider text-blue-400 active:scale-95 transition-all"

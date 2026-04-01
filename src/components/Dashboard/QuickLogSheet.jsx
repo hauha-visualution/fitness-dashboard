@@ -111,7 +111,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
 
     const { data, error } = await supabase
       .from('sessions')
-      .select('id, session_number, scheduled_date, scheduled_time, status')
+      .select('id, client_id, package_id, session_kind, session_number, scheduled_date, scheduled_time, status')
       .eq('client_id', clientId)
       .in('status', ['scheduled', 'in_progress'])
       .order('scheduled_date', { ascending: true })
@@ -231,22 +231,34 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
       }
       
       const currTimeIso = new Date().toISOString();
-      const updates = { 
-          status, 
-          feeling, 
-          notes, 
-          completed_at: status === 'completed' ? currTimeIso : null,
-          cancelled_at: status === 'cancelled' ? currTimeIso : null,
-          cancel_reason: status === 'cancelled' ? (cancelReason === 'Lý do khác' ? customReason : cancelReason) : null,
-          ...(finalWorkoutData ? { workout_data: finalWorkoutData } : {})
-      };
+      let error = null;
 
-      const { error } = await supabase
-        .from('sessions')
-        .update(updates)
-        .eq('id', selectedSessionId)
-        .select('id')
-        .single();
+      if (status === 'cancelled' && selectedSessionRecord?.package_id && (selectedSessionRecord?.session_kind ?? 'fixed') === 'fixed') {
+        const rpcResult = await supabase.rpc('cancel_and_shift_fixed_session', {
+          p_session_id: selectedSessionId,
+          p_cancel_reason: cancelReason === 'Lý do khác' ? customReason : cancelReason,
+        });
+        error = rpcResult.error;
+      } else {
+        const updates = { 
+            status, 
+            feeling, 
+            notes, 
+            completed_at: status === 'completed' ? currTimeIso : null,
+            cancelled_at: status === 'cancelled' ? currTimeIso : null,
+            cancel_reason: status === 'cancelled' ? (cancelReason === 'Lý do khác' ? customReason : cancelReason) : null,
+            ...(finalWorkoutData ? { workout_data: finalWorkoutData } : {})
+        };
+
+        const updateResult = await supabase
+          .from('sessions')
+          .update(updates)
+          .eq('id', selectedSessionId)
+          .select('id')
+          .single();
+
+        error = updateResult.error;
+      }
 
       if (error) {
         throw error;
@@ -262,10 +274,11 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
     }
   };
 
+  const initialSession = initialSelection?.sessionId === selectedSessionId ? initialSelection : null;
   const selectedSession = todaySessions.find(s => s.id === selectedSessionId);
   const manuallySelectedSession = clientSessions.find(s => s.id === selectedSessionId);
+  const selectedSessionRecord = isManualSessionMode ? manuallySelectedSession : (selectedSession || initialSession);
   const visibleClientSessions = showAllClientSessions ? clientSessions : clientSessions.slice(0, 8);
-  const initialSession = initialSelection?.sessionId === selectedSessionId ? initialSelection : null;
   const selectedClientName = isManualSessionMode
     ? clients.find(c => c.id === selectedClientId)?.name
     : selectedSession?.client_name || initialSession?.clientName;

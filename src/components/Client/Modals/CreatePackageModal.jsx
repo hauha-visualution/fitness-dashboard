@@ -159,6 +159,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
         scheduled_date: `${s.date.getFullYear()}-${String(s.date.getMonth() + 1).padStart(2, '0')}-${String(s.date.getDate()).padStart(2, '0')}`,
         scheduled_time: s.time,
         status: 'scheduled',
+        session_kind: 'fixed',
       }));
       const { error: sessErr } = await supabase.from('sessions').insert(rows);
       if (sessErr) { alert('Lỗi tạo lịch: ' + sessErr.message); setIsCreating(false); return; }

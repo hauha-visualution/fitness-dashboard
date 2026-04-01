@@ -161,7 +161,7 @@ export default function App() {
         .from('sessions')
         .select('client_id')
         .in('client_id', ids)
-        .eq('status', 'done');
+        .eq('status', 'completed');
 
       const doneMap = {};
       (sessDone || []).forEach(s => { doneMap[s.client_id] = (doneMap[s.client_id] || 0) + 1; });

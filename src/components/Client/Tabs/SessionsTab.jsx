@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Dumbbell, CheckCircle2, Clock, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import { Dumbbell, CheckCircle2, Clock, ChevronDown, ChevronUp, RefreshCw, Plus, X } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -35,6 +35,12 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
   const [loading, setLoading] = useState(true);
   const [expandedPkg, setExpandedPkg] = useState('active'); // default expand active
   const [markingId, setMarkingId] = useState(null);
+  const [showExtraModal, setShowExtraModal] = useState(false);
+  const [extraAnchorSession, setExtraAnchorSession] = useState(null);
+  const [extraDate, setExtraDate] = useState('');
+  const [extraTime, setExtraTime] = useState('');
+  const [extraNote, setExtraNote] = useState('');
+  const [addingExtra, setAddingExtra] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!clientId) return;
@@ -71,7 +77,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
       const session = sessions.find(s => s.id === sessionId);
       if (session) {
         const pkgSessions = sessions.filter(s => s.package_id === session.package_id);
-        const willBeAllDone = pkgSessions.filter(s => s.id !== sessionId && s.status !== 'completed').length === 0;
+        const willBeAllDone = pkgSessions.filter(s => s.id !== sessionId && ['scheduled', 'in_progress'].includes(s.status)).length === 0;
         if (willBeAllDone) {
           await supabase.from('packages').update({ status: 'completed' }).eq('id', session.package_id);
           setPackages(prev => prev.map(p => p.id === session.package_id ? { ...p, status: 'completed' } : p));
@@ -79,6 +85,37 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
       }
     }
     setMarkingId(null);
+  };
+
+  const openExtraModal = (sessionItem) => {
+    setExtraAnchorSession(sessionItem);
+    setExtraDate(sessionItem.scheduled_date);
+    setExtraTime(sessionItem.scheduled_time?.slice(0, 5) || '07:00');
+    setExtraNote('');
+    setShowExtraModal(true);
+  };
+
+  const handleCreateExtraSession = async () => {
+    if (!extraAnchorSession || !extraDate || !extraTime) return;
+
+    setAddingExtra(true);
+    const { error } = await supabase.rpc('insert_extra_package_session', {
+      p_anchor_session_id: extraAnchorSession.id,
+      p_scheduled_date: extraDate,
+      p_scheduled_time: extraTime,
+      p_notes: extraNote,
+    });
+
+    if (error) {
+      alert(`Không thể thêm buổi phát sinh: ${error.message}`);
+      setAddingExtra(false);
+      return;
+    }
+
+    setShowExtraModal(false);
+    setExtraAnchorSession(null);
+    setAddingExtra(false);
+    void fetchData();
   };
 
   if (loading) return (
@@ -107,7 +144,9 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
 
         // Find next relevant session
         const nextSession = pkgSessions.find(s => s.status === 'in_progress') || pkgSessions.find(s => s.status === 'scheduled');
-        const upcomingSessions = pkgSessions.filter(s => ['scheduled', 'in_progress'].includes(s.status));
+        const upcomingSessions = pkgSessions
+          .filter(s => ['scheduled', 'in_progress'].includes(s.status))
+          .sort((a, b) => a.session_number - b.session_number || a.scheduled_date.localeCompare(b.scheduled_date) || a.scheduled_time.localeCompare(b.scheduled_time));
         const doneSessions = pkgSessions.filter(s => s.status === 'completed');
 
         return (
@@ -189,6 +228,15 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                           {/* Mark done button (coach only) */}
                           {!readOnly && (
                             <div className="flex items-center gap-2">
+                              {sess.session_kind !== 'extra' && (
+                                <button
+                                  onClick={() => openExtraModal(sess)}
+                                  className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-[10px] font-black uppercase transition-all active:scale-90 bg-white/[0.04] border border-white/[0.08] text-neutral-400"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                  Extra
+                                </button>
+                              )}
                               <button
                                 onClick={() => onOpenQuickLog?.({
                                   sessionId: sess.id,
@@ -196,6 +244,8 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                                   clientName: client?.name,
                                   scheduledDate: sess.scheduled_date,
                                   scheduledTime: sess.scheduled_time,
+                                  packageId: sess.package_id,
+                                  sessionKind: sess.session_kind,
                                   manualMode: false,
                                 })}
                                 className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-[10px] font-black uppercase transition-all active:scale-90 bg-blue-500/10 border border-blue-500/20 text-blue-400"
@@ -255,6 +305,70 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
           </div>
         );
       })}
+      {showExtraModal && (
+        <div className="fixed inset-0 z-[220] flex items-end justify-center px-4 bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-[420px] bg-[#111113] border border-white/10 rounded-t-[28px] p-5 pb-8 animate-slide-up">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Buổi phát sinh</p>
+                <h3 className="text-white font-semibold text-lg">
+                  Chèn trước buổi #{String(extraAnchorSession?.session_number || '').padStart(2, '0')}
+                </h3>
+              </div>
+              <button onClick={() => setShowExtraModal(false)} className="p-2 bg-white/5 rounded-full text-neutral-400">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-2">Ngày tập phát sinh</label>
+                <input
+                  type="date"
+                  value={extraDate}
+                  onChange={e => setExtraDate(e.target.value)}
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-[14px] px-4 py-3 text-white text-sm outline-none focus:border-white/20"
+                />
+              </div>
+              <div>
+                <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-2">Giờ tập</label>
+                <input
+                  type="time"
+                  value={extraTime}
+                  onChange={e => setExtraTime(e.target.value)}
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-[14px] px-4 py-3 text-white text-sm outline-none focus:border-white/20"
+                />
+              </div>
+              <div>
+                <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-2">Ghi chú</label>
+                <input
+                  type="text"
+                  value={extraNote}
+                  onChange={e => setExtraNote(e.target.value)}
+                  placeholder="VD: Bù buổi công tác"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-[14px] px-4 py-3 text-white text-sm outline-none focus:border-white/20"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setShowExtraModal(false)}
+                className="flex-1 py-3.5 rounded-[16px] border border-white/[0.08] bg-white/[0.04] text-white font-bold text-sm"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleCreateExtraSession}
+                disabled={addingExtra || !extraDate || !extraTime}
+                className="flex-1 py-3.5 rounded-[16px] bg-white text-black font-bold text-sm disabled:opacity-50"
+              >
+                {addingExtra ? 'Đang thêm...' : 'Thêm buổi'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
