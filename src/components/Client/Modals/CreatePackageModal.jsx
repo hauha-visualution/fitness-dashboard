@@ -183,8 +183,8 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
 
   // ─── RENDER ───────────────────────────────────────────────
   return (
-    <div className="fixed inset-x-0 bottom-0 top-[56px] z-[500] flex items-end bg-black/60 backdrop-blur-sm">
-      <div ref={scrollRef} className="w-full h-full bg-[#0d0d0d] border-t border-white/10 rounded-t-[32px] overflow-y-auto hide-scrollbar animate-slide-up flex flex-col">
+    <div className="fixed inset-x-0 top-[56px] bottom-0 z-[500] bg-black/50 backdrop-blur-sm animate-slide-up">
+      <div ref={scrollRef} className="w-full h-full bg-[#0d0d0d] border-t border-white/10 rounded-t-[32px] flex flex-col overflow-hidden">
 
         {/* Compact header */}
         <div className="sticky top-0 bg-[#0d0d0d]/95 backdrop-blur-xl z-10 px-5 pt-4 pb-3 border-b border-white/[0.06]">
@@ -203,11 +203,10 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
           </div>
         </div>
 
-        <div className="px-5 pb-6 flex-1 flex flex-col">
-
-          {/* ═══ STEP 1 ═══ */}
-          {step === 1 && (
-            <div className="flex-1 flex flex-col gap-4 pt-4">
+        {/* Step 1: no scroll, flex layout */}
+        {step === 1 && (
+          <div className="flex-1 flex flex-col px-5 pb-6 overflow-hidden">
+            <div className="flex flex-col min-h-full gap-4 pt-4">
 
               {/* Buổi mua + Buổi tặng = Tổng */}
               <div className="flex items-end gap-2">
@@ -272,21 +271,24 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                 )}
               </FieldBlock>
 
+              <div className="flex-1" />
               <button
                 type="button"
                 onClick={() => setStep(2)}
                 disabled={!step1Valid}
-                className="w-full bg-white text-black font-bold py-4 rounded-[18px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed mt-auto"
+                className="w-full bg-white text-black font-bold py-4 rounded-[18px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Cài lịch tập
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* ═══ STEP 2: Schedule ═══ */}
-          {step === 2 && (
-            <div className="space-y-4 pt-4 flex-1">
+        {/* Step 2: scrollable */}
+        {step === 2 && (
+          <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-6">
+            <div className="space-y-4 pt-4">
 
               {/* Package summary mini */}
               <div className="flex items-center gap-3 bg-white/[0.03] border border-white/[0.06] rounded-[16px] px-4 py-3">
@@ -443,8 +445,8 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                 </button>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

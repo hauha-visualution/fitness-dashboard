@@ -8,6 +8,7 @@ import DashboardView from './components/Dashboard/DashboardView';
 import ClientListView from './components/Client/ClientListView';
 import AddClientView from './components/Client/AddClientView';
 import CoachProfileView from './components/Dashboard/CoachProfileView';
+import CalendarView from './components/Dashboard/CalendarView';
 import ClientDetailView from './components/Client/ClientDetailView';
 import ClientPortalApp from './components/ClientPortal/ClientPortalApp';
 
@@ -135,22 +136,47 @@ export default function App() {
   const fetchClients = async () => {
     if (!session) return;
     setIsLoading(true);
-    // Filter theo coach_email để mỗi coach chỉ thấy client của mình
     const coachEmailVal = session.user?.email;
     const query = supabase.from('clients').select('*');
     if (coachEmailVal) query.eq('coach_email', coachEmailVal);
     const { data, error } = await query;
-    if (error) console.error('Error:', error.message);
-    else if (data) {
-      setClients(data.map(db => ({
-        ...db,
-        avatar: db.avatar_url || `https://api.dicebear.com/7.x/notionists/svg?seed=${db.name}&backgroundColor=eceff4`,
-        package: {
-          total: db.sessions ? parseInt(db.sessions) : 0,
-          remaining: db.sessions ? parseInt(db.sessions) : '--'
-        }
-      })));
+    if (error) { console.error('Error:', error.message); setIsLoading(false); return; }
+
+    const clientList = data || [];
+    const ids = clientList.map(c => c.id);
+
+    // Fetch active packages
+    let pkgMap = {};
+    if (ids.length > 0) {
+      const { data: pkgs } = await supabase
+        .from('packages')
+        .select('client_id, total_sessions, status')
+        .in('client_id', ids)
+        .eq('status', 'active');
+
+      const { data: sessDone } = await supabase
+        .from('sessions')
+        .select('client_id')
+        .in('client_id', ids)
+        .eq('status', 'done');
+
+      const doneMap = {};
+      (sessDone || []).forEach(s => { doneMap[s.client_id] = (doneMap[s.client_id] || 0) + 1; });
+
+      (pkgs || []).forEach(p => {
+        pkgMap[p.client_id] = {
+          total: p.total_sessions,
+          remaining: p.total_sessions - (doneMap[p.client_id] || 0),
+          hasActive: true,
+        };
+      });
     }
+
+    setClients(clientList.map(db => ({
+      ...db,
+      avatar: db.avatar_url || `https://api.dicebear.com/7.x/notionists/svg?seed=${db.name}&backgroundColor=eceff4`,
+      package: pkgMap[db.id] || { total: 0, remaining: '--', hasActive: false },
+    })));
     setIsLoading(false);
   };
 
@@ -234,6 +260,10 @@ export default function App() {
                 onLogout={handleLogout}
                 onOpenProfile={() => setShowCoachProfile(true)}
               />
+            )}
+
+            {activeTab === 'calendar' && (
+              <CalendarView session={session} />
             )}
 
             {activeTab === 'clients' && (
