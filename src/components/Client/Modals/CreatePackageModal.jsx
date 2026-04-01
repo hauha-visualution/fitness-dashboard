@@ -203,10 +203,10 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
           </div>
         </div>
 
-        {/* Step 1: no scroll, flex layout */}
+        {/* Step 1: no scroll */}
         {step === 1 && (
-          <div className="flex-1 flex flex-col px-5 pb-6 overflow-hidden">
-            <div className="flex flex-col min-h-full gap-4 pt-4">
+          <div className="flex-1 px-5 pb-6">
+            <div className="flex flex-col gap-5 pt-4">
 
               {/* Buổi mua + Buổi tặng = Tổng */}
               <div className="flex items-end gap-2">
@@ -271,7 +271,6 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                 )}
               </FieldBlock>
 
-              <div className="flex-1" />
               <button
                 type="button"
                 onClick={() => setStep(2)}
