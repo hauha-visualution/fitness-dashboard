@@ -1,6 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabaseClient';
 import { X, Plus, GripVertical, Check, Trash2 } from 'lucide-react';
+
+const createExerciseDraft = (id) => ({
+  id,
+  name: '',
+  sets: 3,
+  reps: 10,
+  video_url: '',
+});
 
 const CreateTemplateModal = ({ onClose, session }) => {
   const [templateName, setTemplateName] = useState('');
@@ -10,9 +18,8 @@ const CreateTemplateModal = ({ onClose, session }) => {
   const [selectedClientIds, setSelectedClientIds] = useState([]);
   
   // Exercises map
-  const [exercises, setExercises] = useState([
-    { id: Date.now().toString(), name: '', sets: 3, reps: 10, video_url: '' }
-  ]);
+  const exerciseIdRef = useRef(1);
+  const [exercises, setExercises] = useState([createExerciseDraft('template-exercise-0')]);
   
   const [saving, setSaving] = useState(false);
   const [draggedIdx, setDraggedIdx] = useState(null);
@@ -41,7 +48,8 @@ const CreateTemplateModal = ({ onClose, session }) => {
   };
 
   const addExercise = () => {
-    setExercises(prev => [...prev, { id: Date.now().toString(), name: '', sets: 3, reps: 10, video_url: '' }]);
+    const nextId = `template-exercise-${exerciseIdRef.current++}`;
+    setExercises(prev => [...prev, createExerciseDraft(nextId)]);
   };
 
   // HTML5 Drag and drop

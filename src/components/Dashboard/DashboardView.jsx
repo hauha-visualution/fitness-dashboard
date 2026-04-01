@@ -30,7 +30,7 @@ const generateAvatarBadgeColor = (name) => {
   return colors[index] + '/20 text-' + colors[index].replace('bg-', '').replace('-500', '-400');
 };
 
-const DashboardView = ({ session, coachProfile, onSelectClient, onLogout, onOpenProfile }) => {
+const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onLogout, onOpenProfile }) => {
   const today = new Date();
   const [weekStart, setWeekStart] = useState(getWeekStart(today));
   const [selectedDate, setSelectedDate] = useState(today);
@@ -45,6 +45,8 @@ const DashboardView = ({ session, coachProfile, onSelectClient, onLogout, onOpen
     setLoading(true);
     const coachEmail = session?.user?.email;
     if (!coachEmail) return;
+    const currentToday = new Date();
+    const currentWeekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
     // 1. Get clients
     const { data: clientsRows } = await supabase.from('clients').select('id, name, avatar_url, goal').eq('coach_email', coachEmail);
@@ -67,8 +69,8 @@ const DashboardView = ({ session, coachProfile, onSelectClient, onLogout, onOpen
       .order('scheduled_date', { ascending: false });
 
     // Build stats
-    const todayStr = toLocalISOString(today);
-    const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const todayStr = toLocalISOString(currentToday);
+    const currentMonthPrefix = `${currentToday.getFullYear()}-${String(currentToday.getMonth() + 1).padStart(2, '0')}`;
     const monthlyCount = (allDone || []).filter(s => s.scheduled_date.startsWith(currentMonthPrefix)).length;
 
     // Streak logic
@@ -89,8 +91,8 @@ const DashboardView = ({ session, coachProfile, onSelectClient, onLogout, onOpen
     }
 
     // 3. Fetch week sessions
-    const fromStr = toLocalISOString(weekDays[0]);
-    const toStr = toLocalISOString(weekDays[6]);
+    const fromStr = toLocalISOString(currentWeekDays[0]);
+    const toStr = toLocalISOString(currentWeekDays[6]);
     const { data: wSessions } = await supabase
       .from('sessions')
       .select('*')
@@ -115,7 +117,7 @@ const DashboardView = ({ session, coachProfile, onSelectClient, onLogout, onOpen
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, refreshKey]);
 
   // Helpers
   const isToday = d => d.toDateString() === today.toDateString();
@@ -241,13 +243,15 @@ const DashboardView = ({ session, coachProfile, onSelectClient, onLogout, onOpen
             const colorClass = generateAvatarBadgeColor(s.client?.name || 'A');
 
             return (
-              <div
+              <button
                 key={s.id}
+                type="button"
+                onClick={() => s.client && onSelectClient?.(s.client)}
                 className={`rounded-[20px] border px-4 py-3.5 flex items-center gap-3 transition-all animate-slide-up ${
                   isCompleted ? 'bg-white/[0.02] border-white/[0.04] opacity-50' : 
                   isCancelled ? 'bg-red-500/5 border-red-500/10 opacity-70' :
                   isInProgress ? 'bg-white/[0.06] border-white/20' : 'bg-white/[0.03] border-white/[0.05]'
-                }`}
+                } ${s.client ? 'active:scale-[0.99] cursor-pointer' : ''}`}
               >
                 {/* Time */}
                 <div className="text-center shrink-0 w-12">
@@ -290,7 +294,7 @@ const DashboardView = ({ session, coachProfile, onSelectClient, onLogout, onOpen
                     Chưa tập
                   </div>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>

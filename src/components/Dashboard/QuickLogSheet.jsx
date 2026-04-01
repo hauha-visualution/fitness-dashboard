@@ -1,15 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../supabaseClient';
-import { X, Flame, Battery, BatteryMedium, BatteryWarning, PenTool, Plus } from 'lucide-react';
+import { X, Flame, Battery, BatteryMedium, BatteryWarning, PenTool, Plus, GripVertical, Trash2 } from 'lucide-react';
 import CreateTemplateModal from './CreateTemplateModal';
 
 const toLocalISOString = (d) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-const QuickLogSheet = ({ onClose, session }) => {
+const createExerciseDraft = (id) => ({
+  id,
+  name: '',
+  sets: 3,
+  reps: 10,
+  video_url: '',
+});
+
+const QuickLogSheet = ({ onClose, session, onSaved }) => {
   const [todaySessions, setTodaySessions] = useState([]);
   const [selectedSessionId, setSelectedSessionId] = useState(null);
+  const [isManualSessionMode, setIsManualSessionMode] = useState(false);
+  
+  const [clients, setClients] = useState([]);
+  const [selectedClientId, setSelectedClientId] = useState(null);
+  const [clientSessions, setClientSessions] = useState([]);
+  const [loadingClientSessions, setLoadingClientSessions] = useState(false);
+
+  const exerciseIdRef = useRef(1);
+  const [exercises, setExercises] = useState([createExerciseDraft('exercise-0')]);
+  const [draggedIdx, setDraggedIdx] = useState(null);
   
   const [segment, setSegment] = useState('pack'); // 'pack' or 'single'
   const [feeling, setFeeling] = useState(null); // 'tired', 'ok', 'good', 'fire'
@@ -27,7 +45,7 @@ const QuickLogSheet = ({ onClose, session }) => {
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
 
-  const fetchTemplates = async () => {
+  const fetchTemplates = useCallback(async () => {
     const coachEmail = session?.user?.email;
     if (!coachEmail) return;
     setLoadingTemplates(true);
@@ -39,76 +57,188 @@ const QuickLogSheet = ({ onClose, session }) => {
     
     if (tmpls) setTemplates(tmpls);
     setLoadingTemplates(false);
-  };
+  }, [session]);
+
+  const fetchToday = useCallback(async () => {
+    const coachEmail = session?.user?.email;
+    if (!coachEmail) { setLoading(false); return; }
+    
+    const { data: clientsData } = await supabase.from('clients').select('id, name').eq('coach_email', coachEmail);
+    if (!clientsData?.length) { setLoading(false); return; }
+    
+    setClients(clientsData);
+    const clientIds = clientsData.map(c => c.id);
+    const todayStr = toLocalISOString(new Date());
+    
+    const { data: sData } = await supabase
+      .from('sessions')
+      .select('*')
+      .in('client_id', clientIds)
+      .eq('scheduled_date', todayStr)
+      .in('status', ['scheduled', 'in_progress'])
+      .order('scheduled_time');
+      
+    const clientMap = {};
+    clientsData.forEach(c => clientMap[c.id] = c);
+    
+    const enriched = (sData || []).map(s => ({ ...s, client_name: clientMap[s.client_id]?.name }));
+    setTodaySessions(enriched);
+    
+    if (enriched.length > 0) {
+      const inProgress = enriched.find(s => s.status === 'in_progress');
+      if (inProgress) setSelectedSessionId(inProgress.id);
+      else setSelectedSessionId(enriched[0].id);
+    }
+    setLoading(false);
+  }, [session]);
+
+  const fetchClientSessions = useCallback(async (clientId) => {
+    if (!clientId) {
+      setClientSessions([]);
+      return;
+    }
+
+    setLoadingClientSessions(true);
+    const { data, error } = await supabase
+      .from('sessions')
+      .select('id, session_number, scheduled_date, scheduled_time, status')
+      .eq('client_id', clientId)
+      .in('status', ['scheduled', 'in_progress'])
+      .order('scheduled_date', { ascending: false })
+      .order('scheduled_time', { ascending: false });
+
+    if (error) {
+      console.error('Load client sessions error:', error.message);
+      setClientSessions([]);
+      setLoadingClientSessions(false);
+      alert(`Không tải được danh sách buổi tập: ${error.message}`);
+      return;
+    }
+
+    setClientSessions(data || []);
+    setLoadingClientSessions(false);
+  }, []);
 
   // Fetch today's sessions
   useEffect(() => {
-    const fetchToday = async () => {
-      const coachEmail = session?.user?.email;
-      if (!coachEmail) { setLoading(false); return; }
-      
-      const { data: clients } = await supabase.from('clients').select('id, name').eq('coach_email', coachEmail);
-      if (!clients?.length) { setLoading(false); return; }
-      
-      const clientIds = clients.map(c => c.id);
-      const todayStr = toLocalISOString(new Date());
-      
-      const { data: sData } = await supabase
-        .from('sessions')
-        .select('*')
-        .in('client_id', clientIds)
-        .eq('scheduled_date', todayStr)
-        .in('status', ['scheduled', 'in_progress'])
-        .order('scheduled_time');
-        
-      const clientMap = {};
-      clients.forEach(c => clientMap[c.id] = c);
-      
-      const enriched = (sData || []).map(s => ({ ...s, client_name: clientMap[s.client_id]?.name }));
-      setTodaySessions(enriched);
-      
-      // Auto-select nearest or in-progress
-      if (enriched.length > 0) {
-        const inProgress = enriched.find(s => s.status === 'in_progress');
-        if (inProgress) setSelectedSessionId(inProgress.id);
-        else setSelectedSessionId(enriched[0].id); // Just pick first for now
-      }
-      setLoading(false);
-    };
-    fetchToday();
-    fetchTemplates();
-  }, [session]);
+    const timeoutId = window.setTimeout(() => {
+      void fetchToday();
+      void fetchTemplates();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchTemplates, fetchToday]);
+
+  const updateExercise = (id, field, value) => {
+    setExercises(prev => prev.map(ex => ex.id === id ? { ...ex, [field]: value } : ex));
+  };
+  const removeExercise = (id) => {
+    setExercises(prev => prev.length === 1 ? prev : prev.filter(ex => ex.id !== id));
+  };
+  const addExercise = () => {
+    const nextId = `exercise-${exerciseIdRef.current++}`;
+    setExercises(prev => [...prev, createExerciseDraft(nextId)]);
+  };
+
+  const handleDragStart = (e, index) => { setDraggedIdx(index); e.dataTransfer.effectAllowed = 'move'; e.currentTarget.classList.add('opacity-50'); };
+  const handleDragEnd = (e) => { setDraggedIdx(null); e.currentTarget.classList.remove('opacity-50'); };
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    if (draggedIdx === null || draggedIdx === index) return;
+    const newEx = [...exercises];
+    const draggedItem = newEx[draggedIdx];
+    newEx.splice(draggedIdx, 1);
+    newEx.splice(index, 0, draggedItem);
+    setDraggedIdx(index);
+    setExercises(newEx);
+  };
+
+  const handleSelectTodaySession = (sessionId) => {
+    setIsManualSessionMode(false);
+    setSelectedClientId(null);
+    setClientSessions([]);
+    setSelectedSessionId(sessionId);
+  };
+
+  const handleStartManualSessionSelection = () => {
+    setIsManualSessionMode(true);
+    setSelectedSessionId(null);
+    setSelectedClientId(null);
+    setClientSessions([]);
+  };
+
+  const handleSelectClient = async (clientId) => {
+    setSelectedClientId(clientId);
+    setSelectedSessionId(null);
+    await fetchClientSessions(clientId);
+  };
 
   const handleSave = async (status) => {
-    if (!selectedSessionId || selectedSessionId === 'new') return; // skipping custom creation logic for now
+    if (!selectedSessionId) return;
     
     setSaving(true);
-    
-    let finalWorkoutData = null;
-    if (segment === 'pack' && selectedTemplateId) {
-      const selectedTmpl = templates.find(t => t.id === selectedTemplateId);
-      if (selectedTmpl && selectedTmpl.template_exercises) {
-        finalWorkoutData = selectedTmpl.template_exercises;
+
+    try {
+      let finalWorkoutData = null;
+      if (segment === 'pack' && selectedTemplateId) {
+        const selectedTmpl = templates.find(t => t.id === selectedTemplateId);
+        if (selectedTmpl && selectedTmpl.template_exercises) {
+          finalWorkoutData = selectedTmpl.template_exercises;
+        }
+      } else if (segment === 'single') {
+        finalWorkoutData = exercises
+          .filter(ex => ex.name.trim())
+          .map((ex, idx) => ({
+            name: ex.name,
+            sets: ex.sets,
+            reps: ex.reps,
+            video_url: ex.video_url || null,
+            sort_order: idx,
+          }));
       }
+      
+      const currTimeIso = new Date().toISOString();
+      const updates = { 
+          status, 
+          feeling, 
+          notes, 
+          completed_at: status === 'completed' ? currTimeIso : null,
+          cancelled_at: status === 'cancelled' ? currTimeIso : null,
+          cancel_reason: status === 'cancelled' ? (cancelReason === 'Lý do khác' ? customReason : cancelReason) : null,
+          ...(finalWorkoutData ? { workout_data: finalWorkoutData } : {})
+      };
+
+      const { error } = await supabase
+        .from('sessions')
+        .update(updates)
+        .eq('id', selectedSessionId)
+        .select('id')
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      onClose();
+      if (onSaved) onSaved();
+    } catch (error) {
+      console.error('Quick log save error:', error.message);
+      alert(`Không thể lưu Quick Log: ${error.message}`);
+    } finally {
+      setSaving(false);
     }
-    
-    const updates = { 
-        status, 
-        feeling, 
-        notes, 
-        completed_at: status === 'completed' ? new Date().toISOString() : null,
-        cancelled_at: status === 'cancelled' ? new Date().toISOString() : null,
-        cancel_reason: status === 'cancelled' ? (cancelReason === 'Lý do khác' ? customReason : cancelReason) : null,
-        ...(finalWorkoutData ? { workout_data: finalWorkoutData } : {})
-    };
-    
-    await supabase.from('sessions').update(updates).eq('id', selectedSessionId);
-    setSaving(false);
-    onClose();
-    // Optional: could trigger a global refresh via an event or context
   };
 
   const selectedSession = todaySessions.find(s => s.id === selectedSessionId);
+  const manuallySelectedSession = clientSessions.find(s => s.id === selectedSessionId);
+  const selectedClientName = isManualSessionMode
+    ? clients.find(c => c.id === selectedClientId)?.name
+    : selectedSession?.client_name;
+  const selectedSessionTime = isManualSessionMode
+    ? (manuallySelectedSession
+        ? `${manuallySelectedSession.scheduled_date} • ${manuallySelectedSession.scheduled_time?.slice(0, 5)}`
+        : 'Chọn một buổi tập')
+    : selectedSession?.scheduled_time?.slice(0, 5);
+  const hasSingleWorkoutData = exercises.some(ex => ex.name.trim());
 
   // --- RENDERS ---
   if (showCancelReason) {
@@ -163,26 +293,93 @@ const QuickLogSheet = ({ onClose, session }) => {
            <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
              {loading ? <div className="text-neutral-500 text-sm">Đang tải...</div> : todaySessions.map(s => (
                <button 
-                  key={s.id} onClick={() => setSelectedSessionId(s.id)}
+                  key={s.id} onClick={() => handleSelectTodaySession(s.id)}
                   className={`shrink-0 px-4 py-2 border rounded-[12px] text-sm transition-all ${selectedSessionId === s.id ? 'bg-white/[0.08] border-white/20 text-white font-medium' : 'bg-white/[0.04] border-white/[0.08] text-neutral-500'}`}
                >
                  {s.client_name} • {s.scheduled_time?.slice(0,5)}
                </button>
              ))}
              <button 
-                onClick={() => setSelectedSessionId('new')}
-                className={`shrink-0 px-4 py-2 border rounded-[12px] text-sm transition-all flex items-center gap-1 ${selectedSessionId === 'new' ? 'bg-blue-500/10 border-blue-500/30 text-blue-400 font-medium' : 'bg-white/[0.04] border-white/[0.08] text-blue-400/50 block border-dashed'}`}
+                onClick={handleStartManualSessionSelection}
+                className={`shrink-0 px-4 py-2 border rounded-[12px] text-sm transition-all flex items-center gap-1 ${isManualSessionMode ? 'bg-blue-500/10 border-blue-500/30 text-blue-400 font-medium' : 'bg-white/[0.04] border-white/[0.08] text-blue-400/50 block border-dashed'}`}
              >
                 + Tự tạo
              </button>
            </div>
         </div>
+         {/* [A2] Client/session selector in manual mode */}
+         {isManualSessionMode && (
+          <div>
+             <p className="text-[9px] font-black uppercase tracking-widest mb-3 text-blue-400">Chọn học viên rồi chọn buổi tập có sẵn để ghi nhận log</p>
+             <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+               {clients.map(c => (
+                 <button 
+                    key={c.id} onClick={() => handleSelectClient(c.id)}
+                    className={`shrink-0 px-4 py-2 border rounded-[12px] text-sm transition-all ${selectedClientId === c.id ? 'bg-blue-500/10 border-blue-500/30 text-blue-400 font-medium' : 'bg-white/[0.04] border-white/[0.08] text-neutral-500 hover:bg-white/[0.08]'}`}
+                 >
+                   {c.name}
+                 </button>
+               ))}
+             </div>
 
+             {selectedClientId && (
+               <div className="mt-3 space-y-2">
+                 {loadingClientSessions ? (
+                   <div className="text-sm text-neutral-500 py-2">Đang tải session của học viên...</div>
+                 ) : clientSessions.length === 0 ? (
+                   <div className="bg-white/[0.03] border border-white/[0.06] rounded-[14px] px-4 py-3 text-sm text-neutral-500">
+                     Học viên này chưa có session nào ở trạng thái scheduled hoặc in_progress.
+                   </div>
+                 ) : (
+                   clientSessions.map(sessionOption => (
+                     <button
+                       key={sessionOption.id}
+                       onClick={() => setSelectedSessionId(sessionOption.id)}
+                       className={`w-full text-left px-4 py-3 rounded-[14px] border transition-all ${
+                         selectedSessionId === sessionOption.id
+                           ? 'bg-white/[0.08] border-white/20 text-white'
+                           : 'bg-white/[0.03] border-white/[0.06] text-neutral-400 hover:bg-white/[0.05]'
+                       }`}
+                     >
+                       <div className="flex items-center justify-between gap-3">
+                         <div>
+                           <p className="text-sm font-semibold">Buổi #{sessionOption.session_number}</p>
+                           <p className="text-[11px] text-neutral-500 mt-1">
+                             {sessionOption.scheduled_date} • {sessionOption.scheduled_time?.slice(0, 5)}
+                           </p>
+                         </div>
+                         <div className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${
+                           sessionOption.status === 'in_progress'
+                             ? 'bg-blue-500/10 border border-blue-500/20 text-blue-400'
+                             : 'bg-white/[0.04] border border-white/[0.08] text-neutral-500'
+                         }`}>
+                           {sessionOption.status === 'in_progress' ? 'Lưu tạm' : 'Chưa tập'}
+                         </div>
+                       </div>
+                     </button>
+                   ))
+                 )}
+               </div>
+             )}
+          </div>
+         )}
         {/* [B] Segment control */}
         <div className="bg-white/[0.04] border border-white/[0.08] rounded-[16px] p-1 flex gap-1">
            <button onClick={() => setSegment('pack')} className={`flex-1 py-2 text-sm transition-all rounded-[12px] ${segment === 'pack' ? 'bg-white/[0.08] text-white font-semibold shadow-sm' : 'text-neutral-500'}`}>Gói bài tập</button>
            <button onClick={() => setSegment('single')} className={`flex-1 py-2 text-sm transition-all rounded-[12px] ${segment === 'single' ? 'bg-white/[0.08] text-white font-semibold shadow-sm' : 'text-neutral-500'}`}>Bài tập lẻ</button>
         </div>
+
+        {selectedSessionId && (
+          <div className="bg-white/[0.03] border border-white/[0.06] rounded-[18px] p-4 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-1">Buổi đang log</p>
+              <p className="text-sm font-semibold text-white truncate">{selectedClientName || 'Chưa chọn học viên'}</p>
+            </div>
+            <div className="shrink-0 rounded-full bg-white/[0.05] border border-white/[0.08] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-neutral-400">
+              {selectedSessionTime || '--:--'}
+            </div>
+          </div>
+        )}
 
         {/* Placeholder for Body based on Segment */}
         {segment === 'pack' ? (
@@ -214,7 +411,72 @@ const QuickLogSheet = ({ onClose, session }) => {
              {showCreateTemplate && <CreateTemplateModal session={session} onClose={() => { setShowCreateTemplate(false); fetchTemplates(); }} />}
            </div>
         ) : (
-           <textarea placeholder="Ghi chú các bài tập đã thực hiện..." className="w-full bg-white/[0.02] border border-white/[0.05] rounded-[14px] py-3 px-4 text-white text-sm outline-none focus:border-white/20 resize-none h-24" />
+           <div className="flex flex-col gap-3">
+             <div className="bg-white/[0.02] border border-white/[0.05] rounded-[16px] p-4">
+               <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-2">Builder bài tập lẻ</p>
+               <p className="text-xs text-neutral-500 leading-relaxed">Thêm nhanh danh sách bài tập đã thực hiện trong buổi này. Bạn có thể kéo để đổi thứ tự trước khi lưu.</p>
+             </div>
+             <div className="space-y-3">
+               {exercises.map((ex, idx) => (
+                 <div
+                   key={ex.id}
+                   draggable
+                   onDragStart={(e) => handleDragStart(e, idx)}
+                   onDragEnd={handleDragEnd}
+                   onDragOver={(e) => handleDragOver(e, idx)}
+                   className="bg-white/[0.03] border border-white/[0.06] rounded-[20px] p-4 flex flex-col gap-3 cursor-move"
+                 >
+                   <div className="flex gap-3">
+                     <GripVertical className="w-5 h-5 text-white/20 mt-3 shrink-0" />
+                     <div className="flex-1 min-w-0">
+                       <input
+                         type="text"
+                         placeholder={`Tên bài tập #${idx + 1}`}
+                         value={ex.name}
+                         onChange={e => updateExercise(ex.id, 'name', e.target.value)}
+                         className="w-full bg-transparent border-b border-white/10 pb-2 text-white font-semibold text-base outline-none focus:border-white/30 transition-all"
+                       />
+                     </div>
+                     <button
+                       onClick={() => removeExercise(ex.id)}
+                       disabled={exercises.length === 1}
+                       className="p-2 h-fit text-red-500/50 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all disabled:opacity-30 disabled:hover:bg-transparent"
+                     >
+                       <Trash2 className="w-4 h-4" />
+                     </button>
+                   </div>
+
+                   <div className="pl-8 flex gap-3">
+                     <div className="flex-1 flex items-center bg-white/[0.04] border border-white/[0.08] rounded-[12px] p-1">
+                        <span className="text-[10px] font-black text-neutral-600 uppercase px-2 w-[45px]">Sets</span>
+                        <button onClick={() => updateExercise(ex.id, 'sets', Math.max(1, ex.sets - 1))} className="p-1 text-neutral-400 active:bg-white/10 rounded-md transition-all">-</button>
+                        <span className="flex-1 text-center text-white font-semibold">{ex.sets}</span>
+                        <button onClick={() => updateExercise(ex.id, 'sets', ex.sets + 1)} className="p-1 text-neutral-400 active:bg-white/10 rounded-md transition-all">+</button>
+                     </div>
+                     <div className="flex-1 flex items-center bg-white/[0.04] border border-white/[0.08] rounded-[12px] p-1">
+                        <span className="text-[10px] font-black text-neutral-600 uppercase px-2 w-[45px]">Reps</span>
+                        <button onClick={() => updateExercise(ex.id, 'reps', Math.max(1, ex.reps - 1))} className="p-1 text-neutral-400 active:bg-white/10 rounded-md transition-all">-</button>
+                        <span className="flex-1 text-center text-white font-semibold">{ex.reps}</span>
+                        <button onClick={() => updateExercise(ex.id, 'reps', ex.reps + 1)} className="p-1 text-neutral-400 active:bg-white/10 rounded-md transition-all">+</button>
+                     </div>
+                   </div>
+
+                   <div className="pl-8">
+                     <input
+                       type="text"
+                       placeholder="Link video hướng dẫn (tuỳ chọn)"
+                       value={ex.video_url}
+                       onChange={e => updateExercise(ex.id, 'video_url', e.target.value)}
+                       className="w-full bg-black/40 border border-white/[0.05] rounded-[10px] py-2 px-3 text-neutral-400 text-xs outline-none focus:border-white/20 transition-all"
+                     />
+                   </div>
+                 </div>
+               ))}
+             </div>
+             <button onClick={addExercise} className="w-full py-3.5 border border-dashed border-white/20 rounded-[18px] text-neutral-400 text-sm font-medium flex items-center justify-center gap-2 hover:bg-white/[0.02] active:border-white/40 transition-all">
+               <Plus className="w-4 h-4" /> Thêm bài tập
+             </button>
+           </div>
         )}
 
         {/* [C] Cảm giác */}
@@ -238,14 +500,14 @@ const QuickLogSheet = ({ onClose, session }) => {
 
         {/* [E] 3 Buttons */}
         <div className="flex gap-2 mt-2">
-           <button onClick={() => handleSave('in_progress')} disabled={saving || !selectedSessionId || selectedSessionId === 'new'} className="flex-1 py-3.5 bg-white/[0.04] border border-white/[0.08] rounded-[18px] text-white font-bold text-sm text-center active:scale-95 transition-all disabled:opacity-50">
+           <button onClick={() => handleSave('in_progress')} disabled={saving || !selectedSessionId || (segment === 'single' && !hasSingleWorkoutData)} className="flex-1 py-3.5 bg-white/[0.04] border border-white/[0.08] rounded-[18px] text-white font-bold text-sm text-center active:scale-95 transition-all disabled:opacity-50">
              Lưu tạm
            </button>
-           <button onClick={() => handleSave('completed')} disabled={saving || !selectedSessionId || selectedSessionId === 'new'} className="flex-1 py-3.5 bg-white text-black font-bold text-sm rounded-[18px] text-center active:scale-[0.98] transition-all disabled:opacity-50">
+           <button onClick={() => handleSave('completed')} disabled={saving || !selectedSessionId || (segment === 'single' && !hasSingleWorkoutData)} className="flex-1 py-3.5 bg-white text-black font-bold text-sm rounded-[18px] text-center active:scale-[0.98] transition-all disabled:opacity-50">
              Hoàn thành
            </button>
         </div>
-        <button onClick={() => setShowCancelReason(true)} disabled={saving || !selectedSessionId || selectedSessionId === 'new'} className="w-full py-3 text-red-400 text-sm font-bold text-center bg-red-500/10 border border-red-500/20 rounded-[18px] active:scale-95 transition-all disabled:opacity-50">
+        <button onClick={() => setShowCancelReason(true)} disabled={saving || !selectedSessionId} className="w-full py-3 text-red-400 text-sm font-bold text-center bg-red-500/10 border border-red-500/20 rounded-[18px] active:scale-95 transition-all disabled:opacity-50">
            Hủy buổi tập này
         </button>
 

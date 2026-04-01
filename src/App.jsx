@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Home, Users, Plus } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
@@ -41,6 +41,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [showCoachProfile, setShowCoachProfile] = useState(false);
   const [showQuickLog, setShowQuickLog] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // ============================================================
   // Phát hiện role sau khi đăng nhập
@@ -116,7 +117,7 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleLogin = (supabaseSession, roleHint) => {
+  const handleLogin = (supabaseSession) => {
     setSession(supabaseSession);
     detectRole(supabaseSession);
   };
@@ -134,7 +135,7 @@ export default function App() {
     if (session) detectRole(session);
   };
 
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     if (!session) return;
     setIsLoading(true);
     const coachEmailVal = session.user?.email;
@@ -179,7 +180,7 @@ export default function App() {
       package: pkgMap[db.id] || { total: 0, remaining: '--', hasActive: false },
     })));
     setIsLoading(false);
-  };
+  }, [session]);
 
   const handleDeleteClient = async (clientId) => {
     const { error } = await supabase.from('clients').delete().eq('id', clientId);
@@ -189,7 +190,13 @@ export default function App() {
     } else alert("Lỗi khi xóa: " + error.message);
   };
 
-  useEffect(() => { if (session) fetchClients(); }, [session, activeTab]);
+  useEffect(() => {
+    if (!session) return;
+    const timeoutId = window.setTimeout(() => {
+      void fetchClients();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [session, activeTab, fetchClients]);
 
   // Loading screen khi Supabase đang restore session
   if (isAuthLoading || (session && !userRole)) {
@@ -257,6 +264,7 @@ export default function App() {
               <DashboardView
                 session={session}
                 coachProfile={coachProfile}
+                refreshKey={refreshKey}
                 onSelectClient={setSelectedClient}
                 onLogout={handleLogout}
                 onOpenProfile={() => setShowCoachProfile(true)}
@@ -306,7 +314,7 @@ export default function App() {
             )}
 
             {/* Quick Log Sheet Overlay */}
-            {showQuickLog && <QuickLogSheet session={session} onClose={() => setShowQuickLog(false)} />}
+            {showQuickLog && <QuickLogSheet session={session} onClose={() => setShowQuickLog(false)} onSaved={() => setRefreshKey(k=>k+1)} />}
           </>
         ) : (
           <ClientDetailView
