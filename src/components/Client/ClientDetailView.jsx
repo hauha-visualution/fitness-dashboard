@@ -23,7 +23,7 @@ const ClientDetailView = ({ client, onBack, onDelete }) => {
       case 'package':   return <PackageTab client={client} readOnly={false} />;
       case 'sessions':  return <SessionsTab clientId={client.id} readOnly={false} />;
       case 'nutrition': return <NutritionTab client={client} />;
-      case 'payment':   return <PaymentTab client={client} />;
+      case 'payment':   return <PaymentTab client={client} readOnly={false} />;
       default:          return <ProfileTab client={client} onDelete={openDeleteModal} />;
     }
   };

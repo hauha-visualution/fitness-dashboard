@@ -15,7 +15,6 @@ const DAY_LABELS = [
   { day: 6, short: 'T7', full: 'Thứ 7' },
   { day: 0, short: 'CN', full: 'Chủ nhật' },
 ];
-const SESSION_PRESETS = [8, 10, 12, 20, 24];
 const DURATIONS = [45, 60, 75, 90];
 const DAY_VI = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
@@ -45,9 +44,15 @@ const formatDate = (date) => {
   return `${day} ${dd}/${mm}`;
 };
 
-const formatPrice = (raw) => {
+// price helpers — user types in đơn vị nghìn đồng, stored ×1000
+const formatThousands = (raw) => {
   const digits = raw.replace(/\D/g, '');
   return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+};
+const displayVND = (raw) => {
+  // raw = user input string in nghìn, show full VNĐ with dots
+  const val = parseInt(raw.replace(/\D/g, '') || '0') * 1000;
+  return val > 0 ? val.toLocaleString('vi-VN').replace(/,/g, '.') : null;
 };
 
 const addMinutes = (timeStr, minutes) => {
@@ -59,32 +64,41 @@ const addMinutes = (timeStr, minutes) => {
   return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
 };
 
+// ─── FIELD: label on top, input/display below ─────────────────
+const FieldBlock = ({ label, children }) => (
+  <div className="flex flex-col gap-1.5">
+    <span className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">{label}</span>
+    {children}
+  </div>
+);
+
 // ─── MAIN COMPONENT ──────────────────────────────────────────
 const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => {
-  // Step 1: package info
+  // Step 1
   const [step, setStep] = useState(1);
-  // Use single sessionCount state, null = custom mode
-  const [selectedPreset, setSelectedPreset] = useState(12);
-  const [customValue, setCustomValue] = useState('');
-  const [priceDisplay, setPriceDisplay] = useState('');
-  const [bonusSessions, setBonusSessions] = useState(0);
+  const [buyCount, setBuyCount] = useState('');
+  const [bonusCount, setBonusCount] = useState('');
+  const [priceInput, setPriceInput] = useState(''); // in nghìn đồng
 
-  // Step 2: schedule
+  // Step 2
   const [startDate, setStartDate] = useState('');
-  const [schedule, setSchedule] = useState([]); // [{ day, time }]
-  const [sessionDuration, setSessionDuration] = useState(60); // minutes
+  const [schedule, setSchedule] = useState([]);
+  const [sessionDuration, setSessionDuration] = useState(60);
   const [isCreating, setIsCreating] = useState(false);
 
   // Computed
-  const sessionCount = customValue !== '' ? (parseInt(customValue) || 0) : selectedPreset;
+  const sessionCount = parseInt(buyCount) || 0;
+  const bonusSessions = parseInt(bonusCount) || 0;
   const totalSessions = sessionCount + bonusSessions;
-  const priceRaw = priceDisplay.replace(/\./g, '');
+  const priceVND = parseInt(priceInput.replace(/\D/g, '') || '0') * 1000; // stored value
+  const priceFormatted = displayVND(priceInput); // display string
+
   const previewSessions = useMemo(
     () => generateSessionDates(startDate, schedule, totalSessions),
     [startDate, schedule, totalSessions]
   );
 
-  // ─── STEP 2: Schedule helpers ─────────────────────────────
+  // ─── Schedule helpers ─────────────────────────────────────
   const toggleDay = (day) => {
     setSchedule(prev => {
       const exists = prev.find(s => s.day === day);
@@ -96,24 +110,21 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
       });
     });
   };
-
-  const updateDayTime = (day, time) => {
+  const updateDayTime = (day, time) =>
     setSchedule(prev => prev.map(s => s.day === day ? { ...s, time } : s));
-  };
-
   const isDaySelected = (day) => schedule.some(s => s.day === day);
 
-  // ─── VALIDATION ───────────────────────────────────────────
+  // ─── Validation ───────────────────────────────────────────
   const step1Valid = sessionCount >= 1 && sessionCount <= 200;
   const step2Valid = startDate && schedule.length > 0 && previewSessions.length === totalSessions;
 
-  // ─── SAVE ─────────────────────────────────────────────────
+  // ─── Save ─────────────────────────────────────────────────
   const handleSave = async () => {
     if (!step2Valid || isCreating) return;
     setIsCreating(true);
 
     try {
-      // Insert package
+      // 1. Insert package
       const { data: pkg, error: pkgErr } = await supabase
         .from('packages')
         .insert([{
@@ -122,7 +133,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
           session_count: sessionCount,
           bonus_sessions: bonusSessions,
           total_sessions: totalSessions,
-          price: parseInt(priceRaw) || 0,
+          price: priceVND,
           start_date: startDate,
           weekly_schedule: schedule,
           status: 'active',
@@ -130,13 +141,9 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
         .select()
         .single();
 
-      if (pkgErr) {
-        alert('Lỗi tạo gói: ' + pkgErr.message);
-        setIsCreating(false);
-        return;
-      }
+      if (pkgErr) { alert('Lỗi tạo gói: ' + pkgErr.message); setIsCreating(false); return; }
 
-      // Bulk insert sessions
+      // 2. Bulk insert sessions
       const rows = previewSessions.map(s => ({
         client_id: clientId,
         package_id: pkg.id,
@@ -145,13 +152,19 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
         scheduled_time: s.time,
         status: 'scheduled',
       }));
-
       const { error: sessErr } = await supabase.from('sessions').insert(rows);
+      if (sessErr) { alert('Lỗi tạo lịch: ' + sessErr.message); setIsCreating(false); return; }
 
-      if (sessErr) {
-        alert('Lỗi tạo lịch: ' + sessErr.message);
-        setIsCreating(false);
-        return;
+      // 3. Insert payment record — status: unpaid
+      if (priceVND > 0) {
+        const { error: payErr } = await supabase.from('payments').insert([{
+          client_id: clientId,
+          package_id: pkg.id,
+          package_number: packageNumber,
+          amount: priceVND,
+          status: 'unpaid',
+        }]);
+        if (payErr) console.warn('Payment record error:', payErr.message);
       }
 
       onCreated();
@@ -167,28 +180,18 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
     <div className="fixed inset-x-0 bottom-0 top-[66px] z-[500] flex items-end bg-black/60 backdrop-blur-sm">
       <div className="w-full bg-[#0d0d0d] border-t border-white/10 rounded-t-[32px] max-h-full overflow-y-auto hide-scrollbar animate-slide-up">
 
-        {/* Header — compact single row */}
+        {/* Compact header */}
         <div className="sticky top-0 bg-[#0d0d0d]/95 backdrop-blur-xl z-10 px-5 pt-4 pb-3 border-b border-white/[0.06]">
           <div className="flex items-center gap-3">
-            {/* Step pills */}
             <div className="flex gap-1.5 flex-1">
               {[1, 2].map(s => (
-                <div
-                  key={s}
-                  className={`h-1 flex-1 rounded-full transition-all duration-500 ${s <= step ? 'bg-white' : 'bg-white/10'}`}
-                />
+                <div key={s} className={`h-1 flex-1 rounded-full transition-all duration-500 ${s <= step ? 'bg-white' : 'bg-white/10'}`} />
               ))}
             </div>
-            {/* Title */}
             <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-widest shrink-0">
               Gói #{String(packageNumber).padStart(2, '0')} · {step === 1 ? 'Thông tin' : 'Lịch tập'}
             </span>
-            {/* Close */}
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 bg-white/[0.04] border border-white/[0.08] rounded-full text-neutral-500 active:scale-90 transition-all shrink-0"
-            >
+            <button type="button" onClick={onClose} className="p-1.5 bg-white/[0.04] border border-white/[0.08] rounded-full text-neutral-500 active:scale-90 transition-all shrink-0">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -196,107 +199,84 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
 
         <div className="px-6 pb-8">
 
-          {/* ═══ STEP 1: Package Info ═══ */}
+          {/* ═══ STEP 1 ═══ */}
           {step === 1 && (
-            <div className="space-y-4 pt-4">
+            <div className="space-y-6 pt-5">
 
-              {/* Số buổi mua */}
-              <div>
-                <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Số buổi mua</p>
-                <div className="grid grid-cols-5 gap-2 mb-2.5">
-                  {SESSION_PRESETS.map(p => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => { setSelectedPreset(p); setCustomValue(''); }}
-                      className={`py-3.5 rounded-[16px] font-black text-sm transition-all active:scale-95 ${
-                        selectedPreset === p && customValue === ''
-                          ? 'bg-white text-black'
-                          : 'bg-white/[0.04] border border-white/[0.08] text-neutral-400'
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  type="number"
-                  min="1"
-                  max="200"
-                  placeholder="Số khác..."
-                  value={customValue}
-                  onChange={e => { setCustomValue(e.target.value); setSelectedPreset(null); }}
-                  onFocus={() => setSelectedPreset(null)}
-                  className="w-full bg-white/[0.03] border border-white/[0.08] rounded-[14px] py-2.5 px-4 text-white text-sm outline-none focus:border-white/20"
-                />
-              </div>
+              {/* Title */}
+              <p className="text-white font-semibold text-base">
+                Gói tập số <span className="text-blue-400">#{String(packageNumber).padStart(2, '0')}</span>
+              </p>
 
-              {/* Giá + buổi tặng - cùng hàng */}
-              <div className="space-y-2.5">
-                <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Giá & khuyến mãi</p>
-
-                {/* Giá tiền */}
-                <div className="relative">
+              {/* Buổi mua + Buổi tặng = Tổng */}
+              <div className="flex items-end gap-3">
+                {/* Buổi mua */}
+                <FieldBlock label="Buổi mua">
                   <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="Giá tiền (VNĐ)..."
-                    value={priceDisplay}
-                    onChange={e => setPriceDisplay(formatPrice(e.target.value))}
-                    className="w-full bg-white/[0.03] border border-white/[0.08] rounded-[14px] py-2.5 pl-4 pr-14 text-white text-sm outline-none focus:border-white/20"
+                    type="number"
+                    min="1"
+                    max="200"
+                    placeholder="0"
+                    value={buyCount}
+                    onChange={e => setBuyCount(e.target.value)}
+                    className="w-full bg-white/[0.04] border border-white/[0.1] rounded-[16px] py-3 px-4 text-white text-xl font-semibold text-center outline-none focus:border-white/30 transition-all"
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-neutral-600">VNĐ</span>
-                </div>
+                </FieldBlock>
 
-                {/* Buổi tặng - compact inline */}
-                <div className="flex items-center justify-between bg-white/[0.02] border border-white/[0.06] rounded-[14px] px-4 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <Gift className="w-3.5 h-3.5 text-purple-400" />
-                    <span className="text-xs text-neutral-400">Buổi tặng thêm</span>
+                {/* + */}
+                <div className="pb-3.5 text-neutral-600 text-lg font-light shrink-0">+</div>
+
+                {/* Buổi tặng */}
+                <FieldBlock label="Buổi tặng">
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="0"
+                      max="50"
+                      placeholder="0"
+                      value={bonusCount}
+                      onChange={e => setBonusCount(e.target.value)}
+                      className="w-full bg-white/[0.04] border border-white/[0.1] rounded-[16px] py-3 px-4 text-purple-400 text-xl font-semibold text-center outline-none focus:border-purple-400/30 transition-all"
+                    />
+                    {bonusSessions > 0 && (
+                      <Gift className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-purple-500/60" />
+                    )}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setBonusSessions(Math.max(0, bonusSessions - 1))}
-                      className="w-7 h-7 bg-white/[0.06] border border-white/[0.1] rounded-full text-white flex items-center justify-center active:scale-90 font-bold text-base leading-none"
-                    >
-                      –
-                    </button>
-                    <span className="text-white font-medium w-5 text-center">{bonusSessions}</span>
-                    <button
-                      type="button"
-                      onClick={() => setBonusSessions(bonusSessions + 1)}
-                      className="w-7 h-7 bg-white/[0.06] border border-white/[0.1] rounded-full text-white flex items-center justify-center active:scale-90 font-bold text-base leading-none"
-                    >
-                      +
-                    </button>
+                </FieldBlock>
+
+                {/* = */}
+                <div className="pb-3.5 text-neutral-600 text-lg font-light shrink-0">=</div>
+
+                {/* Tổng */}
+                <FieldBlock label="Tổng buổi">
+                  <div className="bg-white/[0.06] border border-white/[0.1] rounded-[16px] py-3 px-4 text-center">
+                    <span className="text-white text-xl font-bold">{totalSessions || '—'}</span>
                   </div>
-                </div>
+                </FieldBlock>
               </div>
 
-              {/* Summary compact */}
-              <div className="bg-white/[0.03] border border-white/[0.08] rounded-[20px] px-5 py-4">
-                <div className="flex items-center justify-around">
-                  <div className="text-center">
-                    <p className="text-2xl font-light text-white">{sessionCount || 0}</p>
-                    <p className="text-[8px] font-black text-neutral-600 uppercase mt-0.5">Mua</p>
+              {/* Giá tiền */}
+              <div>
+                <FieldBlock label="Giá trị gói (đơn vị: nghìn ₫)">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Ví dụ: 15000"
+                      value={priceInput}
+                      onChange={e => setPriceInput(formatThousands(e.target.value))}
+                      className="w-full bg-white/[0.04] border border-white/[0.1] rounded-[16px] py-3 px-4 text-white text-base font-medium outline-none focus:border-white/30 transition-all pr-20"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-neutral-700">× 1.000 ₫</span>
                   </div>
-                  <div className="text-neutral-700 text-lg font-light">+</div>
-                  <div className="text-center">
-                    <p className="text-2xl font-light text-purple-400">{bonusSessions}</p>
-                    <p className="text-[8px] font-black text-neutral-600 uppercase mt-0.5">Tặng</p>
-                  </div>
-                  <div className="text-neutral-700 text-lg font-light">=</div>
-                  <div className="text-center bg-white/[0.05] rounded-[14px] px-4 py-2">
-                    <p className="text-2xl font-bold text-white">{totalSessions}</p>
-                    <p className="text-[8px] font-black text-emerald-400 uppercase mt-0.5">Tổng buổi</p>
-                  </div>
-                </div>
-                {priceDisplay ? (
-                  <p className="text-center text-xs text-neutral-500 mt-3 pt-3 border-t border-white/[0.05]">
-                    {priceDisplay} <span className="text-neutral-700">VNĐ</span>
-                  </p>
-                ) : null}
+                  {/* Auto-display full VNĐ */}
+                  {priceFormatted && (
+                    <div className="mt-2 flex items-center gap-2 px-1">
+                      <span className="text-[10px] text-neutral-600">→</span>
+                      <span className="text-sm font-semibold text-emerald-400">{priceFormatted} ₫</span>
+                    </div>
+                  )}
+                </FieldBlock>
               </div>
 
               <button
@@ -315,104 +295,118 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
           {step === 2 && (
             <div className="space-y-4 pt-4">
 
-              {/* Ngày bắt đầu */}
-              <div>
-                <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-2.5">Ngày bắt đầu</p>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={e => setStartDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="w-full bg-white/[0.03] border border-white/[0.08] rounded-[14px] py-2.5 px-4 text-white text-sm outline-none focus:border-white/20"
-                />
-              </div>
-
-              {/* Thời lượng mỗi buổi */}
-              <div>
-                <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-2.5">Thời lượng mỗi buổi</p>
-                <div className="grid grid-cols-4 gap-2">
-                  {DURATIONS.map(d => (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => setSessionDuration(d)}
-                      className={`py-2.5 rounded-[12px] font-black text-xs transition-all active:scale-95 ${
-                        sessionDuration === d
-                          ? 'bg-white text-black'
-                          : 'bg-white/[0.04] border border-white/[0.08] text-neutral-400'
-                      }`}
-                    >
-                      {d}'
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Chọn ngày tập */}
-              <div>
-                <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-2.5">Ngày tập hàng tuần</p>
-                <div className="grid grid-cols-7 gap-1.5 mb-3">
-                  {DAY_LABELS.map(({ day, short }) => (
-                    <button
-                      key={day}
-                      type="button"
-                      onClick={() => toggleDay(day)}
-                      className={`py-2.5 rounded-[12px] font-black text-[11px] transition-all active:scale-90 ${
-                        isDaySelected(day)
-                          ? 'bg-white text-black'
-                          : 'bg-white/[0.04] border border-white/[0.08] text-neutral-500'
-                      }`}
-                    >
-                      {short}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Per-day time picker with end time */}
-                {schedule.length > 0 && (
-                  <div className="space-y-2">
-                    {schedule.map(({ day, time }) => {
-                      const dayInfo = DAY_LABELS.find(d => d.day === day);
-                      const endTime = addMinutes(time, sessionDuration);
-                      return (
-                        <div
-                          key={day}
-                          className="flex items-center gap-3 bg-white/[0.03] border border-white/[0.06] rounded-[14px] px-4 py-2.5"
-                        >
-                          <span className="text-white font-black text-[11px] w-12 shrink-0">{dayInfo?.short}</span>
-                          <input
-                            type="time"
-                            value={time}
-                            onChange={e => updateDayTime(day, e.target.value)}
-                            className="bg-transparent text-white text-sm outline-none font-medium"
-                          />
-                          <span className="text-neutral-600 text-[10px]">→</span>
-                          <span className="text-neutral-400 text-[11px] font-medium">{endTime}</span>
-                          <span className="text-neutral-700 text-[9px] ml-auto">{sessionDuration}'</span>
-                        </div>
-                      );
-                    })}
+              {/* Package summary mini */}
+              <div className="flex items-center gap-3 bg-white/[0.03] border border-white/[0.06] rounded-[16px] px-4 py-3">
+                <div className="flex-1 flex items-center gap-4">
+                  <div className="text-center">
+                    <p className="text-white font-bold text-base">{sessionCount}</p>
+                    <p className="text-[8px] text-neutral-600 uppercase">Mua</p>
                   </div>
+                  {bonusSessions > 0 && <>
+                    <span className="text-neutral-700">+</span>
+                    <div className="text-center">
+                      <p className="text-purple-400 font-bold text-base">{bonusSessions}</p>
+                      <p className="text-[8px] text-neutral-600 uppercase">Tặng</p>
+                    </div>
+                  </>}
+                  <span className="text-neutral-700">=</span>
+                  <div className="text-center">
+                    <p className="text-white font-bold text-base">{totalSessions}</p>
+                    <p className="text-[8px] text-emerald-500 uppercase">Tổng</p>
+                  </div>
+                </div>
+                {priceFormatted && (
+                  <span className="text-emerald-400 text-xs font-semibold">{priceFormatted} ₫</span>
                 )}
               </div>
 
-              {/* Preview sessions */}
+              {/* Ngày bắt đầu */}
+              <div>
+                <FieldBlock label="Ngày bắt đầu">
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={e => setStartDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-[14px] py-2.5 px-4 text-white text-sm outline-none focus:border-white/20"
+                  />
+                </FieldBlock>
+              </div>
+
+              {/* Thời lượng */}
+              <div>
+                <FieldBlock label="Thời lượng mỗi buổi">
+                  <div className="grid grid-cols-4 gap-2">
+                    {DURATIONS.map(d => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => setSessionDuration(d)}
+                        className={`py-2.5 rounded-[12px] font-black text-xs transition-all active:scale-95 ${
+                          sessionDuration === d ? 'bg-white text-black' : 'bg-white/[0.04] border border-white/[0.08] text-neutral-400'
+                        }`}
+                      >
+                        {d}'
+                      </button>
+                    ))}
+                  </div>
+                </FieldBlock>
+              </div>
+
+              {/* Ngày tập */}
+              <div>
+                <FieldBlock label="Ngày tập hàng tuần">
+                  <div className="grid grid-cols-7 gap-1.5 mb-3">
+                    {DAY_LABELS.map(({ day, short }) => (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => toggleDay(day)}
+                        className={`py-2.5 rounded-[12px] font-black text-[11px] transition-all active:scale-90 ${
+                          isDaySelected(day) ? 'bg-white text-black' : 'bg-white/[0.04] border border-white/[0.08] text-neutral-500'
+                        }`}
+                      >
+                        {short}
+                      </button>
+                    ))}
+                  </div>
+
+                  {schedule.length > 0 && (
+                    <div className="space-y-2">
+                      {schedule.map(({ day, time }) => {
+                        const dayInfo = DAY_LABELS.find(d => d.day === day);
+                        return (
+                          <div key={day} className="flex items-center gap-3 bg-white/[0.03] border border-white/[0.06] rounded-[14px] px-4 py-2.5">
+                            <span className="text-white font-black text-[11px] w-12 shrink-0">{dayInfo?.short}</span>
+                            <input
+                              type="time"
+                              value={time}
+                              onChange={e => updateDayTime(day, e.target.value)}
+                              className="bg-transparent text-white text-sm outline-none font-medium"
+                            />
+                            <span className="text-neutral-600 text-[10px]">→</span>
+                            <span className="text-neutral-400 text-[11px] font-medium">{addMinutes(time, sessionDuration)}</span>
+                            <span className="text-neutral-700 text-[9px] ml-auto">{sessionDuration}'</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </FieldBlock>
+              </div>
+
+              {/* Preview */}
               {previewSessions.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">
-                      Preview · {previewSessions.length} buổi
-                    </p>
+                    <span className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Preview · {previewSessions.length} buổi</span>
                     {previewSessions.length === totalSessions && (
                       <span className="text-[9px] font-black text-emerald-400">✓ Đủ {totalSessions} buổi</span>
                     )}
                   </div>
-                  <div className="space-y-1.5 max-h-[180px] overflow-y-auto hide-scrollbar">
+                  <div className="space-y-1.5 max-h-[160px] overflow-y-auto hide-scrollbar">
                     {previewSessions.map(s => (
-                      <div
-                        key={s.number}
-                        className="flex items-center gap-3 bg-white/[0.02] rounded-[10px] px-3 py-2"
-                      >
+                      <div key={s.number} className="flex items-center gap-3 bg-white/[0.02] rounded-[10px] px-3 py-2">
                         <span className="text-[10px] font-black text-neutral-600 w-6 shrink-0">#{s.number}</span>
                         <span className="text-xs text-white flex-1">{formatDate(s.date)}</span>
                         <span className="text-[11px] text-neutral-500">{s.time}</span>
@@ -421,9 +415,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                     ))}
                   </div>
                   {previewSessions.length < totalSessions && (
-                    <p className="text-[10px] text-yellow-500/80 mt-2">
-                      ⚠️ Chỉ tạo được {previewSessions.length}/{totalSessions} buổi
-                    </p>
+                    <p className="text-[10px] text-yellow-500/80 mt-2">⚠️ Chỉ tạo được {previewSessions.length}/{totalSessions} buổi</p>
                   )}
                 </div>
               )}
@@ -435,7 +427,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                 </div>
               )}
 
-              {/* Footer buttons */}
+              {/* Footer */}
               <div className="flex gap-3 pt-1">
                 <button
                   type="button"
@@ -453,7 +445,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                 >
                   {isCreating
                     ? <><RefreshCw className="w-4 h-4 animate-spin" /> Đang tạo...</>
-                    : <><CheckCircle2 className="w-4 h-4" /> Tạo gói tập</>
+                    : <><CheckCircle2 className="w-4 h-4" /> Tạo gói</>
                   }
                 </button>
               </div>

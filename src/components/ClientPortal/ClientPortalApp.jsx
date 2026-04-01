@@ -208,7 +208,7 @@ const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) =
       );
       case 'payment':   return (
         <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4">
-          <PaymentTab client={client} />
+          <PaymentTab client={client} readOnly={true} />
         </div>
       );
       default:          return <ClientHomeTab client={client} onLogout={onLogout} />;
