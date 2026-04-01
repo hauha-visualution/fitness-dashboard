@@ -30,7 +30,7 @@ const DashboardView = ({ session, coachProfile, onSelectClient, onLogout, onOpen
   useEffect(() => {
     const fetchDaySessions = async () => {
       setLoadingSessions(true);
-      const dateStr = selectedDate.toISOString().split('T')[0];
+      const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
       const coachEmail = session?.user?.email;
 
       // Get coach's clients first, then filter sessions

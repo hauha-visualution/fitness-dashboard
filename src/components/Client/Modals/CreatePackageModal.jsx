@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import {
   X, ChevronRight, ChevronLeft, CheckCircle2, RefreshCw,
   Calendar, Clock, Gift
@@ -44,15 +45,10 @@ const formatDate = (date) => {
   return `${day} ${dd}/${mm}`;
 };
 
-// price helpers — user types in đơn vị nghìn đồng, stored ×1000
-const formatThousands = (raw) => {
+// price: coach gõ số đầy đủ, auto thêm "." cho dễ nhìn
+const formatDots = (raw) => {
   const digits = raw.replace(/\D/g, '');
   return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-};
-const displayVND = (raw) => {
-  // raw = user input string in nghìn, show full VNĐ with dots
-  const val = parseInt(raw.replace(/\D/g, '') || '0') * 1000;
-  return val > 0 ? val.toLocaleString('vi-VN').replace(/,/g, '.') : null;
 };
 
 const addMinutes = (timeStr, minutes) => {
@@ -78,10 +74,14 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
   const [step, setStep] = useState(1);
   const [buyCount, setBuyCount] = useState('');
   const [bonusCount, setBonusCount] = useState('');
-  const [priceInput, setPriceInput] = useState(''); // in nghìn đồng
+  const [priceInput, setPriceInput] = useState(''); // full VND value, raw digits
+  const [packageNote, setPackageNote] = useState(''); // coach custom note
 
   // Step 2
-  const [startDate, setStartDate] = useState('');
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
   const [schedule, setSchedule] = useState([]);
   const [sessionDuration, setSessionDuration] = useState(60);
   const [isCreating, setIsCreating] = useState(false);
@@ -96,8 +96,9 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
   const sessionCount = parseInt(buyCount) || 0;
   const bonusSessions = parseInt(bonusCount) || 0;
   const totalSessions = sessionCount + bonusSessions;
-  const priceVND = parseInt(priceInput.replace(/\D/g, '') || '0') * 1000; // stored value
-  const priceFormatted = displayVND(priceInput); // display string
+  const priceRawDigits = priceInput.replace(/\D/g, '');
+  const priceVND = parseInt(priceRawDigits || '0'); // full VND value, no multiplier
+  const priceFormatted = priceRawDigits ? formatDots(priceRawDigits) : '';
 
   const previewSessions = useMemo(
     () => generateSessionDates(startDate, schedule, totalSessions),
@@ -142,6 +143,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
           price: priceVND,
           start_date: startDate,
           weekly_schedule: schedule,
+          note: packageNote.trim() || null,
           status: 'active',
         }])
         .select()
@@ -154,7 +156,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
         client_id: clientId,
         package_id: pkg.id,
         session_number: s.number,
-        scheduled_date: s.date.toISOString().split('T')[0],
+        scheduled_date: `${s.date.getFullYear()}-${String(s.date.getMonth() + 1).padStart(2, '0')}-${String(s.date.getDate()).padStart(2, '0')}`,
         scheduled_time: s.time,
         status: 'scheduled',
       }));
@@ -182,8 +184,8 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
   };
 
   // ─── RENDER ───────────────────────────────────────────────
-  return (
-    <div className="fixed inset-x-0 top-[56px] bottom-0 z-[500] bg-black/50 backdrop-blur-sm animate-slide-up">
+  return ReactDOM.createPortal(
+    <div className="fixed inset-0 z-[500] bg-black/50 backdrop-blur-sm" style={{ paddingTop: 50 }}>
       <div ref={scrollRef} className="w-full h-full bg-[#0d0d0d] border-t border-white/10 rounded-t-[32px] flex flex-col overflow-hidden">
 
         {/* Compact header */}
@@ -196,6 +198,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
             </div>
             <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-widest shrink-0">
               Gói #{String(packageNumber).padStart(2, '0')} · {step === 1 ? 'Thông tin' : 'Lịch tập'}
+              {packageNote.trim() && <span className="normal-case tracking-normal text-neutral-400 ml-1">· {packageNote.trim()}</span>}
             </span>
             <button type="button" onClick={onClose} className="p-1.5 bg-white/[0.04] border border-white/[0.08] rounded-full text-neutral-500 active:scale-90 transition-all shrink-0">
               <X className="w-3.5 h-3.5" />
@@ -203,9 +206,9 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
           </div>
         </div>
 
-        {/* Step 1: no scroll */}
+        {/* Step 1: scrollable */}
         {step === 1 && (
-          <div className="flex-1 px-5 pb-6">
+          <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-6">
             <div className="flex flex-col gap-5 pt-4">
 
               {/* Buổi mua + Buổi tặng = Tổng */}
@@ -250,18 +253,21 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                 </FieldBlock>
               </div>
 
-              {/* Giá tiền */}
-              <FieldBlock label="Giá trị gói (đơn vị: nghìn ₫)">
+              {/* Giá tiền — coach gõ full VND, auto thêm "." */}
+              <FieldBlock label="Giá trị gói (₫)">
                 <div className="relative">
                   <input
                     type="text"
                     inputMode="numeric"
-                    placeholder="Ví dụ: 15000"
+                    placeholder="Ví dụ: 15.000.000"
                     value={priceInput}
-                    onChange={e => setPriceInput(formatThousands(e.target.value))}
-                    className="w-full bg-white/[0.04] border border-white/[0.1] rounded-[14px] py-2.5 px-4 text-white text-base font-medium outline-none focus:border-white/30 transition-all pr-20"
+                    onChange={e => {
+                      const raw = e.target.value.replace(/\D/g, '');
+                      setPriceInput(raw ? formatDots(raw) : '');
+                    }}
+                    className="w-full bg-white/[0.04] border border-white/[0.1] rounded-[14px] py-2.5 px-4 text-white text-base font-medium outline-none focus:border-white/30 transition-all pr-12"
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-neutral-700">× 1.000 ₫</span>
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-neutral-700">₫</span>
                 </div>
                 {priceFormatted && (
                   <div className="mt-1.5 flex items-center gap-2 px-1">
@@ -271,11 +277,24 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                 )}
               </FieldBlock>
 
+              {/* Ghi chú gói */}
+              <FieldBlock label="Ghi chú gói (tùy chọn)">
+                <input
+                  type="text"
+                  placeholder="VD: Chapter 1, Cutting, Bulking…"
+                  value={packageNote}
+                  onChange={e => setPackageNote(e.target.value)}
+                  maxLength={60}
+                  className="w-full bg-white/[0.04] border border-white/[0.1] rounded-[14px] py-2.5 px-4 text-white text-sm font-medium outline-none focus:border-white/30 transition-all placeholder:text-neutral-700"
+                />
+              </FieldBlock>
+
+              {/* Cài lịch tập — disabled nếu buổi mua < 1 */}
               <button
                 type="button"
                 onClick={() => setStep(2)}
                 disabled={!step1Valid}
-                className="w-full bg-white text-black font-bold py-4 rounded-[18px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full bg-white text-black font-bold py-4 rounded-[18px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed mt-2"
               >
                 Cài lịch tập
                 <ChevronRight className="w-4 h-4" />
@@ -321,7 +340,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                     type="date"
                     value={startDate}
                     onChange={e => setStartDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
+                    min={(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })()}
                     className="w-full bg-white/[0.04] border border-white/[0.08] rounded-[14px] py-2.5 px-4 text-white text-sm outline-none focus:border-white/20"
                   />
                 </FieldBlock>
@@ -336,9 +355,8 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                         key={d}
                         type="button"
                         onClick={() => setSessionDuration(d)}
-                        className={`py-2.5 rounded-[12px] font-black text-xs transition-all active:scale-95 ${
-                          sessionDuration === d ? 'bg-white text-black' : 'bg-white/[0.04] border border-white/[0.08] text-neutral-400'
-                        }`}
+                        className={`py-2.5 rounded-[12px] font-black text-xs transition-all active:scale-95 ${sessionDuration === d ? 'bg-white text-black' : 'bg-white/[0.04] border border-white/[0.08] text-neutral-400'
+                          }`}
                       >
                         {d}'
                       </button>
@@ -356,9 +374,8 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                         key={day}
                         type="button"
                         onClick={() => toggleDay(day)}
-                        className={`py-2.5 rounded-[12px] font-black text-[11px] transition-all active:scale-90 ${
-                          isDaySelected(day) ? 'bg-white text-black' : 'bg-white/[0.04] border border-white/[0.08] text-neutral-500'
-                        }`}
+                        className={`py-2.5 rounded-[12px] font-black text-[11px] transition-all active:scale-90 ${isDaySelected(day) ? 'bg-white text-black' : 'bg-white/[0.04] border border-white/[0.08] text-neutral-500'
+                          }`}
                       >
                         {short}
                       </button>
@@ -447,7 +464,8 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS packages (
   price           BIGINT  NOT NULL DEFAULT 0,  -- Giá tiền (VNĐ)
   start_date      DATE,                        -- Ngày bắt đầu gói
   weekly_schedule JSONB,                       -- [{"day":1,"time":"07:00"},...]
+  note            TEXT,                        -- Ghi chú coach (VD: Chapter 1, Cutting, Bulking)
   status          TEXT    NOT NULL DEFAULT 'active', -- 'active' | 'completed'
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );

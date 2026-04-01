@@ -104,6 +104,7 @@ const PackageTab = ({ client, readOnly = false }) => {
               <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Gói đang tập</p>
               <h3 className="text-white font-medium text-xl mt-0.5">
                 Gói #{String(activePackage.package_number).padStart(2, '0')}
+                {activePackage.note && <span className="text-sm text-blue-300/70 font-normal ml-2">· {activePackage.note}</span>}
                 <span className="text-sm text-neutral-500 font-normal ml-2">· {activePackage.total_sessions} buổi</span>
               </h3>
             </div>
@@ -173,6 +174,7 @@ const PackageTab = ({ client, readOnly = false }) => {
                   <button onClick={() => setExpandedPkg(expanded ? null : pkg.id)} className="w-full flex items-center justify-between px-5 py-4">
                     <div className="flex items-center gap-3">
                       <span className="text-[10px] font-black text-neutral-600 uppercase">Gói #{String(pkg.package_number).padStart(2, '0')}</span>
+                      {pkg.note && <span className="text-[10px] text-neutral-500 font-medium">{pkg.note}</span>}
                       <span className="text-xs text-neutral-500">{pkg.total_sessions} buổi</span>
                     </div>
                     <div className="flex items-center gap-3">

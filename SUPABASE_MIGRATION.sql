@@ -48,3 +48,9 @@ CREATE POLICY "Clients read own record"
 -- SELECT column_name FROM information_schema.columns
 -- WHERE table_name = 'clients'
 -- AND column_name IN ('username', 'auth_user_id', 'coach_email');
+
+-- ============================================================
+-- MIGRATION v3: Thêm cột note vào packages
+-- Coach ghi chú mục đích gói (VD: Chapter 1, Cutting, Bulking)
+-- ============================================================
+ALTER TABLE packages ADD COLUMN IF NOT EXISTS note TEXT;

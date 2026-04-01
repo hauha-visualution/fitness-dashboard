@@ -14,13 +14,18 @@ const formatSessionDate = (dateStr) => {
   return { dayLabel: day, full: `${dd}/${mm}/${yyyy}`, short: `${dd}/${mm}` };
 };
 
+const localDateStr = (d) => {
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+};
+
 const isToday = (dateStr) => {
-  const today = new Date().toISOString().split('T')[0];
-  return dateStr === today;
+  return dateStr === localDateStr(new Date());
 };
 
 const isPast = (dateStr) => {
-  return dateStr < new Date().toISOString().split('T')[0];
+  return dateStr < localDateStr(new Date());
 };
 
 // ─── SessionsTab ─────────────────────────────────────────────

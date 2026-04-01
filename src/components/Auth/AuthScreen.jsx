@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dumbbell, User, Lock, ArrowLeft, AlertCircle, RefreshCw, UserCheck, Users } from 'lucide-react';
+import { Dumbbell, User, Lock, ArrowLeft, AlertCircle, RefreshCw, UserCheck, Users, UserPlus } from 'lucide-react';
 import { supabase, toAuthEmail } from '../../supabaseClient';
 
 // Alias để dùng trong component này
@@ -7,8 +7,10 @@ const toEmail = toAuthEmail;
 
 const AuthScreen = ({ onLogin }) => {
   const [role, setRole] = useState('coach'); // 'coach' | 'client'
+  const [isRegister, setIsRegister] = useState(false); // toggle đăng ký coach mới
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState(''); // chỉ dùng khi đăng ký coach mới
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -17,7 +19,9 @@ const AuthScreen = ({ onLogin }) => {
     setRole(newRole);
     setUsername('');
     setPassword('');
+    setFullName('');
     setError('');
+    setIsRegister(false);
   };
 
   const handleSubmit = async (e) => {
@@ -29,13 +33,59 @@ const AuthScreen = ({ onLogin }) => {
 
     try {
       if (role === 'coach') {
-        // ==== ĐĂNG NHẬP COACH ====
-        const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-        if (signInError) {
-          if (signInError.message.includes('Invalid login')) throw new Error('Sai username hoặc mật khẩu. Thử lại nhé!');
-          throw signInError;
+        if (isRegister) {
+          // ==== ĐĂNG KÝ COACH MỚI ====
+          if (!username.trim()) throw new Error('Vui lòng nhập username.');
+          if (password.length < 6) throw new Error('Mật khẩu phải ít nhất 6 ký tự.');
+
+          // 1. Tạo auth account
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: { username: username.trim(), role: 'coach' },
+            },
+          });
+
+          if (signUpError) {
+            if (signUpError.message.includes('already registered')) {
+              throw new Error('Username này đã tồn tại. Hãy đăng nhập hoặc chọn username khác.');
+            }
+            throw signUpError;
+          }
+
+          // 2. Tạo record trong bảng coaches
+          const { error: coachErr } = await supabase
+            .from('coaches')
+            .insert([{
+              email: email,
+              full_name: fullName.trim() || username.trim(),
+            }]);
+
+          if (coachErr) {
+            console.warn('Coach record error:', coachErr.message);
+            // Không block — auth account đã tạo, record coaches sẽ được upsert khi vào CoachProfileView
+          }
+
+          // 3. Đăng nhập luôn
+          if (signUpData.session) {
+            onLogin(signUpData.session, 'coach');
+          } else {
+            // Supabase có thể yêu cầu confirm email — thử sign in lại
+            const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
+            if (loginErr) throw new Error('Tạo tài khoản thành công! Hãy đăng nhập lại.');
+            onLogin(loginData.session, 'coach');
+          }
+
+        } else {
+          // ==== ĐĂNG NHẬP COACH ====
+          const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+          if (signInError) {
+            if (signInError.message.includes('Invalid login')) throw new Error('Sai username hoặc mật khẩu. Thử lại nhé!');
+            throw signInError;
+          }
+          onLogin(data.session, 'coach');
         }
-        onLogin(data.session, 'coach');
 
       } else {
         // ==== ĐĂNG NHẬP HỌC VIÊN ====
@@ -76,7 +126,9 @@ const AuthScreen = ({ onLogin }) => {
           </div>
           <h1 className="text-2xl font-medium text-white tracking-tight">Aesthetics Hub</h1>
           <p className="text-neutral-500 text-[10px] font-black uppercase tracking-widest mt-2">
-            {role === 'coach' ? 'Coach Portal Access' : 'Học Viên Portal'}
+            {role === 'coach'
+              ? (isRegister ? 'Coach Registration' : 'Coach Portal Access')
+              : 'Học Viên Portal'}
           </p>
         </div>
 
@@ -111,6 +163,21 @@ const AuthScreen = ({ onLogin }) => {
         {/* Form đăng nhập */}
         <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-[32px] p-6 shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-4">
+
+            {/* Tên hiển thị (chỉ khi đăng ký coach mới) */}
+            {role === 'coach' && isRegister && (
+              <div className="relative">
+                <UserPlus className="w-5 h-5 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Tên hiển thị (VD: Coach Hạo)"
+                  value={fullName}
+                  onChange={(e) => { setFullName(e.target.value); setError(''); }}
+                  className="w-full bg-black/50 border border-white/10 rounded-[20px] py-4 pl-12 pr-4 text-white text-sm outline-none focus:border-white/30 transition-colors"
+                />
+              </div>
+            )}
+
             <div className="relative">
               <User className="w-5 h-5 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
               <input
@@ -126,7 +193,7 @@ const AuthScreen = ({ onLogin }) => {
               <Lock className="w-5 h-5 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
               <input
                 type="password"
-                placeholder={role === 'client' ? 'Mật khẩu (coach đã cấp)' : 'Password'}
+                placeholder={role === 'client' ? 'Mật khẩu (coach đã cấp)' : (isRegister ? 'Tạo mật khẩu (≥6 ký tự)' : 'Password')}
                 required
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(''); }}
@@ -155,12 +222,29 @@ const AuthScreen = ({ onLogin }) => {
               {isLoading
                 ? <RefreshCw className="w-4 h-4 animate-spin" />
                 : <>
-                    {role === 'coach' ? 'Access Portal' : 'Đăng Nhập'}
+                    {role === 'coach'
+                      ? (isRegister ? 'Tạo Tài Khoản Coach' : 'Access Portal')
+                      : 'Đăng Nhập'}
                     <ArrowLeft className="w-4 h-4 rotate-180" />
                   </>
               }
             </button>
           </form>
+
+          {/* Toggle đăng nhập / đăng ký cho coach */}
+          {role === 'coach' && (
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={() => { setIsRegister(!isRegister); setError(''); }}
+                className="text-[10px] font-medium text-neutral-500 hover:text-white transition-colors"
+              >
+                {isRegister
+                  ? '← Đã có tài khoản? Đăng nhập'
+                  : 'Coach mới? Đăng ký tài khoản →'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
