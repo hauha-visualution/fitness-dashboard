@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   X, ChevronRight, ChevronLeft, CheckCircle2, RefreshCw,
   Calendar, Clock, Gift
@@ -85,6 +85,12 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
   const [schedule, setSchedule] = useState([]);
   const [sessionDuration, setSessionDuration] = useState(60);
   const [isCreating, setIsCreating] = useState(false);
+  const scrollRef = useRef(null);
+
+  // Always scroll to top when step changes (animation starts from bottom)
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+  }, [step]);
 
   // Computed
   const sessionCount = parseInt(buyCount) || 0;
@@ -178,7 +184,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
   // ─── RENDER ───────────────────────────────────────────────
   return (
     <div className="fixed inset-x-0 bottom-0 top-[66px] z-[500] flex items-end bg-black/60 backdrop-blur-sm">
-      <div className="w-full bg-[#0d0d0d] border-t border-white/10 rounded-t-[32px] max-h-full overflow-y-auto hide-scrollbar animate-slide-up">
+      <div ref={scrollRef} className="w-full bg-[#0d0d0d] border-t border-white/10 rounded-t-[32px] max-h-full overflow-y-auto hide-scrollbar animate-slide-up">
 
         {/* Compact header */}
         <div className="sticky top-0 bg-[#0d0d0d]/95 backdrop-blur-xl z-10 px-5 pt-4 pb-3 border-b border-white/[0.06]">
@@ -197,19 +203,14 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
           </div>
         </div>
 
-        <div className="px-6 pb-8">
+        <div className="px-5 pb-5">
 
           {/* ═══ STEP 1 ═══ */}
           {step === 1 && (
-            <div className="space-y-6 pt-5">
-
-              {/* Title */}
-              <p className="text-white font-semibold text-base">
-                Gói tập số <span className="text-blue-400">#{String(packageNumber).padStart(2, '0')}</span>
-              </p>
+            <div className="space-y-3 pt-4 pb-4">
 
               {/* Buổi mua + Buổi tặng = Tổng */}
-              <div className="flex items-end gap-3">
+              <div className="flex items-end gap-2">
                 {/* Buổi mua */}
                 <FieldBlock label="Buổi mua">
                   <input
@@ -219,71 +220,63 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                     placeholder="0"
                     value={buyCount}
                     onChange={e => setBuyCount(e.target.value)}
-                    className="w-full bg-white/[0.04] border border-white/[0.1] rounded-[16px] py-3 px-4 text-white text-xl font-semibold text-center outline-none focus:border-white/30 transition-all"
+                    className="w-full bg-white/[0.04] border border-white/[0.1] rounded-[14px] py-2.5 px-3 text-white text-xl font-semibold text-center outline-none focus:border-white/30 transition-all"
                   />
                 </FieldBlock>
 
                 {/* + */}
-                <div className="pb-3.5 text-neutral-600 text-lg font-light shrink-0">+</div>
+                <div className="pb-2.5 text-neutral-600 text-lg font-light shrink-0">+</div>
 
                 {/* Buổi tặng */}
                 <FieldBlock label="Buổi tặng">
-                  <div className="relative">
-                    <input
-                      type="number"
-                      min="0"
-                      max="50"
-                      placeholder="0"
-                      value={bonusCount}
-                      onChange={e => setBonusCount(e.target.value)}
-                      className="w-full bg-white/[0.04] border border-white/[0.1] rounded-[16px] py-3 px-4 text-purple-400 text-xl font-semibold text-center outline-none focus:border-purple-400/30 transition-all"
-                    />
-                    {bonusSessions > 0 && (
-                      <Gift className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-purple-500/60" />
-                    )}
-                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    max="50"
+                    placeholder="0"
+                    value={bonusCount}
+                    onChange={e => setBonusCount(e.target.value)}
+                    className="w-full bg-white/[0.04] border border-white/[0.1] rounded-[14px] py-2.5 px-3 text-purple-400 text-xl font-semibold text-center outline-none focus:border-purple-400/30 transition-all"
+                  />
                 </FieldBlock>
 
                 {/* = */}
-                <div className="pb-3.5 text-neutral-600 text-lg font-light shrink-0">=</div>
+                <div className="pb-2.5 text-neutral-600 text-lg font-light shrink-0">=</div>
 
                 {/* Tổng */}
-                <FieldBlock label="Tổng buổi">
-                  <div className="bg-white/[0.06] border border-white/[0.1] rounded-[16px] py-3 px-4 text-center">
+                <FieldBlock label="Tổng">
+                  <div className="bg-white/[0.06] border border-white/[0.1] rounded-[14px] py-2.5 px-3 text-center">
                     <span className="text-white text-xl font-bold">{totalSessions || '—'}</span>
                   </div>
                 </FieldBlock>
               </div>
 
               {/* Giá tiền */}
-              <div>
-                <FieldBlock label="Giá trị gói (đơn vị: nghìn ₫)">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="Ví dụ: 15000"
-                      value={priceInput}
-                      onChange={e => setPriceInput(formatThousands(e.target.value))}
-                      className="w-full bg-white/[0.04] border border-white/[0.1] rounded-[16px] py-3 px-4 text-white text-base font-medium outline-none focus:border-white/30 transition-all pr-20"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-neutral-700">× 1.000 ₫</span>
+              <FieldBlock label="Giá trị gói (đơn vị: nghìn ₫)">
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Ví dụ: 15000"
+                    value={priceInput}
+                    onChange={e => setPriceInput(formatThousands(e.target.value))}
+                    className="w-full bg-white/[0.04] border border-white/[0.1] rounded-[14px] py-2.5 px-4 text-white text-base font-medium outline-none focus:border-white/30 transition-all pr-20"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-neutral-700">× 1.000 ₫</span>
+                </div>
+                {priceFormatted && (
+                  <div className="mt-1.5 flex items-center gap-2 px-1">
+                    <span className="text-[10px] text-neutral-600">→</span>
+                    <span className="text-sm font-semibold text-emerald-400">{priceFormatted} ₫</span>
                   </div>
-                  {/* Auto-display full VNĐ */}
-                  {priceFormatted && (
-                    <div className="mt-2 flex items-center gap-2 px-1">
-                      <span className="text-[10px] text-neutral-600">→</span>
-                      <span className="text-sm font-semibold text-emerald-400">{priceFormatted} ₫</span>
-                    </div>
-                  )}
-                </FieldBlock>
-              </div>
+                )}
+              </FieldBlock>
 
               <button
                 type="button"
                 onClick={() => setStep(2)}
                 disabled={!step1Valid}
-                className="w-full bg-white text-black font-bold py-4 rounded-[20px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full bg-white text-black font-bold py-3.5 rounded-[18px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed mt-2"
               >
                 Cài lịch tập
                 <ChevronRight className="w-4 h-4" />
