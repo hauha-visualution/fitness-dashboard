@@ -306,7 +306,7 @@ export default function App() {
             )}
 
             {/* Quick Log Sheet Overlay */}
-            {showQuickLog && <QuickLogSheet onClose={() => setShowQuickLog(false)} />}
+            {showQuickLog && <QuickLogSheet session={session} onClose={() => setShowQuickLog(false)} />}
           </>
         ) : (
           <ClientDetailView

@@ -76,7 +76,11 @@ const CreateTemplateModal = ({ onClose, session }) => {
     
     setSaving(true);
     const coachEmail = session?.user?.email;
-
+    if (!coachEmail) {
+      console.error('Session or coach_email is missing. Cannot save template.');
+      setSaving(false);
+      return;
+    }
     // 1. Insert Template
     const { data: tmplData, error: tmplErr } = await supabase
       .from('workout_templates')

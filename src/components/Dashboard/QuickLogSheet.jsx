@@ -27,7 +27,7 @@ const QuickLogSheet = ({ onClose, session }) => {
   useEffect(() => {
     const fetchToday = async () => {
       const coachEmail = session?.user?.email;
-      if (!coachEmail) return;
+      if (!coachEmail) { setLoading(false); return; }
       
       const { data: clients } = await supabase.from('clients').select('id, name').eq('coach_email', coachEmail);
       if (!clients?.length) { setLoading(false); return; }
