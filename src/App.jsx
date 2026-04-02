@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Home, Users, Plus } from 'lucide-react';
+import { Home, Users, Library, PersonStanding, Wallet } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
 // Import các thành phần chính
@@ -11,6 +11,8 @@ import CoachProfileView from './components/Dashboard/CoachProfileView';
 import QuickLogSheet from './components/Dashboard/QuickLogSheet';
 import ClientDetailView from './components/Client/ClientDetailView';
 import ClientPortalApp from './components/ClientPortal/ClientPortalApp';
+import WorkoutTemplateManager from './components/Dashboard/WorkoutTemplateManager';
+import CoachPaymentsView from './components/Dashboard/CoachPaymentsView';
 
 // --- STYLES ---
 const GlobalStyles = () => (
@@ -21,6 +23,21 @@ const GlobalStyles = () => (
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   `}} />
 );
+
+const normalizeQuickLogSelection = (selection = null) => {
+  if (!selection) return null;
+
+  return {
+    sessionId: selection.sessionId ?? selection.id ?? null,
+    clientId: selection.clientId ?? selection.client_id ?? null,
+    clientName: selection.clientName ?? selection.client_name ?? null,
+    scheduledDate: selection.scheduledDate ?? selection.scheduled_date ?? null,
+    scheduledTime: selection.scheduledTime ?? selection.scheduled_time ?? null,
+    packageId: selection.packageId ?? selection.package_id ?? null,
+    sessionKind: selection.sessionKind ?? selection.session_kind ?? 'fixed',
+    manualMode: Boolean(selection.manualMode),
+  };
+};
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -43,6 +60,14 @@ export default function App() {
   const [showQuickLog, setShowQuickLog] = useState(false);
   const [quickLogSelection, setQuickLogSelection] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const coachTabs = [
+    { id: 'home', label: 'Home', icon: Home },
+    { id: 'templates', label: 'Templates', icon: Library },
+    { id: 'quick_log', label: 'Start', icon: PersonStanding, isAction: true },
+    { id: 'clients', label: 'Members', icon: Users },
+    { id: 'payments', label: 'Payments', icon: Wallet },
+  ];
 
   // ============================================================
   // Phát hiện role sau khi đăng nhập
@@ -192,7 +217,7 @@ export default function App() {
   };
 
   const openQuickLog = (selection = null) => {
-    setQuickLogSelection(selection);
+    setQuickLogSelection(normalizeQuickLogSelection(selection));
     setShowQuickLog(true);
   };
 
@@ -293,6 +318,18 @@ export default function App() {
               />
             )}
 
+            {activeTab === 'templates' && (
+              <WorkoutTemplateManager
+                session={session}
+              />
+            )}
+
+            {activeTab === 'payments' && (
+              <CoachPaymentsView
+                clients={clients}
+              />
+            )}
+
             {activeTab === 'add_client' && (
               <AddClientView
                 onBack={() => setActiveTab('clients')}
@@ -303,25 +340,54 @@ export default function App() {
 
             {/* Nav chính của Coach */}
             {activeTab !== 'add_client' && (
-              <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-[320px] bg-black/80 backdrop-blur-3xl border border-white/10 rounded-[32px] p-1.5 flex justify-between z-50 shadow-2xl">
-                {/* Home Tab */}
-                <button onClick={() => setActiveTab('home')} className={`flex-1 py-4 rounded-[26px] flex flex-col items-center justify-center gap-1 transition-all ${activeTab === 'home' ? 'bg-white/5 text-white' : 'text-neutral-600 scale-90 opacity-50'}`}>
-                  <Home className="w-5 h-5" />
-                  <span className="text-[7px] font-black uppercase tracking-tighter">Home</span>
-                </button>
-                
-                {/* FAB - Quick Log */}
-                <div className="flex justify-center items-center w-[80px]">
-                  <button onClick={() => openQuickLog()} className="w-12 h-12 bg-white rounded-full flex items-center justify-center -mt-4 active:scale-90 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]">
-                    <Plus className="w-5 h-5 text-black" />
-                  </button>
-                </div>
-                
-                {/* Members Tab */}
-                <button onClick={() => setActiveTab('clients')} className={`flex-1 py-4 rounded-[26px] flex flex-col items-center justify-center gap-1 transition-all ${activeTab === 'clients' ? 'bg-white/5 text-white' : 'text-neutral-600 scale-90 opacity-50'}`}>
-                  <Users className="w-5 h-5" />
-                  <span className="text-[7px] font-black uppercase tracking-tighter">Members</span>
-                </button>
+              <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-[390px] bg-black/85 backdrop-blur-3xl border border-white/10 rounded-[32px] px-2 py-2 grid grid-cols-5 gap-1 z-50 shadow-2xl">
+                {coachTabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  const buttonClassName = tab.isAction
+                    ? 'bg-blue-500/[0.10] text-blue-300 border border-blue-400/20'
+                    : isActive
+                      ? 'bg-white/6 text-white'
+                      : 'text-neutral-600 border border-transparent';
+
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => {
+                        if (tab.isAction) {
+                          openQuickLog();
+                          return;
+                        }
+                        setActiveTab(tab.id);
+                      }}
+                      className={`min-w-0 rounded-[24px] flex flex-col items-center justify-center gap-1.5 transition-all active:scale-95 ${
+                        tab.isAction
+                          ? 'py-3.5'
+                          : 'py-3.5'
+                      } ${buttonClassName}`}
+                    >
+                      <div
+                        className={`flex items-center justify-center transition-all ${
+                          tab.isAction
+                            ? 'w-9 h-9 rounded-[16px]'
+                            : 'w-9 h-9 rounded-[16px]'
+                        }`}
+                      >
+                        <Icon className={`${tab.isAction ? 'w-5 h-5' : 'w-4.5 h-4.5'}`} />
+                      </div>
+                      <span
+                        className={`font-black uppercase tracking-tight ${
+                          tab.isAction
+                            ? 'text-[7px] text-white'
+                            : 'text-[7px]'
+                        }`}
+                      >
+                        {tab.label}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             )}
 

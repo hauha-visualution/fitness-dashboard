@@ -37,7 +37,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
   const [expandedPkg, setExpandedPkg] = useState('active'); // default expand active
   const [markingId, setMarkingId] = useState(null);
   const [showExtraModal, setShowExtraModal] = useState(false);
-  const [extraAnchorSession, setExtraAnchorSession] = useState(null);
+  const [extraPackage, setExtraPackage] = useState(null);
   const [extraDate, setExtraDate] = useState('');
   const [extraTime, setExtraTime] = useState('');
   const [extraNote, setExtraNote] = useState('');
@@ -88,20 +88,30 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
     setMarkingId(null);
   };
 
-  const openExtraModal = (sessionItem) => {
-    setExtraAnchorSession(sessionItem);
-    setExtraDate(sessionItem.scheduled_date);
-    setExtraTime(sessionItem.scheduled_time?.slice(0, 5) || '07:00');
+  const openExtraModal = (pkg, pkgSessions) => {
+    const activeSessions = pkgSessions
+      .filter(sessionItem => ['scheduled', 'in_progress'].includes(sessionItem.status))
+      .sort((a, b) => a.session_number - b.session_number || a.scheduled_date.localeCompare(b.scheduled_date) || a.scheduled_time.localeCompare(b.scheduled_time));
+
+    if (activeSessions.length === 0) {
+      alert('Không còn session nào trong gói để thêm buổi phát sinh.');
+      return;
+    }
+
+    const firstActiveSession = activeSessions[0];
+    setExtraPackage(pkg);
+    setExtraDate(firstActiveSession.scheduled_date);
+    setExtraTime(firstActiveSession.scheduled_time?.slice(0, 5) || '07:00');
     setExtraNote('');
     setShowExtraModal(true);
   };
 
   const handleCreateExtraSession = async () => {
-    if (!extraAnchorSession || !extraDate || !extraTime) return;
+    if (!extraPackage || !extraDate || !extraTime) return;
 
     setAddingExtra(true);
     const { error } = await supabase.rpc('insert_extra_package_session', {
-      p_anchor_session_id: extraAnchorSession.id,
+      p_package_id: extraPackage.id,
       p_scheduled_date: extraDate,
       p_scheduled_time: extraTime,
       p_notes: extraNote,
@@ -114,7 +124,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
     }
 
     setShowExtraModal(false);
-    setExtraAnchorSession(null);
+    setExtraPackage(null);
     setAddingExtra(false);
     void fetchData();
   };
@@ -144,11 +154,20 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
         const isExpanded = expandedPkg === pkg.id || (expandedPkg === 'active' && isActive);
 
         // Find next relevant session
-        const nextSession = pkgSessions.find(s => s.status === 'in_progress') || pkgSessions.find(s => s.status === 'scheduled');
+        const nextSession = pkgSessions.find(s => s.status === 'in_progress' && (s.session_kind ?? 'fixed') === 'fixed')
+          || pkgSessions.find(s => s.status === 'scheduled' && (s.session_kind ?? 'fixed') === 'fixed');
         const upcomingSessions = pkgSessions
           .filter(s => ['scheduled', 'in_progress'].includes(s.status))
           .sort((a, b) => a.session_number - b.session_number || a.scheduled_date.localeCompare(b.scheduled_date) || a.scheduled_time.localeCompare(b.scheduled_time));
         const doneSessions = pkgSessions.filter(s => s.status === 'completed');
+        const cancelledSessions = pkgSessions
+          .filter(s => s.status === 'cancelled' && s.cancel_reason !== 'overflow_by_extra_session')
+          .sort((a, b) => {
+            const aCancelledAt = a.cancelled_at ? new Date(a.cancelled_at).getTime() : 0;
+            const bCancelledAt = b.cancelled_at ? new Date(b.cancelled_at).getTime() : 0;
+            if (aCancelledAt !== bCancelledAt) return bCancelledAt - aCancelledAt;
+            return b.session_number - a.session_number;
+          });
 
         return (
           <div key={pkg.id} className={`rounded-[24px] overflow-hidden border ${isActive ? 'border-white/10 bg-white/[0.02]' : 'border-white/[0.05] bg-white/[0.01]'}`}>
@@ -195,7 +214,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                         </p>
                         {!readOnly && nextSession && (
                           <button
-                            onClick={() => openExtraModal(nextSession)}
+                            onClick={() => openExtraModal(pkg, pkgSessions)}
                             className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-[10px] font-black uppercase transition-all active:scale-90 bg-white/[0.05] border border-white/[0.08] text-white"
                           >
                             <Plus className="w-3 h-3" />
@@ -240,15 +259,6 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                           {/* Mark done button (coach only) */}
                           {!readOnly && (
                             <div className="flex items-center gap-2">
-                              {sess.session_kind !== 'extra' && (
-                                <button
-                                  onClick={() => openExtraModal(sess)}
-                                  className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-[10px] font-black uppercase transition-all active:scale-90 bg-white/[0.04] border border-white/[0.08] text-neutral-400"
-                                >
-                                  <Plus className="w-3 h-3" />
-                                  Thêm buổi
-                                </button>
-                              )}
                               <button
                                 onClick={() => onOpenQuickLog?.({
                                   sessionId: sess.id,
@@ -312,6 +322,35 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                     })}
                   </>
                 )}
+
+                {cancelledSessions.length > 0 && (
+                  <>
+                    <p className="text-[9px] font-black text-red-400/70 uppercase tracking-widest py-2 px-1 mt-2">
+                      Đã hủy · {cancelledSessions.length} buổi
+                    </p>
+                    {cancelledSessions.map(sess => {
+                      const { dayLabel, short } = formatSessionDate(sess.scheduled_date);
+                      return (
+                        <div key={sess.id} className="flex items-center gap-3 rounded-[16px] px-4 py-3 bg-red-500/[0.05] border border-red-500/[0.12]">
+                          <span className="text-[10px] font-black text-red-300/80 w-6 text-center">
+                            {String(sess.session_number).padStart(2, '0')}
+                          </span>
+                          <span className="text-[10px] font-black text-red-300/80 w-6 text-center">{dayLabel}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-red-200/90 line-through">{short}</p>
+                            <p className="text-[10px] text-red-200/50">{sess.scheduled_time?.slice(0, 5)}</p>
+                            {sess.cancel_reason && (
+                              <p className="text-[10px] text-red-200/60 truncate mt-1">{sess.cancel_reason}</p>
+                            )}
+                          </div>
+                          <span className="text-[9px] font-black text-red-300 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-full uppercase">
+                            Cancelled
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -324,7 +363,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
               <div>
                 <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Buổi phát sinh</p>
                 <h3 className="text-white font-semibold text-lg">
-                  Chèn trước buổi #{String(extraAnchorSession?.session_number || '').padStart(2, '0')}
+                  Gói #{String(extraPackage?.package_number || '').padStart(2, '0')}
                 </h3>
               </div>
               <button onClick={() => setShowExtraModal(false)} className="p-2 bg-white/5 rounded-full text-neutral-400">
@@ -333,6 +372,11 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
             </div>
 
             <div className="space-y-4">
+              <div className="bg-white/[0.03] border border-white/[0.06] rounded-[14px] px-4 py-3">
+                <p className="text-[10px] text-neutral-400 leading-relaxed">
+                  Chọn ngày giờ buổi tập phát sinh ngoài lịch cố định. Hệ thống sẽ tự tìm buổi liền kề trước đó để gán số thứ tự mới và dồn các buổi phía sau lên tiếp.
+                </p>
+              </div>
               <div>
                 <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-2">Ngày tập phát sinh</label>
                 <input

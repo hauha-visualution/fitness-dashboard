@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Home, Package, Dumbbell, Utensils, CreditCard,
   LogOut, ChevronRight, Zap, User, Calendar, Target,
   TrendingUp, Clock, Bell, Activity
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
+import ClientAvatar from '../shared/ClientAvatar';
 
 // Import các tab sẵn có (read-only cho client)
 import PackageTab from '../Client/Tabs/PackageTab';
@@ -27,10 +28,12 @@ const ClientHomeTab = ({ client, onLogout }) => {
       {/* Header chào học viên */}
       <div className="flex items-center justify-between pt-2 pb-1">
         <div className="flex items-center gap-3">
-          <img
-            src={client?.avatar}
-            className="w-12 h-12 rounded-full border border-white/10 bg-white/5"
-            alt="avatar"
+          <ClientAvatar
+            name={client?.name}
+            avatarUrl={client?.avatar_url || client?.avatar}
+            sizeClassName="w-12 h-12"
+            ringClassName="border border-white/10 bg-white/5"
+            textClassName="text-sm font-black text-blue-300"
           />
           <div>
             <p className="text-[10px] font-black text-neutral-600 uppercase tracking-widest">Xin chào 👋</p>
@@ -119,7 +122,7 @@ const ClientHomeTab = ({ client, onLogout }) => {
 // ============================================================
 // TAB: SESSIONS - Lịch sử buổi tập
 // ============================================================
-const ClientSessionsTab = ({ clientId }) => (
+const ClientSessionsTab = () => (
   <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 space-y-4">
     <p className="text-[10px] font-black text-neutral-600 uppercase tracking-widest">Lịch sử buổi tập</p>
     <div className="text-center py-20 opacity-20">
@@ -134,27 +137,10 @@ const ClientSessionsTab = ({ clientId }) => (
 // ============================================================
 // MAIN: ClientPortalApp
 // ============================================================
-const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) => {
+const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
   const [activeTab, setActiveTab] = useState('home');
   const [client, setClient] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Fetch lại data client mới nhất từ Supabase
-  const fetchClientData = async () => {
-    if (!initialProfile?.id) {
-      setClient(formatClient(initialProfile));
-      setIsLoading(false);
-      return;
-    }
-    const { data } = await supabase
-      .from('clients')
-      .select('*')
-      .eq('id', initialProfile.id)
-      .maybeSingle();
-
-    setClient(formatClient(data || initialProfile));
-    setIsLoading(false);
-  };
 
   const formatClient = (raw) => {
     if (!raw) return null;
@@ -168,9 +154,30 @@ const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) =
     };
   };
 
-  useEffect(() => {
-    fetchClientData();
+  // Fetch lại data client mới nhất từ Supabase
+  const fetchClientData = useCallback(async () => {
+    if (!initialProfile?.id) {
+      setClient(formatClient(initialProfile));
+      setIsLoading(false);
+      return;
+    }
+    const { data } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('id', initialProfile.id)
+      .maybeSingle();
+
+    setClient(formatClient(data || initialProfile));
+    setIsLoading(false);
   }, [initialProfile]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void fetchClientData();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchClientData]);
 
   if (isLoading) {
     return (
@@ -203,7 +210,7 @@ const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) =
       );
       case 'nutrition': return (
         <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4">
-          <NutritionTab client={client} />
+          <NutritionTab client={client} readOnly={true} />
         </div>
       );
       case 'payment':   return (

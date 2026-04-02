@@ -7,18 +7,30 @@ const createExerciseDraft = (id) => ({
   name: '',
   sets: 3,
   reps: 10,
-  video_url: '',
+  weight: 0,
+  note: '',
 });
 
 const normalizeExerciseDraft = (exercise, fallbackSortOrder) => ({
   name: exercise.name.trim(),
   sets: Math.max(1, Number(exercise.sets) || 1),
   reps: Math.max(1, Number(exercise.reps) || 1),
+  weight: Math.max(0, Number(exercise.weight) || 0),
   sort_order: fallbackSortOrder,
-  video_url: exercise.video_url.trim() || null,
+  note: exercise.note.trim() || null,
 });
 
-const CreateTemplateModal = ({ onClose, onCreated, session }) => {
+const mapInitialExercise = (exercise, fallbackIndex = 0) => ({
+  id: exercise.id ?? `template-exercise-${fallbackIndex}`,
+  name: exercise.name ?? '',
+  sets: Math.max(1, Number(exercise.sets) || 1),
+  reps: Math.max(1, Number(exercise.reps) || 1),
+  weight: Math.max(0, Number(exercise.weight) || 0),
+  note: exercise.note ?? '',
+});
+
+const CreateTemplateModal = ({ onClose, onCreated, session, initialTemplate = null }) => {
+  const isEditMode = Boolean(initialTemplate?.id);
   const [templateName, setTemplateName] = useState('');
   
   // Clients assignment
@@ -43,6 +55,22 @@ const CreateTemplateModal = ({ onClose, onCreated, session }) => {
     };
     fetchClients();
   }, [session]);
+
+  useEffect(() => {
+    if (!initialTemplate) return;
+
+    setTemplateName(initialTemplate.name || '');
+    setSelectedClientIds((initialTemplate.template_assignments || []).map((assignment) => assignment.client_id));
+
+    const nextExercises = (initialTemplate.template_exercises || []).length > 0
+      ? [...initialTemplate.template_exercises]
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          .map((exercise, idx) => mapInitialExercise(exercise, idx))
+      : [createExerciseDraft('template-exercise-0')];
+
+    exerciseIdRef.current = nextExercises.length + 1;
+    setExercises(nextExercises);
+  }, [initialTemplate]);
 
   const toggleClient = (id) => {
     setErrorMessage('');
@@ -123,18 +151,43 @@ const CreateTemplateModal = ({ onClose, onCreated, session }) => {
     }
 
     try {
-      // 1. Insert template
-      const { data: tmplData, error: tmplErr } = await supabase
-        .from('workout_templates')
-        .insert({ coach_email: coachEmail, name: cleanName })
-        .select('id')
-        .single();
+      let templateId = initialTemplate?.id ?? null;
 
-      if (tmplErr) {
-        throw tmplErr;
+      if (isEditMode) {
+        const { error: templateUpdateError } = await supabase
+          .from('workout_templates')
+          .update({ name: cleanName })
+          .eq('id', templateId)
+          .eq('coach_email', coachEmail);
+
+        if (templateUpdateError) throw templateUpdateError;
+
+        const { error: deleteExercisesError } = await supabase
+          .from('template_exercises')
+          .delete()
+          .eq('template_id', templateId);
+
+        if (deleteExercisesError) throw deleteExercisesError;
+
+        const { error: deleteAssignmentsError } = await supabase
+          .from('template_assignments')
+          .delete()
+          .eq('template_id', templateId);
+
+        if (deleteAssignmentsError) throw deleteAssignmentsError;
+      } else {
+        const { data: tmplData, error: tmplErr } = await supabase
+          .from('workout_templates')
+          .insert({ coach_email: coachEmail, name: cleanName })
+          .select('id')
+          .single();
+
+        if (tmplErr) {
+          throw tmplErr;
+        }
+
+        templateId = tmplData.id;
       }
-
-      const templateId = tmplData.id;
 
       // 2. Insert exercises
       const exDocs = cleanedExercises.map(exercise => ({
@@ -179,7 +232,7 @@ const CreateTemplateModal = ({ onClose, onCreated, session }) => {
         {/* Header (Sticky) */}
         <div className="bg-[#0d0d0d]/95 backdrop-blur-xl z-10 px-6 pt-5 pb-4 border-b border-white/[0.06] flex flex-col shrink-0 gap-3">
           <div className="flex justify-between items-center">
-            <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-widest shrink-0">Tạo Gói Mới</span>
+            <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-widest shrink-0">{isEditMode ? 'Chỉnh Sửa Gói' : 'Tạo Gói Mới'}</span>
             <button onClick={onClose} disabled={saving} className="p-1.5 bg-white/[0.04] border border-white/[0.08] rounded-full text-neutral-500 active:scale-90 transition-all shrink-0 disabled:opacity-40"><X className="w-4 h-4" /></button>
           </div>
         </div>
@@ -213,41 +266,46 @@ const CreateTemplateModal = ({ onClose, onCreated, session }) => {
            <div>
              <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Danh sách bài tập ({exercises.length})</label>
              
-             <div className="space-y-4">
+             <div className="space-y-3">
                {exercises.map((ex, idx) => (
-                 <div key={ex.id} draggable onDragStart={(e) => handleDragStart(e, idx)} onDragEnd={handleDragEnd} onDragOver={(e) => handleDragOver(e, idx)} className="bg-white/[0.03] border border-white/[0.06] rounded-[20px] p-4 flex flex-col gap-3 relative cursor-move">
-                   
-                   <div className="flex gap-3">
-                     <GripVertical className="w-5 h-5 text-white/20 mt-3 shrink-0" />
-                     <div className="flex-1 min-w-0">
-                       <input type="text" placeholder="Tên bài tập..." value={ex.name} onChange={e => updateExercise(ex.id, 'name', e.target.value)} className="w-full bg-transparent border-b border-white/10 pb-2 text-white font-semibold text-lg outline-none focus:border-white/30 transition-all" />
-                     </div>
-                     <button onClick={() => removeExercise(ex.id)} className="p-2 h-fit text-red-500/50 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all">
+                 <div key={ex.id} draggable onDragStart={(e) => handleDragStart(e, idx)} onDragEnd={handleDragEnd} onDragOver={(e) => handleDragOver(e, idx)} className="bg-white/[0.03] border border-white/[0.06] rounded-[18px] p-3 flex flex-col gap-2.5 relative cursor-move">
+                   <div className="flex items-center gap-2">
+                     <GripVertical className="w-4 h-4 text-white/20 shrink-0" />
+                     <input type="text" placeholder={`Tên bài tập #${idx + 1}`} value={ex.name} onChange={e => updateExercise(ex.id, 'name', e.target.value)} className="flex-1 min-w-0 bg-transparent text-white font-semibold text-sm outline-none placeholder:text-neutral-600" />
+                     <button type="button" onClick={() => removeExercise(ex.id)} className="p-1.5 h-fit text-red-500/60 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all">
                        <Trash2 className="w-4 h-4" />
                      </button>
                    </div>
 
-                   {/* Sets & Reps Stepper */}
-                   <div className="pl-8 flex gap-3">
-                     {/* Sets */}
-                     <div className="flex-1 flex items-center bg-white/[0.04] border border-white/[0.08] rounded-[12px] p-1">
-                        <span className="text-[10px] font-black text-neutral-600 uppercase px-2 w-[45px]">Sets</span>
-                        <button onClick={() => updateExercise(ex.id, 'sets', Math.max(1, ex.sets - 1))} className="p-1 text-neutral-400 active:bg-white/10 rounded-md transition-all">-</button>
-                        <span className="flex-1 text-center text-white font-semibold">{ex.sets}</span>
-                        <button onClick={() => updateExercise(ex.id, 'sets', ex.sets + 1)} className="p-1 text-neutral-400 active:bg-white/10 rounded-md transition-all">+</button>
+                   <div className="pl-6 grid grid-cols-3 gap-2">
+                     <div className="bg-white/[0.04] border border-white/[0.08] rounded-[10px] px-2 py-1.5">
+                       <div className="text-[8px] font-black text-neutral-600 uppercase text-center">Set</div>
+                       <div className="mt-1 flex items-center justify-between gap-1">
+                         <button type="button" onClick={() => updateExercise(ex.id, 'sets', Math.max(1, ex.sets - 1))} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all">-</button>
+                         <span className="min-w-[14px] text-center text-white text-[11px] font-semibold">{ex.sets}</span>
+                         <button type="button" onClick={() => updateExercise(ex.id, 'sets', ex.sets + 1)} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all">+</button>
+                       </div>
                      </div>
-                     {/* Reps */}
-                     <div className="flex-1 flex items-center bg-white/[0.04] border border-white/[0.08] rounded-[12px] p-1">
-                        <span className="text-[10px] font-black text-neutral-600 uppercase px-2 w-[45px]">Reps</span>
-                        <button onClick={() => updateExercise(ex.id, 'reps', Math.max(1, ex.reps - 1))} className="p-1 text-neutral-400 active:bg-white/10 rounded-md transition-all">-</button>
-                        <span className="flex-1 text-center text-white font-semibold">{ex.reps}</span>
-                        <button onClick={() => updateExercise(ex.id, 'reps', ex.reps + 1)} className="p-1 text-neutral-400 active:bg-white/10 rounded-md transition-all">+</button>
+                     <div className="bg-white/[0.04] border border-white/[0.08] rounded-[10px] px-2 py-1.5">
+                       <div className="text-[8px] font-black text-neutral-600 uppercase text-center">Rep</div>
+                       <div className="mt-1 flex items-center justify-between gap-1">
+                         <button type="button" onClick={() => updateExercise(ex.id, 'reps', Math.max(1, ex.reps - 1))} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all">-</button>
+                         <span className="min-w-[20px] text-center text-white text-[11px] font-semibold">{ex.reps}</span>
+                         <button type="button" onClick={() => updateExercise(ex.id, 'reps', ex.reps + 1)} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all">+</button>
+                       </div>
+                     </div>
+                     <div className="bg-white/[0.04] border border-white/[0.08] rounded-[10px] px-2 py-1.5">
+                       <div className="text-[8px] font-black text-neutral-600 uppercase text-center">Weight</div>
+                       <div className="mt-1 flex items-center justify-between gap-1">
+                         <button type="button" onClick={() => updateExercise(ex.id, 'weight', Math.max(0, ex.weight - 1))} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all">-</button>
+                         <span className="min-w-[14px] text-center text-white text-[11px] font-semibold">{ex.weight}</span>
+                         <button type="button" onClick={() => updateExercise(ex.id, 'weight', ex.weight + 1)} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all">+</button>
+                       </div>
                      </div>
                    </div>
 
-                   {/* Video URL */}
-                   <div className="pl-8">
-                     <input type="text" placeholder="Link video YouTube hướng dẫn (tuỳ chọn)" value={ex.video_url} onChange={e => updateExercise(ex.id, 'video_url', e.target.value)} className="w-full bg-black/40 border border-white/[0.05] rounded-[10px] py-2 px-3 text-neutral-400 text-xs outline-none focus:border-white/20 transition-all" />
+                   <div className="pl-6">
+                     <input type="text" placeholder="Ghi chú bài tập (tuỳ chọn)" value={ex.note} onChange={e => updateExercise(ex.id, 'note', e.target.value)} className="w-full bg-black/40 border border-white/[0.05] rounded-[10px] py-2 px-3 text-neutral-300 text-xs outline-none focus:border-white/20 transition-all" />
                    </div>
                  </div>
                ))}
@@ -271,7 +329,7 @@ const CreateTemplateModal = ({ onClose, onCreated, session }) => {
              Huỷ
            </button>
            <button onClick={handleSave} disabled={saving || !templateName.trim() || exercises.length === 0} className="flex-1 py-4 bg-white text-black font-bold rounded-[18px] active:scale-[0.98] transition-all text-sm disabled:opacity-50">
-             {saving ? 'Đang tạo...' : 'Tạo gói bài tập'}
+             {saving ? (isEditMode ? 'Đang lưu...' : 'Đang tạo...') : (isEditMode ? 'Lưu thay đổi' : 'Tạo gói bài tập')}
            </button>
            </div>
         </div>

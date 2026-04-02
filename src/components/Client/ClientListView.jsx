@@ -1,5 +1,6 @@
 import React from 'react';
 import { UserPlus, ChevronRight, Users, RefreshCw, Package } from 'lucide-react';
+import ClientAvatar from '../shared/ClientAvatar';
 
 const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading }) => {
   return (
@@ -37,7 +38,13 @@ const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading }) => {
                 onClick={() => onSelectClient(c)} 
                 className="bg-white/[0.03] border border-white/5 p-4 rounded-[24px] flex items-center gap-4 cursor-pointer hover:bg-white/[0.05] transition-all active:scale-[0.98] animate-slide-up"
               >
-                 <img src={c.avatar} className="w-12 h-12 rounded-full border border-white/10 bg-white shadow-inner" alt="avatar" />
+                 <ClientAvatar
+                   name={c.name}
+                   avatarUrl={c.avatar_url || c.avatar}
+                   sizeClassName="w-12 h-12"
+                   ringClassName="border border-white/10 bg-white/5 shadow-inner"
+                   textClassName="text-sm font-black text-blue-300"
+                 />
                  
                  <div className="flex-1 min-w-0">
                     <h3 className="text-white font-medium text-sm truncate">{c.name}</h3>

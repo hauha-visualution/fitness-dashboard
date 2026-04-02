@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Package, Zap, Plus, Lock, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
+import { Package, Zap, Plus, Lock, ChevronDown, ChevronUp, Calendar, Trash2, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 import CreatePackageModal from '../Modals/CreatePackageModal';
 
@@ -17,6 +17,8 @@ const PackageTab = ({ client, readOnly = false }) => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [expandedPkg, setExpandedPkg] = useState(null);
+  const [packageToDelete, setPackageToDelete] = useState(null);
+  const [deletingPackage, setDeletingPackage] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!clientId) return;
@@ -48,7 +50,33 @@ const PackageTab = ({ client, readOnly = false }) => {
     setLoading(false);
   }, [clientId]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void fetchData();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchData]);
+
+  const handleDeletePackage = async () => {
+    if (!packageToDelete?.id) return;
+    setDeletingPackage(true);
+
+    const { error } = await supabase
+      .from('packages')
+      .delete()
+      .eq('id', packageToDelete.id);
+
+    if (error) {
+      alert(`Không thể xóa gói tập: ${error.message}`);
+      setDeletingPackage(false);
+      return;
+    }
+
+    setPackageToDelete(null);
+    setDeletingPackage(false);
+    void fetchData();
+  };
 
   const activePackage = packages.find(p => p.status === 'active');
   const completedPackages = packages.filter(p => p.status === 'completed');
@@ -108,7 +136,18 @@ const PackageTab = ({ client, readOnly = false }) => {
                 <span className="text-sm text-neutral-500 font-normal ml-2">· {activePackage.total_sessions} buổi</span>
               </h3>
             </div>
-            <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-full uppercase">Active</span>
+            <div className="flex items-center gap-2">
+              {!readOnly && (
+                <button
+                  onClick={() => setPackageToDelete(activePackage)}
+                  className="p-2.5 rounded-full border border-red-500/20 bg-red-500/10 text-red-400 active:scale-90 transition-all"
+                  aria-label="Xóa gói tập"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+              <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-full uppercase">Active</span>
+            </div>
           </div>
 
           <div className="flex justify-around items-center mb-5">
@@ -179,6 +218,18 @@ const PackageTab = ({ client, readOnly = false }) => {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-[9px] font-black text-neutral-700 uppercase">Hoàn thành</span>
+                      {!readOnly && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPackageToDelete(pkg);
+                          }}
+                          className="p-2 rounded-full border border-red-500/15 bg-red-500/10 text-red-400 active:scale-90 transition-all"
+                          aria-label={`Xóa gói ${pkg.package_number}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       {expanded ? <ChevronUp className="w-3.5 h-3.5 text-neutral-600" /> : <ChevronDown className="w-3.5 h-3.5 text-neutral-600" />}
                     </div>
                   </button>
@@ -199,6 +250,42 @@ const PackageTab = ({ client, readOnly = false }) => {
 
       {showModal && (
         <CreatePackageModal clientId={clientId} packageNumber={nextPackageNumber} onClose={() => setShowModal(false)} onCreated={fetchData} />
+      )}
+
+      {packageToDelete && (
+        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-[360px] rounded-[28px] border border-red-500/20 bg-[#111113] p-6 shadow-2xl animate-slide-up">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-red-500/10">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+              </div>
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-red-400/70">Xóa gói tập</p>
+                <h3 className="text-white font-semibold">Gói #{String(packageToDelete.package_number).padStart(2, '0')}</h3>
+              </div>
+            </div>
+
+            <p className="text-sm leading-relaxed text-neutral-400">
+              Xóa gói này sẽ xóa luôn toàn bộ session thuộc gói do đang dùng liên kết `ON DELETE CASCADE`.
+            </p>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setPackageToDelete(null)}
+                className="flex-1 py-3.5 rounded-[16px] border border-white/[0.08] bg-white/[0.04] text-white font-bold text-sm"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleDeletePackage}
+                disabled={deletingPackage}
+                className="flex-1 py-3.5 rounded-[16px] bg-red-500 text-white font-bold text-sm disabled:opacity-50"
+              >
+                {deletingPackage ? 'Đang xóa...' : 'Xóa gói'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

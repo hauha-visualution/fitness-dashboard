@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { ArrowLeft, RefreshCw, User, Target, Utensils, HeartPulse, ChevronDown, CheckCircle2, Clock, Mail, Calendar as CalendarIcon, KeyRound, ShieldCheck } from 'lucide-react';
 import { supabase, createClientAuthAccount } from '../../supabaseClient';
+import {
+  buildNutritionProfileFromSource,
+  buildNutritionSyncAudit,
+  buildPhoneCandidates,
+  normalizeSurveyResponseRecord,
+} from '../../utils/nutritionUtils';
 
 const AddClientView = ({ onBack, onSave, coachEmail }) => {
   // 1. Khai báo state chuẩn khớp 100% với Schema Supabase bảng 'clients'
@@ -30,30 +36,35 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
     if (!formData.phone) return alert("Nhập SĐT để Sync!");
     setIsSyncing(true);
     try {
-      const { data, error } = await supabase.from('survey_responses').select('*').eq('phone', formData.phone).maybeSingle();
-      
-      if (data) {
-        // QUAN TRỌNG: Hạo nhấn F12 trong trình duyệt để xem dòng này nhé
-        console.log("Dữ liệu gốc từ survey_responses:", data);
+      const phoneCandidates = buildPhoneCandidates(formData.phone);
+      const { data, error } = await supabase
+        .from('survey_responses')
+        .select('*')
+        .in('phone', phoneCandidates)
+        .limit(10);
 
-        // CHUẨN HÓA: Ép tất cả các Key về chữ thường
-        const rawData = {};
-        Object.keys(data).forEach(key => {
-          rawData[key.toLowerCase()] = data[key];
-        });
+      if (error) throw error;
 
-        // MAPPING "VÉT CẠN": Dự phòng các trường hợp tên cột ở bảng survey bị sai lệch
-        const mappedData = {
-          ...rawData,
-          avoidfoods: rawData.avoidfoods || rawData.avoidfood,
-          commitmentlevel: rawData.commitmentlevel || rawData.commitmentlevels,
-          traininghistory: rawData.traininghistory || rawData.training_history,
-          targetduration: rawData.targetduration || rawData.target_duration,
-          medicalconditions: rawData.medicalconditions || rawData.medical_conditions
-        };
+      const matchedRow = (data || [])[0];
+      if (matchedRow) {
+        console.log("Dữ liệu gốc từ survey_responses:", matchedRow);
 
+        const mappedData = normalizeSurveyResponseRecord(matchedRow);
         setFormData(prev => ({ ...prev, ...mappedData }));
-        alert("Đồng bộ thành công! Hãy kiểm tra các mục Lifestyle & Dinh dưỡng phía dưới.");
+
+        const audit = buildNutritionSyncAudit(
+          buildNutritionProfileFromSource({ ...formData, ...mappedData }),
+          buildNutritionProfileFromSource(mappedData),
+        );
+
+        alert(
+          `Đồng bộ thành công!\n\n` +
+          `Nutrition profile:\n` +
+          `• Khớp: ${audit.counts.synced}\n` +
+          `• Lấy mới từ form: ${audit.counts.missingInClient}\n` +
+          `• Chênh lệch sau sync: ${audit.counts.mismatch}\n\n` +
+          `Hãy kiểm tra lại các mục Lifestyle & Dinh dưỡng phía dưới.`
+        );
       } else {
         alert("Không tìm thấy dữ liệu! Có thể Apps Script chưa đẩy được dữ liệu lên.");
       }

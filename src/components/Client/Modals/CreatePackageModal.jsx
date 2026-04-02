@@ -171,7 +171,12 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
           package_id: pkg.id,
           package_number: packageNumber,
           amount: priceVND,
-          status: 'unpaid',
+          status: 'pending',
+          payment_type: 'package',
+          title: `Package #${String(packageNumber).padStart(2, '0')}`,
+          detail_note: packageNote.trim() || null,
+          payment_method: 'bank_transfer',
+          created_by: 'coach',
         }]);
         if (payErr) console.warn('Payment record error:', payErr.message);
       }

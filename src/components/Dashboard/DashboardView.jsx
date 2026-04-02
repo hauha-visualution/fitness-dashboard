@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Bell, ChevronLeft, ChevronRight, LogOut, CheckCircle2, Dumbbell, RefreshCw, XCircle, Clock } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
+import ClientAvatar from '../shared/ClientAvatar';
 
 const DAY_VI = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
@@ -24,11 +25,16 @@ const addDays = (date, n) => {
   return d;
 };
 
-const generateAvatarBadgeColor = (name) => {
-  const colors = ['bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-orange-500', 'bg-pink-500', 'bg-indigo-500'];
-  const index = name.charCodeAt(0) % colors.length;
-  return colors[index] + '/20 text-' + colors[index].replace('bg-', '').replace('-500', '-400');
-};
+const buildQuickLogSelection = (sessionItem) => ({
+  sessionId: sessionItem.id,
+  clientId: sessionItem.client_id,
+  clientName: sessionItem.client?.name,
+  scheduledDate: sessionItem.scheduled_date,
+  scheduledTime: sessionItem.scheduled_time,
+  packageId: sessionItem.package_id,
+  sessionKind: sessionItem.session_kind,
+  manualMode: false,
+});
 
 const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOpenQuickLog, onLogout, onOpenProfile }) => {
   const today = new Date();
@@ -238,18 +244,25 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
             const isCompleted = s.status === 'completed';
             const isCancelled = s.status === 'cancelled';
             const isInProgress = s.status === 'in_progress';
+            const canOpenQuickLog = !isCompleted && !isCancelled;
             
-            const initials = s.client?.name?.substring(0,2).toUpperCase() || 'NA';
-            const colorClass = generateAvatarBadgeColor(s.client?.name || 'A');
-
             return (
               <div
                 key={s.id}
+                role={canOpenQuickLog ? 'button' : undefined}
+                tabIndex={canOpenQuickLog ? 0 : undefined}
+                onClick={canOpenQuickLog ? () => onOpenQuickLog?.(buildQuickLogSelection(s)) : undefined}
+                onKeyDown={canOpenQuickLog ? (e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onOpenQuickLog?.(buildQuickLogSelection(s));
+                  }
+                } : undefined}
                 className={`rounded-[20px] border px-4 py-3.5 flex items-center gap-3 transition-all animate-slide-up ${
                   isCompleted ? 'bg-white/[0.02] border-white/[0.04] opacity-50' : 
                   isCancelled ? 'bg-red-500/5 border-red-500/10 opacity-70' :
                   isInProgress ? 'bg-white/[0.06] border-white/20' : 'bg-white/[0.03] border-white/[0.05]'
-                }`}
+                } ${canOpenQuickLog ? 'cursor-pointer active:scale-[0.99]' : ''}`}
               >
                 {/* Time */}
                 <div className="text-center shrink-0 w-12">
@@ -262,22 +275,27 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
                 {/* Avatar Initials */}
                 <button
                   type="button"
-                  onClick={() => s.client && onSelectClient?.(s.client)}
-                  className={`w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-xs font-bold ${colorClass} active:scale-95 transition-all`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    s.client && onSelectClient?.(s.client);
+                  }}
+                  className="shrink-0 active:scale-95 transition-all"
                 >
-                  {initials}
+                  <ClientAvatar
+                    name={s.client?.name}
+                    avatarUrl={s.client?.avatar_url || s.client?.avatar}
+                    sizeClassName="w-9 h-9"
+                    ringClassName="border border-white/10 bg-white/5"
+                    textClassName="text-[11px] font-black text-blue-300"
+                  />
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => s.client && onSelectClient?.(s.client)}
-                  className="flex-1 min-w-0 text-left active:scale-[0.99] transition-all"
-                >
+                <div className="flex-1 min-w-0 text-left">
                   <p className={`text-sm font-medium truncate ${isCancelled ? 'text-red-300' : 'text-white'}`}>{s.client?.name || 'Unknown'}</p>
                   <p className="text-[9px] text-neutral-600 font-black uppercase tracking-wider">
                     Buổi #{s.session_number}
                   </p>
-                </button>
+                </div>
 
                 {/* Status Badges */}
                 {isCompleted && (
@@ -299,24 +317,6 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
                   <div className="text-[9px] font-black text-neutral-500 bg-white/[0.04] border border-white/[0.08] px-3 py-1.5 rounded-full uppercase shrink-0">
                     Chưa tập
                   </div>
-                )}
-                {!isCompleted && !isCancelled && (
-                  <button
-                    type="button"
-                    onClick={() => onOpenQuickLog?.({
-                      sessionId: s.id,
-                      clientId: s.client_id,
-                      clientName: s.client?.name,
-                      scheduledDate: s.scheduled_date,
-                      scheduledTime: s.scheduled_time,
-                      packageId: s.package_id,
-                      sessionKind: s.session_kind,
-                      manualMode: false,
-                    })}
-                    className="shrink-0 px-3 py-2 rounded-[12px] bg-blue-500/10 border border-blue-500/20 text-[10px] font-black uppercase tracking-wider text-blue-400 active:scale-95 transition-all"
-                  >
-                    Log
-                  </button>
                 )}
               </div>
             );

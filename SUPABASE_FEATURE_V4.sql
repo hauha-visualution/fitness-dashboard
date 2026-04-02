@@ -22,10 +22,17 @@ CREATE TABLE IF NOT EXISTS template_exercises (
   name            TEXT NOT NULL,           -- "Squat"
   sets            INT NOT NULL DEFAULT 3,
   reps            INT NOT NULL DEFAULT 10,
+  weight          NUMERIC NOT NULL DEFAULT 0,
+  note            TEXT,                    -- ghi chú nhanh cho bài tập
   sort_order      INT NOT NULL DEFAULT 0,  -- thứ tự drag-drop
-  video_url       TEXT,                    -- link video optional
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE template_exercises
+  ADD COLUMN IF NOT EXISTS weight NUMERIC NOT NULL DEFAULT 0;
+
+ALTER TABLE template_exercises
+  ADD COLUMN IF NOT EXISTS note TEXT;
 
 -- 3. Bổ sung cột cho sessions
 ALTER TABLE sessions
