@@ -237,7 +237,7 @@ export default function App() {
   // Loading screen khi Supabase đang restore session
   if (isAuthLoading || (session && !userRole)) {
     return (
-      <div className="bg-black h-screen flex justify-center items-center">
+      <div className="bg-black h-dvh flex justify-center items-center">
         <div className="text-center">
           <div className="w-12 h-12 border-2 border-white/10 border-t-white/50 rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-neutral-600 text-[10px] font-black uppercase tracking-widest">Loading...</p>
@@ -246,13 +246,13 @@ export default function App() {
     );
   }
 
-  if (!session) return <div className="bg-black h-screen flex justify-center"><AuthScreen onLogin={handleLogin} /></div>;
+  if (!session) return <div className="bg-black h-dvh flex justify-center"><AuthScreen onLogin={handleLogin} /></div>;
 
   // ==== CLIENT PORTAL ====
   if (userRole === 'client') {
     return (
       <div className="min-h-screen bg-[#050505] text-neutral-200 flex justify-center font-sans">
-        <div className="w-full max-w-[420px] h-screen relative overflow-hidden bg-black flex flex-col border-x border-white/[0.05] shadow-2xl">
+        <div className="w-full max-w-[420px] h-dvh relative overflow-hidden bg-black flex flex-col border-x border-white/[0.05] shadow-2xl">
           <GlobalStyles />
           <ClientPortalApp
             session={session}
@@ -267,7 +267,7 @@ export default function App() {
   // ==== UNKNOWN ROLE ====
   if (userRole === 'unknown') {
     return (
-      <div className="bg-black h-screen flex justify-center items-center px-6">
+      <div className="bg-black h-dvh flex justify-center items-center px-6">
         <div className="text-center">
           <p className="text-neutral-400 text-sm mb-4">Tài khoản chưa được liên kết.</p>
           <p className="text-neutral-600 text-xs mb-6">Liên hệ coach của bạn để được cấp quyền truy cập.</p>
@@ -284,7 +284,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-neutral-200 flex justify-center font-sans">
-      <div className="w-full max-w-[420px] h-screen relative overflow-hidden bg-black flex flex-col border-x border-white/[0.05] shadow-2xl">
+      <div className="w-full max-w-[420px] h-dvh relative overflow-hidden bg-black flex flex-col border-x border-white/[0.05] shadow-2xl">
         <GlobalStyles />
 
         {showCoachProfile ? (
