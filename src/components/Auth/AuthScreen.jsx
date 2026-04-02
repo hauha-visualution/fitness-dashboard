@@ -115,14 +115,14 @@ const AuthScreen = ({ onLogin }) => {
   };
 
   return (
-    <div className="h-screen w-full flex flex-col items-center justify-center relative z-20 bg-[#0a0a0a] overflow-hidden px-6">
+    <div className="app-screen-shell h-screen w-full flex flex-col items-center justify-center relative z-20 overflow-hidden px-6">
       <div className="absolute top-[-10%] left-[-20%] w-[140%] h-[400px] bg-white/[0.03] blur-[100px] pointer-events-none"></div>
 
       <div className="w-full relative z-10 animate-slide-up">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-white/[0.03] border border-white/10 rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_30px_rgba(255,255,255,0.05)]">
-            <Dumbbell className="w-8 h-8 text-white" />
+          <div className="w-16 h-16 bg-[linear-gradient(135deg,rgba(200,245,63,0.22),rgba(96,180,255,0.18))] border border-[rgba(200,245,63,0.3)] rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_30px_rgba(200,245,63,0.08)]">
+            <Dumbbell className="w-8 h-8 app-accent-text" />
           </div>
           <h1 className="text-2xl font-medium text-white tracking-tight">Aesthetics Hub</h1>
           <p className="text-neutral-500 text-[10px] font-black uppercase tracking-widest mt-2">
@@ -133,13 +133,13 @@ const AuthScreen = ({ onLogin }) => {
         </div>
 
         {/* Role Toggle: Coach / Trainee */}
-        <div className="flex bg-white/[0.03] border border-white/[0.06] p-1.5 rounded-[28px] mb-5 gap-1">
+        <div className="app-glass-panel flex border p-1.5 rounded-[28px] mb-5 gap-1">
           <button
             type="button"
             onClick={() => handleRoleChange('coach')}
             className={`flex-1 py-3.5 rounded-[22px] flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
               role === 'coach'
-                ? 'bg-white text-black shadow-lg'
+                ? 'app-cta-button shadow-lg'
                 : 'text-neutral-600 hover:text-neutral-400'
             }`}
           >
@@ -151,7 +151,7 @@ const AuthScreen = ({ onLogin }) => {
             onClick={() => handleRoleChange('client')}
             className={`flex-1 py-3.5 rounded-[22px] flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
               role === 'client'
-                ? 'bg-white text-black shadow-lg'
+                ? 'app-cta-button shadow-lg'
                 : 'text-neutral-600 hover:text-neutral-400'
             }`}
           >
@@ -161,7 +161,7 @@ const AuthScreen = ({ onLogin }) => {
         </div>
 
         {/* Form đăng nhập */}
-        <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-[32px] p-6 shadow-2xl">
+        <div className="app-glass-panel border rounded-[32px] p-6 shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-4">
 
             {/* Tên hiển thị (chỉ khi đăng ký coach mới) */}
@@ -217,7 +217,7 @@ const AuthScreen = ({ onLogin }) => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-white text-black font-bold py-4 rounded-[20px] mt-2 flex items-center justify-center gap-2 hover:bg-neutral-200 active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] disabled:opacity-60 disabled:cursor-not-allowed"
+              className="app-cta-button w-full font-bold py-4 rounded-[20px] mt-2 flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isLoading
                 ? <RefreshCw className="w-4 h-4 animate-spin" />

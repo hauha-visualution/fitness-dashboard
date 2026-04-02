@@ -1,16 +1,16 @@
 export const PAYMENT_TYPE_OPTIONS = [
-  { value: 'package', label: 'Package', description: 'Thanh toán gói tập đã mua.' },
-  { value: 'nutrition', label: 'Nutrition', description: 'Dịch vụ dinh dưỡng hoặc tư vấn ăn uống.' },
-  { value: 'prep_meal', label: 'Prep Meal', description: 'Suất ăn chuẩn bị sẵn hoặc meal prep.' },
-  { value: 'sketching', label: 'Sketching', description: 'Dịch vụ sketching hoặc body planning.' },
-  { value: 'other', label: 'Other', description: 'Dịch vụ phát sinh khác.' },
+  { value: 'package', label: 'Package', description: 'Payment for a training package.' },
+  { value: 'nutrition', label: 'Nutrition', description: 'Nutrition coaching or meal guidance.' },
+  { value: 'prep_meal', label: 'Prep Meal', description: 'Prepared meals or meal-prep service.' },
+  { value: 'sketching', label: 'Sketching', description: 'Body planning or sketching service.' },
+  { value: 'other', label: 'Other', description: 'Any additional custom service.' },
 ];
 
 export const PAYMENT_METHOD_OPTIONS = [
-  { value: 'bank_transfer', label: 'Bank Transfer', description: 'Khách chuyển khoản vào tài khoản coach.' },
-  { value: 'cash', label: 'Cash', description: 'Khách thanh toán tiền mặt trực tiếp.' },
-  { value: 'card', label: 'Card', description: 'Thanh toán qua thẻ hoặc POS.' },
-  { value: 'other', label: 'Other', description: 'Phương thức khác do coach ghi chú.' },
+  { value: 'bank_transfer', label: 'Bank Transfer', description: 'Client transfers money to the coach account.' },
+  { value: 'cash', label: 'Cash', description: 'Client pays in cash.' },
+  { value: 'card', label: 'Card', description: 'Paid by card or POS.' },
+  { value: 'other', label: 'Other', description: 'Any other method noted by the coach.' },
 ];
 
 export const fmtVND = (amount) =>
@@ -25,13 +25,13 @@ export const fmtVNDAbridged = (amount) => {
   if (absValue >= 1_000_000_000) {
     const decimals = absValue >= 100_000_000_000 ? 0 : absValue >= 10_000_000_000 ? 1 : 2;
     const formatted = (value / 1_000_000_000).toFixed(decimals);
-    return `${trimTrailingZeros(formatted)} Tỷ`;
+    return `${trimTrailingZeros(formatted)}B`;
   }
 
   if (absValue >= 1_000_000) {
     const decimals = absValue >= 100_000_000 ? 0 : absValue >= 10_000_000 ? 1 : 2;
     const formatted = (value / 1_000_000).toFixed(decimals);
-    return `${trimTrailingZeros(formatted)} Tr`;
+    return `${trimTrailingZeros(formatted)}M`;
   }
 
   if (absValue >= 1_000) {
@@ -60,26 +60,26 @@ export const getPaymentStatusMeta = (status) => {
       return {
         label: 'Transfer Submitted',
         tone: 'amber',
-        description: 'Khách đã báo chuyển khoản, đang chờ coach xác nhận.',
+        description: 'Client marked the transfer as sent and is waiting for coach confirmation.',
       };
     case 'paid':
       return {
         label: 'Paid',
         tone: 'emerald',
-        description: 'Khoản này đã được coach xác nhận hoàn tất.',
+        description: 'This payment has been confirmed and completed.',
       };
     case 'cancelled':
       return {
         label: 'Cancelled',
         tone: 'neutral',
-        description: 'Khoản này đã được hủy và không còn hiệu lực.',
+        description: 'This payment has been voided and is no longer active.',
       };
     case 'pending':
     default:
       return {
         label: 'Pending',
         tone: 'red',
-        description: 'Khoản này đang chờ khách hàng thanh toán.',
+        description: 'This payment is still waiting for the client to pay.',
       };
   }
 };
@@ -96,9 +96,9 @@ export const getToneClasses = (tone) => {
   switch (tone) {
     case 'emerald':
       return {
-        badge: 'text-emerald-300 border-emerald-500/25 bg-emerald-500/[0.10]',
-        panel: 'border-emerald-500/20 bg-emerald-500/[0.06]',
-        icon: 'text-emerald-300 border-emerald-500/20 bg-emerald-500/[0.08]',
+        badge: 'text-[var(--app-accent)] border-[rgba(200,245,63,0.25)] bg-[rgba(200,245,63,0.12)]',
+        panel: 'border-[rgba(200,245,63,0.2)] bg-[rgba(200,245,63,0.06)]',
+        icon: 'text-[var(--app-accent)] border-[rgba(200,245,63,0.2)] bg-[rgba(200,245,63,0.10)]',
       };
     case 'amber':
       return {

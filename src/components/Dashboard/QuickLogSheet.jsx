@@ -108,7 +108,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
   
   const [showCancelReason, setShowCancelReason] = useState(false);
   const [showCreateTemplate, setShowCreateTemplate] = useState(false);
-  const [cancelReason, setCancelReason] = useState('Bận đột xuất');
+  const [cancelReason, setCancelReason] = useState('Unexpected conflict');
   const [customReason, setCustomReason] = useState('');
   
   const [templates, setTemplates] = useState([]);
@@ -186,7 +186,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
       console.error('Load client sessions error:', error.message);
       setClientSessions([]);
       setLoadingClientSessions(false);
-      alert(`Không tải được danh sách buổi tập: ${error.message}`);
+      alert(`Unable to load sessions: ${error.message}`);
       return [];
     }
 
@@ -258,7 +258,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
   const selectedSessionTime = isManualSessionMode
     ? (manuallySelectedSession
         ? `${manuallySelectedSession.scheduled_date} • ${manuallySelectedSession.scheduled_time?.slice(0, 5)}`
-        : 'Chọn một buổi tập')
+        : 'Choose a session')
     : (selectedSession
         ? selectedSession.scheduled_time?.slice(0, 5)
         : initialSession?.scheduledDate
@@ -442,7 +442,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
       if (status === 'cancelled' && selectedSessionPackageId && selectedSessionKind === 'fixed') {
         const rpcResult = await supabase.rpc('cancel_and_shift_fixed_session', {
           p_session_id: selectedSessionId,
-          p_cancel_reason: cancelReason === 'Lý do khác' ? customReason : cancelReason,
+          p_cancel_reason: cancelReason === 'Other reason' ? customReason : cancelReason,
         });
         error = rpcResult.error;
 
@@ -459,7 +459,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
             notes, 
             completed_at: status === 'completed' ? currTimeIso : null,
             cancelled_at: status === 'cancelled' ? currTimeIso : null,
-            cancel_reason: status === 'cancelled' ? (cancelReason === 'Lý do khác' ? customReason : cancelReason) : null,
+            cancel_reason: status === 'cancelled' ? (cancelReason === 'Other reason' ? customReason : cancelReason) : null,
             ...(finalWorkoutData ? { workout_data: finalWorkoutData } : {})
         };
 
@@ -481,7 +481,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
       if (onSaved) onSaved();
     } catch (error) {
       console.error('Quick log save error:', error.message);
-      alert(`Không thể lưu buổi tập: ${error.message}`);
+      alert(`Unable to save session: ${error.message}`);
     } finally {
       setSaving(false);
     }
@@ -493,23 +493,23 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
       <div className="fixed inset-0 z-[600] flex animate-slide-up">
         {/* Transparent overlay blocks interactions below */}
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCancelReason(false)} />
-        <div className="absolute bottom-0 w-full bg-[#1a1a1c] border-t border-white/10 rounded-t-[32px] p-6 pb-10 shadow-2xl flex flex-col gap-4">
+        <div className="absolute bottom-0 w-full bg-[var(--app-bg-dialog)] border-t border-white/10 rounded-t-[32px] p-6 pb-10 shadow-2xl flex flex-col gap-4">
           <div className="flex justify-between items-center mb-2">
             <h2 className="text-white font-bold text-lg">Session Cancellation Reason</h2>
-            <button onClick={() => setShowCancelReason(false)} className="p-2 bg-white/5 rounded-full"><X className="w-5 h-5 text-neutral-400" /></button>
+            <button onClick={() => setShowCancelReason(false)} className="app-ghost-button p-2 border rounded-full"><X className="w-5 h-5 text-neutral-400" /></button>
           </div>
           
-          {['Bận đột xuất', 'Không khoẻ', 'Trainer yêu cầu nghỉ', 'Lý do khác'].map(r => (
+          {['Unexpected conflict', 'Feeling unwell', 'Coach requested rest', 'Other reason'].map(r => (
              <button key={r} onClick={() => setCancelReason(r)} className={`p-4 rounded-[16px] border text-left font-medium transition-all ${cancelReason === r ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-white/[0.04] border-white/10 text-white'}`}>
                 {r}
              </button>
           ))}
           
-          {cancelReason === 'Lý do khác' && (
-             <input type="text" placeholder="Nhập lý do..." value={customReason} onChange={e => setCustomReason(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-[14px] p-4 text-white outline-none focus:border-red-500/30" />
+          {cancelReason === 'Other reason' && (
+             <input type="text" placeholder="Enter a reason..." value={customReason} onChange={e => setCustomReason(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-[14px] p-4 text-white outline-none focus:border-red-500/30" />
           )}
           
-          <button onClick={() => handleSave('cancelled')} disabled={saving || (cancelReason === 'Lý do khác' && !customReason)} className="mt-4 w-full py-4 bg-red-500 text-white font-bold rounded-[18px] active:scale-95 transition-all disabled:opacity-50">
+          <button onClick={() => handleSave('cancelled')} disabled={saving || (cancelReason === 'Other reason' && !customReason)} className="mt-4 w-full py-4 bg-red-500 text-white font-bold rounded-[18px] active:scale-95 transition-all disabled:opacity-50">
              Confirm Cancellation
           </button>
         </div>
@@ -523,7 +523,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       
       {/* Sheet */}
-      <div className="absolute bottom-0 w-full bg-[#0d0d0d] border-t border-white/10 rounded-t-[32px] flex flex-col p-6 pb-10 gap-5 animate-slide-up max-h-[90vh] overflow-y-auto hide-scrollbar">
+      <div className="absolute bottom-0 w-full bg-[var(--app-bg-dialog)] border-t border-white/10 rounded-t-[32px] flex flex-col p-6 pb-10 gap-5 animate-slide-up max-h-[90vh] overflow-y-auto hide-scrollbar">
         
         {/* Header */}
         <div className="flex justify-between items-center">
@@ -531,7 +531,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
               <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Aesthetics Hub</p>
               <h2 className="text-xl font-bold text-white">Start Workout</h2>
            </div>
-           <button onClick={onClose} className="p-2 bg-white/5 rounded-full"><X className="w-5 h-5 text-neutral-400" /></button>
+           <button onClick={onClose} className="app-ghost-button p-2 border rounded-full"><X className="w-5 h-5 text-neutral-400" /></button>
         </div>
 
         {/* [A] Chọn buổi tập */}
@@ -547,7 +547,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
              </button>
            </div>
            <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
-             {loading ? <div className="text-neutral-500 text-sm">Đang tải...</div> : todaySessions.map(s => (
+             {loading ? <div className="text-neutral-500 text-sm">Loading...</div> : todaySessions.map(s => (
                <button 
                   key={s.id} onClick={() => handleSelectTodaySession(s.id)}
                   className={`shrink-0 px-3 py-2.5 border rounded-[14px] text-left transition-all min-w-[118px] ${selectedSessionId === s.id ? 'bg-white text-black border-white shadow-[0_10px_30px_rgba(255,255,255,0.08)]' : 'bg-white/[0.03] border-white/[0.06] text-neutral-300 hover:bg-white/[0.05]'}`}
@@ -580,10 +580,10 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
              {selectedClientId && !showClientPicker && (
                <div className="mt-3 space-y-2">
                  {loadingClientSessions ? (
-                   <div className="text-sm text-neutral-500 py-2">Đang tải session của học viên...</div>
+                   <div className="text-sm text-neutral-500 py-2">Loading trainee sessions...</div>
                  ) : clientSessions.length === 0 ? (
                    <div className="bg-white/[0.03] border border-white/[0.06] rounded-[14px] px-4 py-3 text-sm text-neutral-500">
-                     Học viên này chưa có session nào ở trạng thái scheduled hoặc in_progress.
+                     This trainee does not have any sessions in `scheduled` or `in_progress`.
                    </div>
                  ) : (
                    <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
@@ -600,7 +600,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                          <div className="flex items-start justify-between gap-2">
                            <div>
                              <p className={`text-[10px] font-black uppercase tracking-widest ${selectedSessionId === sessionOption.id ? 'text-black/50' : 'text-neutral-600'}`}>
-                               Buổi #{String(sessionOption.session_number).padStart(2, '0')}
+                               Session #{String(sessionOption.session_number).padStart(2, '0')}
                              </p>
                              <p className={`text-sm font-semibold mt-1 ${selectedSessionId === sessionOption.id ? 'text-black' : 'text-white'}`}>
                                {formatShortSessionDate(sessionOption.scheduled_date)}
@@ -618,7 +618,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                                  ? 'bg-black/5 text-black/55'
                                  : 'bg-white/[0.04] border border-white/[0.08] text-neutral-500'
                            }`}>
-                             {sessionOption.status === 'in_progress' ? 'Lưu tạm' : 'Chưa tập'}
+                             {sessionOption.status === 'in_progress' ? 'Draft' : 'Not Started'}
                            </div>
                          </div>
                        </button>
@@ -631,7 +631,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                      onClick={() => setShowAllClientSessions(prev => !prev)}
                      className="w-full py-3 rounded-[14px] border border-white/[0.08] bg-white/[0.03] text-[11px] font-black uppercase tracking-wider text-neutral-400 hover:bg-white/[0.05] transition-all"
                    >
-                     {showAllClientSessions ? 'Thu gọn danh sách' : `Xem thêm ${clientSessions.length - 8} buổi`}
+                     {showAllClientSessions ? 'Show Less' : `Show ${clientSessions.length - 8} More`}
                    </button>
                  )}
                </div>
@@ -671,8 +671,8 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
               <button
                 type="button"
                 onClick={() => setShowCreateTemplate(true)}
-                className="shrink-0 w-10 h-10 rounded-[12px] border border-dashed border-white/20 text-neutral-400 flex items-center justify-center hover:text-white hover:bg-white/[0.05] transition-all"
-                aria-label="Tạo gói bài tập"
+                className="shrink-0 w-10 h-10 rounded-[12px] border border-[var(--app-accent-soft)] bg-[linear-gradient(135deg,rgba(200,245,63,0.22),rgba(96,180,255,0.12))] text-[var(--app-accent)] shadow-[0_12px_24px_rgba(200,245,63,0.14)] flex items-center justify-center hover:brightness-110 active:scale-95 transition-all"
+                aria-label="Create template"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -681,7 +681,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
             {showPackagePicker && (
               <div className="px-2 pb-2">
                 {loadingTemplates ? (
-                  <div className="rounded-[14px] border border-white/[0.05] bg-black/20 px-4 py-4 text-center text-sm text-neutral-500">Đang tải gói bài tập...</div>
+                  <div className="rounded-[14px] border border-white/[0.05] bg-black/20 px-4 py-4 text-center text-sm text-neutral-500">Loading templates...</div>
                 ) : sortedTemplates.length === 0 ? (
                   <div className="rounded-[14px] border border-white/[0.05] bg-black/20 px-4 py-5 text-center">
                     <PenTool className="w-5 h-5 mx-auto mb-2 text-neutral-700" />
@@ -702,11 +702,11 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                             <p className={`font-semibold text-sm truncate ${selectedTemplateId === t.id ? 'text-blue-400' : 'text-white'}`}>{t.name}</p>
                             {isAssigned && (
                               <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-blue-300 bg-blue-500/10 border border-blue-500/20 px-2 py-1 rounded-full">
-                                Đã gán
+                                Assigned
                               </span>
                             )}
                           </div>
-                          <p className="text-[10px] text-neutral-500 font-medium">{t.template_exercises?.length || 0} bài tập</p>
+                          <p className="text-[10px] text-neutral-500 font-medium">{t.template_exercises?.length || 0} exercises</p>
                         </div>
                         {selectedTemplateId === t.id && <div className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />}
                       </button>
@@ -719,7 +719,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
 
           {previousWorkoutSource && (
             <div className="rounded-[14px] border border-blue-500/15 bg-blue-500/8 px-3 py-2 text-[11px] text-blue-300">
-              Đã gọi bài tập từ buổi trước
+              Loaded exercises from the previous session
               {previousWorkoutSource.sessionNumber ? ` #${String(previousWorkoutSource.sessionNumber).padStart(2, '0')}` : ''}
               {previousWorkoutSource.scheduledDate ? ` · ${previousWorkoutSource.scheduledDate}` : ''}
               {previousWorkoutSource.scheduledTime ? ` · ${previousWorkoutSource.scheduledTime.slice(0, 5)}` : ''}
@@ -743,7 +743,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                   <GripVertical className="w-3.5 h-3.5 text-white/20 shrink-0" />
                   <input
                     type="text"
-                    placeholder={`Tên bài tập #${idx + 1}`}
+                    placeholder={`Exercise #${idx + 1}`}
                     value={ex.name}
                     onChange={e => updateExercise(ex.id, 'name', e.target.value)}
                     className={`flex-1 min-w-0 bg-transparent text-sm font-semibold outline-none ${ex.is_completed ? 'text-emerald-100 line-through' : 'text-white'} placeholder:text-neutral-600`}
@@ -788,7 +788,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                 <div className="mt-2 pl-6">
                   <input
                     type="text"
-                    placeholder="Ghi chú bài tập (tuỳ chọn)"
+                    placeholder="Exercise note (optional)"
                     value={ex.note}
                     onChange={e => updateExercise(ex.id, 'note', e.target.value)}
                     className="w-full bg-black/30 border border-white/[0.05] rounded-[10px] py-1.5 px-3 text-neutral-300 text-[11px] outline-none focus:border-white/20 transition-all"
@@ -798,8 +798,8 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
             ))}
           </div>
 
-          <button onClick={addExercise} className="w-full py-3 border border-dashed border-white/20 rounded-[16px] text-neutral-400 text-sm font-medium flex items-center justify-center gap-2 hover:bg-white/[0.02] active:border-white/40 transition-all">
-            <Plus className="w-4 h-4" /> Thêm bài tập
+          <button onClick={addExercise} className="w-full py-3 border border-[rgba(96,180,255,0.3)] bg-[rgba(96,180,255,0.12)] rounded-[16px] text-[var(--app-blue)] text-sm font-bold flex items-center justify-center gap-2 hover:bg-[rgba(96,180,255,0.16)] active:scale-[0.99] transition-all shadow-[0_12px_28px_rgba(96,180,255,0.12)]">
+            <Plus className="w-4 h-4" /> Add Exercise
           </button>
 
           {showCreateTemplate && (
@@ -813,9 +813,9 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
 
         {/* [C] Cảm giác */}
         <div>
-           <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Thể trạng học viên</p>
+           <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Trainee Condition</p>
            <div className="grid grid-cols-4 gap-2">
-              {[ {id:'tired', label:'Mệt', Icon:BatteryWarning, col:'red'}, {id:'ok', label:'Ổn', Icon:Battery, col:'yellow'}, {id:'good', label:'Tốt', Icon:BatteryMedium, col:'emerald'}, {id:'fire', label:'Bùng nổ', Icon:Flame, col:'purple'} ].map(f => (
+              {[ {id:'tired', label:'Tired', Icon:BatteryWarning, col:'red'}, {id:'ok', label:'Okay', Icon:Battery, col:'yellow'}, {id:'good', label:'Good', Icon:BatteryMedium, col:'emerald'}, {id:'fire', label:'On Fire', Icon:Flame, col:'purple'} ].map(f => (
                  <button key={f.id} onClick={() => setFeeling(f.id)} className={`flex flex-col items-center justify-center py-3 border rounded-[14px] transition-all gap-1.5 ${feeling === f.id ? `bg-${f.col}-500/15 border-${f.col}-500/30 text-${f.col}-400` : 'bg-white/[0.03] border-white/[0.05] text-neutral-500 hover:bg-white/[0.05]'}`}>
                     <f.Icon className="w-5 h-5" />
                     <span className="text-[10px] font-bold">{f.label}</span>
@@ -826,16 +826,16 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
 
         {/* [D] Ghi chú nhanh */}
         <div>
-           <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Ghi chú thêm (Tùy chọn)</p>
-           <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Nhập ghi chú..." className="w-full bg-white/[0.04] border border-white/[0.08] rounded-[14px] py-2.5 px-4 text-white text-sm outline-none focus:border-white/30 resize-none h-20" />
+           <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Extra Notes (Optional)</p>
+           <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Add a note..." className="w-full bg-white/[0.04] border border-white/[0.08] rounded-[14px] py-2.5 px-4 text-white text-sm outline-none focus:border-white/30 resize-none h-20" />
         </div>
 
         {/* [E] 3 Buttons */}
         <div className="flex gap-2 mt-2">
-           <button onClick={() => handleSave('in_progress')} disabled={saving || !selectedSessionId || !hasWorkoutData} className="flex-1 py-3.5 bg-white/[0.04] border border-white/[0.08] rounded-[18px] text-white font-bold text-sm text-center active:scale-95 transition-all disabled:opacity-50">
+           <button onClick={() => handleSave('in_progress')} disabled={saving || !selectedSessionId || !hasWorkoutData} className="app-ghost-button flex-1 py-3.5 border rounded-[18px] text-white font-bold text-sm text-center active:scale-95 transition-all disabled:opacity-50">
              Save Draft
            </button>
-           <button onClick={() => handleSave('completed')} disabled={saving || !selectedSessionId || !hasWorkoutData} className="flex-1 py-3.5 bg-white text-black font-bold text-sm rounded-[18px] text-center active:scale-[0.98] transition-all disabled:opacity-50">
+           <button onClick={() => handleSave('completed')} disabled={saving || !selectedSessionId || !hasWorkoutData} className="app-cta-button flex-1 py-3.5 border text-black font-bold text-sm rounded-[18px] text-center active:scale-[0.98] transition-all disabled:opacity-50">
              Complete
            </button>
         </div>

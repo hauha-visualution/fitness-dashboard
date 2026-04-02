@@ -237,22 +237,22 @@ export default function App() {
   // Loading screen khi Supabase đang restore session
   if (isAuthLoading || (session && !userRole)) {
     return (
-      <div className="bg-black h-dvh flex justify-center items-center">
+      <div className="app-root-shell h-dvh flex justify-center items-center">
         <div className="text-center">
           <div className="w-12 h-12 border-2 border-white/10 border-t-white/50 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-neutral-600 text-[10px] font-black uppercase tracking-widest">Loading...</p>
+          <p className="app-label text-[10px] font-black uppercase tracking-widest">Loading...</p>
         </div>
       </div>
     );
   }
 
-  if (!session) return <div className="bg-black h-dvh flex justify-center"><AuthScreen onLogin={handleLogin} /></div>;
+  if (!session) return <div className="app-root-shell h-dvh flex justify-center"><AuthScreen onLogin={handleLogin} /></div>;
 
   // ==== CLIENT PORTAL ====
   if (userRole === 'client') {
     return (
-      <div className="min-h-screen bg-[#050505] text-neutral-200 flex justify-center font-sans">
-        <div className="w-full max-w-[420px] h-dvh relative overflow-hidden bg-black flex flex-col border-x border-white/[0.05] shadow-2xl">
+      <div className="app-root-shell min-h-screen flex justify-center font-sans">
+        <div className="app-shell-frame w-full max-w-[420px] h-dvh relative overflow-hidden flex flex-col">
           <GlobalStyles />
           <ClientPortalApp
             session={session}
@@ -267,13 +267,13 @@ export default function App() {
   // ==== UNKNOWN ROLE ====
   if (userRole === 'unknown') {
     return (
-      <div className="bg-black h-dvh flex justify-center items-center px-6">
+      <div className="app-root-shell h-dvh flex justify-center items-center px-6">
         <div className="text-center">
-          <p className="text-neutral-400 text-sm mb-4">Your account is not linked yet.</p>
-          <p className="text-neutral-600 text-xs mb-6">Please contact your coach for access.</p>
+          <p className="app-subtle-text text-sm mb-4">Your account is not linked yet.</p>
+          <p className="app-label text-xs mb-6">Please contact your coach for access.</p>
           <button
             onClick={handleLogout}
-            className="px-6 py-3 bg-white/5 border border-white/10 rounded-full text-white text-xs hover:bg-white/10 transition-all"
+            className="app-ghost-button px-6 py-3 border rounded-full text-xs hover:bg-white/[0.08] transition-all"
           >
             Đăng xuất
           </button>
@@ -283,8 +283,8 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-neutral-200 flex justify-center font-sans">
-      <div className="w-full max-w-[420px] h-dvh relative overflow-hidden bg-black flex flex-col border-x border-white/[0.05] shadow-2xl">
+    <div className="app-root-shell min-h-screen flex justify-center font-sans">
+      <div className="app-shell-frame w-full max-w-[420px] h-dvh relative overflow-hidden flex flex-col">
         <GlobalStyles />
 
         {showCoachProfile ? (
@@ -340,15 +340,15 @@ export default function App() {
 
             {/* Nav chính của Coach */}
             {activeTab !== 'add_client' && (
-              <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-[390px] bg-black/85 backdrop-blur-3xl border border-white/10 rounded-[32px] px-2 py-2 grid grid-cols-5 gap-1 z-50 shadow-2xl">
+              <div className="app-nav-shell fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-[390px] rounded-[32px] px-2 py-2 grid grid-cols-5 gap-1 z-50">
                 {coachTabs.map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
                   const buttonClassName = tab.isAction
-                    ? 'bg-blue-500/[0.10] text-blue-300 border border-blue-400/20'
+                    ? 'app-nav-action'
                     : isActive
-                      ? 'bg-white/6 text-white'
-                      : 'text-neutral-600 border border-transparent';
+                      ? 'app-nav-item-active'
+                      : 'app-nav-item border border-transparent';
 
                   return (
                     <button
@@ -379,7 +379,7 @@ export default function App() {
                       <span
                         className={`font-black uppercase tracking-tight ${
                           tab.isAction
-                            ? 'text-[7px] text-white'
+                            ? 'text-[7px]'
                             : 'text-[7px]'
                         }`}
                       >

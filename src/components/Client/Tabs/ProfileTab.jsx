@@ -113,10 +113,10 @@ const ProfileTab = ({ client, onRegisterActions }) => {
       const { data } = supabase.storage.from('client-avatars').getPublicUrl(fileName);
       await supabase.from('clients').update({ avatar_url: data.publicUrl }).eq('id', client.id);
 
-      alert('Đã cập nhật avatar!');
+      alert('Avatar updated successfully.');
       window.location.reload();
     } catch (err) {
-      alert('Lỗi upload avatar: ' + err.message);
+      alert('Avatar upload failed: ' + err.message);
     } finally {
       setIsUploadingAvatar(false);
     }
@@ -132,10 +132,10 @@ const ProfileTab = ({ client, onRegisterActions }) => {
 
     if (!error) {
       setIsEditMode(false);
-      alert('Đã cập nhật thông tin!');
+      alert('Profile updated successfully.');
       window.location.reload();
     } else {
-      alert('Lỗi: ' + error.message);
+      alert('Error: ' + error.message);
     }
 
     setIsSavingProfile(false);
@@ -158,8 +158,8 @@ const ProfileTab = ({ client, onRegisterActions }) => {
 
       await fetchProgressPhotos();
     } catch (err) {
-      setUploadError(`Lỗi upload: ${err.message}`);
-      alert(`Lỗi upload: ${err.message}`);
+      setUploadError(`Upload failed: ${err.message}`);
+      alert(`Upload failed: ${err.message}`);
     } finally {
       setIsUploadingProgress(false);
     }
@@ -167,7 +167,7 @@ const ProfileTab = ({ client, onRegisterActions }) => {
 
   const handleSaveInBody = async () => {
     if (!newInbodyRecord.weight) {
-      alert('Cần có cân nặng!');
+      alert('Weight is required.');
       return;
     }
 
@@ -189,7 +189,7 @@ const ProfileTab = ({ client, onRegisterActions }) => {
       setIsModalOpen(false);
       setNewInbodyRecord({ weight: '', muscle_mass: '', body_fat: '', visceral_fat: '' });
     } else {
-      alert('Lỗi: ' + error.message);
+      alert('Error: ' + error.message);
     }
 
     setIsSavingInbody(false);
@@ -199,36 +199,36 @@ const ProfileTab = ({ client, onRegisterActions }) => {
 
   const metrics = [
     {
-      label: 'CÂN NẶNG KG',
+      label: 'WEIGHT KG',
       value: latest.weight || client.weight || '--',
       valueClassName: 'text-blue-400',
     },
     {
-      label: 'CƠ THỂ KG',
+      label: 'MUSCLE KG',
       value: latest.muscle_mass || '--',
       valueClassName: 'text-emerald-400',
     },
     {
-      label: 'MỠ %',
+      label: 'BODY FAT %',
       value: latest.body_fat || '--',
       valueClassName: 'text-yellow-500',
     },
     {
-      label: 'MỠ NỘI TẠNG',
+      label: 'VISCERAL FAT',
       value: latest.visceral_fat || '--',
       valueClassName: 'text-neutral-500',
     },
   ];
 
   const personalInfoCells = [
-    { label: 'NGÀY SINH', value: client.dob || '--' },
-    { label: 'GIỚI TÍNH', value: client.gender || '--' },
-    { label: 'CHIỀU CAO CM', value: client.height ? `${client.height} cm` : '--' },
-    { label: 'CÂN NẶNG KG', value: client.weight ? `${client.weight} kg` : '--' },
-    { label: 'CÔNG VIỆC', value: client.jobtype || '--' },
-    { label: 'GIẤC NGỦ', value: client.sleephabits || '--' },
-    { label: 'LỊCH SỬ TẬP', value: client.traininghistory || '--' },
-    { label: 'THỜI GIAN ĐẠT', value: client.targetduration || '--' },
+    { label: 'DATE OF BIRTH', value: client.dob || '--' },
+    { label: 'GENDER', value: client.gender || '--' },
+    { label: 'HEIGHT CM', value: client.height ? `${client.height} cm` : '--' },
+    { label: 'WEIGHT KG', value: client.weight ? `${client.weight} kg` : '--' },
+    { label: 'JOB', value: client.jobtype || '--' },
+    { label: 'SLEEP', value: client.sleephabits || '--' },
+    { label: 'TRAINING HISTORY', value: client.traininghistory || '--' },
+    { label: 'TARGET TIME', value: client.targetduration || '--' },
   ];
 
   if (isEditMode) {
@@ -237,11 +237,11 @@ const ProfileTab = ({ client, onRegisterActions }) => {
         <div className="pointer-events-none absolute left-1/2 top-0 h-36 w-36 -translate-x-1/2 rounded-full bg-blue-500/10 blur-3xl" />
         <div className="text-center">
           <p className="text-sm font-bold text-white">{editData.name || client.name}</p>
-          <p className="mt-1 text-[10px] font-medium text-neutral-600">{editData.phone || 'Chưa cập nhật số điện thoại'}</p>
+          <p className="mt-1 text-[10px] font-medium text-neutral-600">{editData.phone || 'No phone number yet'}</p>
         </div>
 
         <div className="space-y-3">
-          <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">AVATAR</p>
+          <p className="app-label text-[9px] font-black uppercase tracking-widest">Avatar</p>
           <div className="overflow-hidden rounded-[24px] border border-white/[0.05] bg-white/[0.02] p-5 shadow-xl shadow-black/20 backdrop-blur-sm">
             <label className="flex cursor-pointer flex-col items-center gap-4 text-center">
               <div className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-blue-500/15 shadow-lg shadow-blue-500/10">
@@ -258,8 +258,8 @@ const ProfileTab = ({ client, onRegisterActions }) => {
                 )}
               </div>
               <div>
-                <p className="text-sm font-bold text-white">Cập nhật avatar</p>
-                <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">CHẠM ĐỂ TẢI ẢNH MỚI</p>
+                <p className="text-sm font-bold text-white">Update Avatar</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">TAP TO UPLOAD A NEW PHOTO</p>
               </div>
               <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" disabled={isUploadingAvatar} />
             </label>
@@ -267,29 +267,29 @@ const ProfileTab = ({ client, onRegisterActions }) => {
         </div>
 
         <div className="space-y-3">
-          <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">THÔNG TIN CÁ NHÂN</p>
+          <p className="app-label text-[9px] font-black uppercase tracking-widest">Personal Information</p>
           <div className="space-y-3 overflow-hidden rounded-[24px] border border-white/[0.05] bg-white/[0.02] p-5 shadow-xl shadow-black/20 backdrop-blur-sm">
-            <EditableField label="Tên học viên" value={editData.name} onChange={(value) => setEditData({ ...editData, name: value })} />
-            <EditableField label="Số điện thoại" value={editData.phone} onChange={(value) => setEditData({ ...editData, phone: value })} />
+            <EditableField label="Trainee Name" value={editData.name} onChange={(value) => setEditData({ ...editData, name: value })} />
+            <EditableField label="Phone Number" value={editData.phone} onChange={(value) => setEditData({ ...editData, phone: value })} />
             <div className="grid grid-cols-2 gap-3">
-              <EditableField label="Ngày sinh" value={editData.dob} onChange={(value) => setEditData({ ...editData, dob: value })} type="date" />
-              <EditableField label="Giới tính" value={editData.gender} onChange={(value) => setEditData({ ...editData, gender: value })} />
-              <EditableField label="Chiều cao (cm)" value={editData.height} onChange={(value) => setEditData({ ...editData, height: value })} type="number" />
-              <EditableField label="Cân nặng (kg)" value={editData.weight} onChange={(value) => setEditData({ ...editData, weight: value })} type="number" />
+              <EditableField label="Date of Birth" value={editData.dob} onChange={(value) => setEditData({ ...editData, dob: value })} type="date" />
+              <EditableField label="Gender" value={editData.gender} onChange={(value) => setEditData({ ...editData, gender: value })} />
+              <EditableField label="Height (cm)" value={editData.height} onChange={(value) => setEditData({ ...editData, height: value })} type="number" />
+              <EditableField label="Weight (kg)" value={editData.weight} onChange={(value) => setEditData({ ...editData, weight: value })} type="number" />
             </div>
           </div>
         </div>
 
         <div className="space-y-3">
-          <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">MỤC TIÊU & LIFESTYLE</p>
+          <p className="app-label text-[9px] font-black uppercase tracking-widest">Goals & Lifestyle</p>
           <div className="space-y-3 overflow-hidden rounded-[24px] border border-white/[0.05] bg-white/[0.02] p-5 shadow-xl shadow-black/20 backdrop-blur-sm">
-            <EditableField label="Mục tiêu" value={editData.goal} onChange={(value) => setEditData({ ...editData, goal: value })} />
-            <EditableField label="Thời gian đạt" value={editData.targetduration} onChange={(value) => setEditData({ ...editData, targetduration: value })} />
-            <EditableField label="Lịch sử tập" value={editData.traininghistory} onChange={(value) => setEditData({ ...editData, traininghistory: value })} />
-            <EditableField label="Thời lượng/ngày" value={editData.trainingtime} onChange={(value) => setEditData({ ...editData, trainingtime: value })} />
+            <EditableField label="Goal" value={editData.goal} onChange={(value) => setEditData({ ...editData, goal: value })} />
+            <EditableField label="Target Duration" value={editData.targetduration} onChange={(value) => setEditData({ ...editData, targetduration: value })} />
+            <EditableField label="Training History" value={editData.traininghistory} onChange={(value) => setEditData({ ...editData, traininghistory: value })} />
+            <EditableField label="Daily Duration" value={editData.trainingtime} onChange={(value) => setEditData({ ...editData, trainingtime: value })} />
             <div className="grid grid-cols-2 gap-3">
-              <EditableField label="Công việc" value={editData.jobtype} onChange={(value) => setEditData({ ...editData, jobtype: value })} />
-              <EditableField label="Giấc ngủ" value={editData.sleephabits} onChange={(value) => setEditData({ ...editData, sleephabits: value })} />
+              <EditableField label="Job" value={editData.jobtype} onChange={(value) => setEditData({ ...editData, jobtype: value })} />
+              <EditableField label="Sleep" value={editData.sleephabits} onChange={(value) => setEditData({ ...editData, sleephabits: value })} />
             </div>
           </div>
         </div>
@@ -300,7 +300,7 @@ const ProfileTab = ({ client, onRegisterActions }) => {
             className="flex flex-1 items-center justify-center gap-2 rounded-[18px] border border-white/[0.08] bg-white/[0.04] py-3.5 px-5 text-sm font-bold text-white transition-all active:scale-95 shadow-lg shadow-black/20"
           >
             <X className="h-4 w-4" />
-            Hủy
+            Cancel
           </button>
           <button
             onClick={handleSaveEdit}
@@ -308,7 +308,7 @@ const ProfileTab = ({ client, onRegisterActions }) => {
             className="flex flex-1 items-center justify-center gap-2 rounded-[18px] border border-blue-500/20 bg-blue-500/10 py-3.5 px-5 text-sm font-bold text-white transition-all active:scale-95 disabled:opacity-50 shadow-lg shadow-blue-500/10"
           >
             {isSavingProfile ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            Lưu thay đổi
+            Save Changes
           </button>
         </div>
       </div>
@@ -329,9 +329,9 @@ const ProfileTab = ({ client, onRegisterActions }) => {
           ringClassName="border border-white/10 bg-blue-500/15 shadow-xl shadow-blue-500/10"
         />
         <p className="mt-4 text-sm font-bold text-white">{client.name}</p>
-        <p className="mt-1 text-[10px] font-medium text-neutral-600">{client.phone || 'Chưa cập nhật số điện thoại'}</p>
+        <p className="mt-1 text-[10px] font-medium text-neutral-600">{client.phone || 'No phone number yet'}</p>
         <div className="mt-3 inline-flex items-center rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1.5 shadow-lg shadow-blue-500/10">
-          <span className="text-[9px] font-black uppercase tracking-widest text-blue-300">{client.goal || 'CHƯA CÓ GOAL'}</span>
+          <span className="text-[9px] font-black uppercase tracking-widest text-blue-300">{client.goal || 'NO GOAL YET'}</span>
         </div>
       </div>
 
@@ -355,7 +355,7 @@ const ProfileTab = ({ client, onRegisterActions }) => {
       </div>
 
       <div ref={progressSectionRef} className="space-y-3">
-        <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">ẢNH TIẾN ĐỘ</p>
+        <p className="app-label text-[9px] font-black uppercase tracking-widest">Progress Photos</p>
 
         {uploadError && (
           <div className="rounded-[12px] border border-red-500/20 bg-red-500/10 p-3">
@@ -406,11 +406,11 @@ const ProfileTab = ({ client, onRegisterActions }) => {
         className="w-full bg-white/[0.04] border border-white/[0.08] rounded-[18px] py-3.5 px-5 text-white text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-xl shadow-black/20 hover:bg-white/[0.05]"
       >
         <Plus className="w-4 h-4" />
-        Nhập Inbody mới
+        Add New InBody
       </button>
 
       <div className="space-y-3">
-        <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">THÔNG TIN CÁ NHÂN</p>
+        <p className="app-label text-[9px] font-black uppercase tracking-widest">Personal Information</p>
         <div className="relative overflow-hidden rounded-[24px] border border-white/[0.05] bg-white/[0.02] shadow-xl shadow-black/20 backdrop-blur-sm">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-white/[0.03] to-transparent" />
           <div className="grid grid-cols-2">
@@ -426,7 +426,7 @@ const ProfileTab = ({ client, onRegisterActions }) => {
             ))}
 
             <InfoCell
-              label="THỜI LƯỢNG/NGÀY"
+              label="DAILY DURATION"
               value={client.trainingtime || '--'}
               valueClassName="text-[11px] font-semibold text-blue-400"
               className="col-span-2 border-t border-white/[0.05]"
@@ -438,14 +438,14 @@ const ProfileTab = ({ client, onRegisterActions }) => {
       {isModalOpen && (
         <div className="fixed inset-0 z-[180] flex items-end justify-center bg-black/60 px-4 pb-10 backdrop-blur-sm">
           <div className="w-full max-w-[360px] rounded-[32px] border border-white/10 bg-[#1a1a1c] p-6 shadow-2xl animate-slide-up">
-            <h3 className="mb-6 text-sm font-bold text-white">Nhập Inbody</h3>
+            <h3 className="mb-6 text-sm font-bold text-white">Add InBody Record</h3>
 
             <div className="mb-6 space-y-3">
               {[
-                { label: 'Cân nặng (kg)', key: 'weight' },
-                { label: 'Cơ thể (kg)', key: 'muscle_mass' },
-                { label: 'Mỡ (%)', key: 'body_fat' },
-                { label: 'Mỡ nội tạng', key: 'visceral_fat' },
+                { label: 'Weight (kg)', key: 'weight' },
+                { label: 'Muscle (kg)', key: 'muscle_mass' },
+                { label: 'Body Fat (%)', key: 'body_fat' },
+                { label: 'Visceral Fat', key: 'visceral_fat' },
               ].map((field) => (
                 <input
                   key={field.key}
@@ -463,14 +463,14 @@ const ProfileTab = ({ client, onRegisterActions }) => {
                 onClick={() => setIsModalOpen(false)}
                 className="flex-1 rounded-[12px] bg-white/5 py-3 text-[10px] font-black uppercase text-white"
               >
-                Hủy
+                Cancel
               </button>
               <button
                 onClick={handleSaveInBody}
                 disabled={isSavingInbody}
                 className="flex-1 rounded-[12px] bg-blue-500/20 py-3 text-[10px] font-black uppercase text-blue-400 disabled:opacity-50"
               >
-                {isSavingInbody ? '...' : 'Lưu'}
+                {isSavingInbody ? '...' : 'Save'}
               </button>
             </div>
           </div>

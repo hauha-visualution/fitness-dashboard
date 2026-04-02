@@ -8,16 +8,16 @@ import { supabase } from '../../../supabaseClient';
 
 // ─── CONSTANTS ───────────────────────────────────────────────
 const DAY_LABELS = [
-  { day: 1, short: 'T2', full: 'Thứ 2' },
-  { day: 2, short: 'T3', full: 'Thứ 3' },
-  { day: 3, short: 'T4', full: 'Thứ 4' },
-  { day: 4, short: 'T5', full: 'Thứ 5' },
-  { day: 5, short: 'T6', full: 'Thứ 6' },
-  { day: 6, short: 'T7', full: 'Thứ 7' },
-  { day: 0, short: 'CN', full: 'Chủ nhật' },
+  { day: 1, short: 'M', full: 'Monday' },
+  { day: 2, short: 'T', full: 'Tuesday' },
+  { day: 3, short: 'W', full: 'Wednesday' },
+  { day: 4, short: 'T', full: 'Thursday' },
+  { day: 5, short: 'F', full: 'Friday' },
+  { day: 6, short: 'S', full: 'Saturday' },
+  { day: 0, short: 'S', full: 'Sunday' },
 ];
 const DURATIONS = [45, 60, 75, 90];
-const DAY_VI = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+const DAY_VI = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 // ─── UTILITIES ───────────────────────────────────────────────
 const generateSessionDates = (startDate, schedule, totalCount) => {
@@ -149,7 +149,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
         .select()
         .single();
 
-      if (pkgErr) { alert('Lỗi tạo gói: ' + pkgErr.message); setIsCreating(false); return; }
+      if (pkgErr) { alert('Unable to create package: ' + pkgErr.message); setIsCreating(false); return; }
 
       // 2. Bulk insert sessions
       const rows = previewSessions.map(s => ({
@@ -162,7 +162,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
         session_kind: 'fixed',
       }));
       const { error: sessErr } = await supabase.from('sessions').insert(rows);
-      if (sessErr) { alert('Lỗi tạo lịch: ' + sessErr.message); setIsCreating(false); return; }
+      if (sessErr) { alert('Unable to create schedule: ' + sessErr.message); setIsCreating(false); return; }
 
       // 3. Insert payment record — status: unpaid
       if (priceVND > 0) {
@@ -184,7 +184,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
       onCreated();
       onClose();
     } catch (err) {
-      alert('Lỗi: ' + err.message);
+      alert('Error: ' + err.message);
       setIsCreating(false);
     }
   };
@@ -192,18 +192,18 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
   // ─── RENDER ───────────────────────────────────────────────
   return ReactDOM.createPortal(
     <div className="fixed inset-0 z-[500] bg-black/50 backdrop-blur-sm" style={{ paddingTop: 50 }}>
-      <div ref={scrollRef} className="w-full h-full bg-[#0d0d0d] border-t border-white/10 rounded-t-[32px] flex flex-col overflow-hidden">
+      <div ref={scrollRef} className="w-full h-full bg-[var(--app-bg-dialog)] border-t border-white/10 rounded-t-[32px] flex flex-col overflow-hidden">
 
         {/* Compact header */}
-        <div className="sticky top-0 bg-[#0d0d0d]/95 backdrop-blur-xl z-10 px-5 pt-4 pb-3 border-b border-white/[0.06]">
+        <div className="sticky top-0 bg-[rgba(13,27,46,0.95)] backdrop-blur-xl z-10 px-5 pt-4 pb-3 border-b border-white/[0.06]">
           <div className="flex items-center gap-3">
             <div className="flex gap-1.5 flex-1">
               {[1, 2].map(s => (
                 <div key={s} className={`h-1 flex-1 rounded-full transition-all duration-500 ${s <= step ? 'bg-white' : 'bg-white/10'}`} />
               ))}
             </div>
-            <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-widest shrink-0">
-              Gói #{String(packageNumber).padStart(2, '0')} · {step === 1 ? 'Thông tin' : 'Lịch tập'}
+              <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-widest shrink-0">
+              Package #{String(packageNumber).padStart(2, '0')} · {step === 1 ? 'Setup' : 'Schedule'}
               {packageNote.trim() && <span className="normal-case tracking-normal text-neutral-400 ml-1">· {packageNote.trim()}</span>}
             </span>
             <button type="button" onClick={onClose} className="p-1.5 bg-white/[0.04] border border-white/[0.08] rounded-full text-neutral-500 active:scale-90 transition-all shrink-0">
@@ -220,7 +220,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
               {/* Buổi mua + Buổi tặng = Tổng */}
               <div className="flex items-end gap-2">
                 {/* Buổi mua */}
-                <FieldBlock label="Buổi mua">
+                <FieldBlock label="Purchased">
                   <input
                     type="number"
                     min="1"
@@ -236,7 +236,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                 <div className="pb-2.5 text-neutral-600 text-lg font-light shrink-0">+</div>
 
                 {/* Buổi tặng */}
-                <FieldBlock label="Buổi tặng">
+                <FieldBlock label="Bonus">
                   <input
                     type="number"
                     min="0"
@@ -252,7 +252,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                 <div className="pb-2.5 text-neutral-600 text-lg font-light shrink-0">=</div>
 
                 {/* Tổng */}
-                <FieldBlock label="Tổng">
+                <FieldBlock label="Total">
                   <div className="bg-white/[0.06] border border-white/[0.1] rounded-[14px] py-2.5 px-3 text-center">
                     <span className="text-white text-xl font-bold">{totalSessions || '—'}</span>
                   </div>
@@ -260,12 +260,12 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
               </div>
 
               {/* Giá tiền — coach gõ full VND, auto thêm "." */}
-              <FieldBlock label="Giá trị gói (₫)">
+              <FieldBlock label="Package Value (VND)">
                 <div className="relative">
                   <input
                     type="text"
                     inputMode="numeric"
-                    placeholder="Ví dụ: 15.000.000"
+                    placeholder="Example: 15.000.000"
                     value={priceInput}
                     onChange={e => {
                       const raw = e.target.value.replace(/\D/g, '');
@@ -284,7 +284,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
               </FieldBlock>
 
               {/* Ghi chú gói */}
-              <FieldBlock label="Ghi chú gói (tùy chọn)">
+              <FieldBlock label="Package Note (Optional)">
                 <input
                   type="text"
                   placeholder="VD: Chapter 1, Cutting, Bulking…"
@@ -295,14 +295,13 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                 />
               </FieldBlock>
 
-              {/* Cài lịch tập — disabled nếu buổi mua < 1 */}
               <button
                 type="button"
                 onClick={() => setStep(2)}
                 disabled={!step1Valid}
                 className="w-full bg-white text-black font-bold py-4 rounded-[18px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed mt-2"
               >
-                Cài lịch tập
+                Set Schedule
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -319,19 +318,19 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                 <div className="flex-1 flex items-center gap-4">
                   <div className="text-center">
                     <p className="text-white font-bold text-base">{sessionCount}</p>
-                    <p className="text-[8px] text-neutral-600 uppercase">Mua</p>
+                    <p className="text-[8px] text-neutral-600 uppercase">Base</p>
                   </div>
                   {bonusSessions > 0 && <>
                     <span className="text-neutral-700">+</span>
                     <div className="text-center">
                       <p className="text-purple-400 font-bold text-base">{bonusSessions}</p>
-                      <p className="text-[8px] text-neutral-600 uppercase">Tặng</p>
+                      <p className="text-[8px] text-neutral-600 uppercase">Bonus</p>
                     </div>
                   </>}
                   <span className="text-neutral-700">=</span>
                   <div className="text-center">
                     <p className="text-white font-bold text-base">{totalSessions}</p>
-                    <p className="text-[8px] text-emerald-500 uppercase">Tổng</p>
+                    <p className="text-[8px] text-emerald-500 uppercase">Total</p>
                   </div>
                 </div>
                 {priceFormatted && (
@@ -341,7 +340,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
 
               {/* Ngày bắt đầu */}
               <div>
-                <FieldBlock label="Ngày bắt đầu">
+                <FieldBlock label="Start Date">
                   <input
                     type="date"
                     value={startDate}
@@ -354,7 +353,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
 
               {/* Thời lượng */}
               <div>
-                <FieldBlock label="Thời lượng mỗi buổi">
+                <FieldBlock label="Session Length">
                   <div className="grid grid-cols-4 gap-2">
                     {DURATIONS.map(d => (
                       <button
@@ -373,7 +372,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
 
               {/* Ngày tập */}
               <div>
-                <FieldBlock label="Ngày tập hàng tuần">
+                <FieldBlock label="Weekly Training Days">
                   <div className="grid grid-cols-7 gap-1.5 mb-3">
                     {DAY_LABELS.map(({ day, short }) => (
                       <button
@@ -416,9 +415,9 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
               {previewSessions.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Preview · {previewSessions.length} buổi</span>
+                    <span className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Preview · {previewSessions.length} sessions</span>
                     {previewSessions.length === totalSessions && (
-                      <span className="text-[9px] font-black text-emerald-400">✓ Đủ {totalSessions} buổi</span>
+                      <span className="text-[9px] font-black text-emerald-400">Ready · {totalSessions} sessions</span>
                     )}
                   </div>
                   <div className="space-y-1.5 max-h-[160px] overflow-y-auto hide-scrollbar">
@@ -432,7 +431,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                     ))}
                   </div>
                   {previewSessions.length < totalSessions && (
-                    <p className="text-[10px] text-yellow-500/80 mt-2">⚠️ Chỉ tạo được {previewSessions.length}/{totalSessions} buổi</p>
+                    <p className="text-[10px] text-yellow-500/80 mt-2">Only {previewSessions.length}/{totalSessions} sessions can be generated with this schedule.</p>
                   )}
                 </div>
               )}
@@ -440,7 +439,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
               {schedule.length === 0 && (
                 <div className="text-center py-6 text-neutral-700">
                   <Calendar className="w-7 h-7 mx-auto mb-2 opacity-30" />
-                  <p className="text-[10px] font-black uppercase tracking-widest">Chọn ngày tập để xem preview</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest">Pick training days to preview the schedule</p>
                 </div>
               )}
 
@@ -452,7 +451,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                   className="flex-none px-5 py-3.5 bg-white/[0.04] border border-white/[0.08] rounded-[18px] text-white flex items-center gap-2 font-bold text-sm active:scale-95 transition-all"
                 >
                   <ChevronLeft className="w-4 h-4" />
-                  Quay lại
+                  Back
                 </button>
                 <button
                   type="button"
@@ -461,8 +460,8 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                   className="flex-1 bg-white text-black font-bold py-3.5 rounded-[18px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {isCreating
-                    ? <><RefreshCw className="w-4 h-4 animate-spin" /> Đang tạo...</>
-                    : <><CheckCircle2 className="w-4 h-4" /> Tạo gói</>
+                    ? <><RefreshCw className="w-4 h-4 animate-spin" /> Creating...</>
+                    : <><CheckCircle2 className="w-4 h-4" /> Create Package</>
                   }
                 </button>
               </div>
