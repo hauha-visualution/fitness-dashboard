@@ -158,14 +158,14 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
           {clients.length > 1 && (
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">
-                Client
+                Trainee
               </label>
               <select
                 value={form.clientId}
                 onChange={(event) => updateField('clientId', event.target.value)}
                 className="w-full rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none"
               >
-                <option value="" className="bg-[#101010]">Select client</option>
+                <option value="" className="bg-[#101010]">Select trainee</option>
                 {clients.map((client) => (
                   <option key={client.id} value={client.id} className="bg-[#101010]">
                     {client.name}
@@ -291,7 +291,7 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
 
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">
-              Detail
+              Details
             </label>
             <textarea
               rows={4}

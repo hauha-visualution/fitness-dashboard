@@ -36,8 +36,8 @@ const ClientHomeTab = ({ client, onLogout }) => {
             textClassName="text-sm font-black text-blue-300"
           />
           <div>
-            <p className="text-[10px] font-black text-neutral-600 uppercase tracking-widest">Xin chào 👋</p>
-            <h2 className="text-white font-medium text-lg leading-tight">{client?.name || 'Học viên'}</h2>
+            <p className="text-[10px] font-black text-neutral-600 uppercase tracking-widest">Welcome 👋</p>
+            <h2 className="text-white font-medium text-lg leading-tight">{client?.name || 'Trainee'}</h2>
           </div>
         </div>
         <button
@@ -59,15 +59,15 @@ const ClientHomeTab = ({ client, onLogout }) => {
       {/* Card gói tập */}
       <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] border border-white/10 rounded-[28px] p-6 relative overflow-hidden">
         <Zap className="absolute -right-3 -top-3 w-20 h-20 text-white/[0.04]" />
-        <p className="text-[9px] font-black text-neutral-500 uppercase tracking-widest mb-3">Gói tập hiện tại</p>
+        <p className="text-[9px] font-black text-neutral-500 uppercase tracking-widest mb-3">Current Package</p>
         <div className="flex items-end justify-between mb-4">
           <div>
             <p className="text-3xl font-light text-white">{remaining}</p>
-            <p className="text-[9px] font-black text-neutral-600 uppercase mt-0.5">Buổi còn lại</p>
+            <p className="text-[9px] font-black text-neutral-600 uppercase mt-0.5">Sessions Left</p>
           </div>
           <div className="text-right">
             <p className="text-lg font-light text-neutral-400">{total}</p>
-            <p className="text-[9px] font-black text-neutral-600 uppercase mt-0.5">Tổng buổi</p>
+            <p className="text-[9px] font-black text-neutral-600 uppercase mt-0.5">Total Sessions</p>
           </div>
         </div>
         {/* Progress bar */}
@@ -99,7 +99,7 @@ const ClientHomeTab = ({ client, onLogout }) => {
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-[20px] p-4 flex items-center gap-3">
           <Bell className="w-5 h-5 text-yellow-400 shrink-0" />
           <div>
-            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-0.5">Cam kết</p>
+            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-0.5">Commitment</p>
             <p className="text-white text-sm">{client.commitmentlevel}</p>
           </div>
         </div>
@@ -110,7 +110,7 @@ const ClientHomeTab = ({ client, onLogout }) => {
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-[20px] p-4 flex items-center gap-3">
           <Clock className="w-5 h-5 text-blue-400 shrink-0" />
           <div>
-            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-0.5">Thời gian tập</p>
+            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-0.5">Training Time</p>
             <p className="text-white text-sm">{client.trainingtime}</p>
           </div>
         </div>

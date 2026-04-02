@@ -63,7 +63,7 @@ const WorkoutPlayer = ({ sessionData, client, onFinish, onBack }) => {
             </div>
             <div className="flex-1">
               <h4 className={`text-sm font-medium transition-all ${ex.done ? 'text-neutral-500 line-through' : 'text-white'}`}>{ex.name}</h4>
-              <p className="text-[10px] text-neutral-500 font-bold mt-1 uppercase tracking-wider">{ex.sets} Sets • {ex.weight}kg</p>
+              <p className="text-[10px] text-neutral-500 font-bold mt-1 uppercase tracking-wider">{ex.sets} sets • {ex.weight} kg</p>
             </div>
             <ChevronRight className="w-4 h-4 text-neutral-800" />
           </div>
@@ -76,7 +76,7 @@ const WorkoutPlayer = ({ sessionData, client, onFinish, onBack }) => {
           onClick={() => onFinish(seconds)}
           className="w-full bg-white text-black font-black py-5 rounded-[26px] flex items-center justify-center gap-2 shadow-[0_10px_50px_rgba(255,255,255,0.15)] active:scale-95 transition-all"
         >
-          <Flag className="w-5 h-5 fill-current"/> FINISH & SAVE SESSION
+          <Flag className="w-5 h-5 fill-current"/> Finish & Save Session
         </button>
       </div>
     </div>

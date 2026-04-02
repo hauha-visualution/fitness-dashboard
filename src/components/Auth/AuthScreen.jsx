@@ -127,12 +127,12 @@ const AuthScreen = ({ onLogin }) => {
           <h1 className="text-2xl font-medium text-white tracking-tight">Aesthetics Hub</h1>
           <p className="text-neutral-500 text-[10px] font-black uppercase tracking-widest mt-2">
             {role === 'coach'
-              ? (isRegister ? 'Coach Registration' : 'Coach Portal Access')
-              : 'Học Viên Portal'}
+              ? (isRegister ? 'Coach Sign Up' : 'Coach Sign In')
+              : 'Trainee Sign In'}
           </p>
         </div>
 
-        {/* Role Toggle: Coach / Học viên */}
+        {/* Role Toggle: Coach / Trainee */}
         <div className="flex bg-white/[0.03] border border-white/[0.06] p-1.5 rounded-[28px] mb-5 gap-1">
           <button
             type="button"
@@ -156,7 +156,7 @@ const AuthScreen = ({ onLogin }) => {
             }`}
           >
             <Users className="w-3.5 h-3.5" />
-            Học viên
+            Trainee
           </button>
         </div>
 
@@ -182,7 +182,7 @@ const AuthScreen = ({ onLogin }) => {
               <User className="w-5 h-5 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder={role === 'coach' ? 'Coach username' : 'Số điện thoại (0901234567)'}
+                placeholder={role === 'coach' ? 'Coach username' : 'Phone number (e.g. 0901234567)'}
                 required
                 value={username}
                 onChange={(e) => { setUsername(e.target.value); setError(''); }}
@@ -193,7 +193,7 @@ const AuthScreen = ({ onLogin }) => {
               <Lock className="w-5 h-5 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
               <input
                 type="password"
-                placeholder={role === 'client' ? 'Mật khẩu (coach đã cấp)' : (isRegister ? 'Tạo mật khẩu (≥6 ký tự)' : 'Password')}
+                placeholder={role === 'client' ? 'Password provided by coach' : (isRegister ? 'Create a password (at least 6 characters)' : 'Password')}
                 required
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(''); }}
@@ -223,8 +223,8 @@ const AuthScreen = ({ onLogin }) => {
                 ? <RefreshCw className="w-4 h-4 animate-spin" />
                 : <>
                     {role === 'coach'
-                      ? (isRegister ? 'Tạo Tài Khoản Coach' : 'Access Portal')
-                      : 'Đăng Nhập'}
+                      ? (isRegister ? 'Create a Coach account' : 'Sign In')
+                      : 'Sign In'}
                     <ArrowLeft className="w-4 h-4 rotate-180" />
                   </>
               }
@@ -241,7 +241,7 @@ const AuthScreen = ({ onLogin }) => {
               >
                 {isRegister
                   ? '← Đã có tài khoản? Đăng nhập'
-                  : 'Coach mới? Đăng ký tài khoản →'}
+                  : 'New coach here? Create an account'}
               </button>
             </div>
           )}

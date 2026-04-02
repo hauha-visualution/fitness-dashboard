@@ -150,7 +150,7 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
       {/* Header */}
       <div className="sticky top-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-2xl -mx-6 px-6 pt-6 pb-4 border-b border-white/[0.05] flex justify-between items-center">
          <button onClick={onBack} className="p-3 bg-white/[0.05] border border-white/10 rounded-full text-white active:scale-90 transition-all"><ArrowLeft className="w-5 h-5" /></button>
-         <h2 className="text-[10px] font-black tracking-[0.2em] text-white/40 uppercase">Onboarding Form</h2>
+         <h2 className="text-[10px] font-black tracking-[0.2em] text-white/40 uppercase">New Trainee Form</h2>
          <button onClick={handleSyncAPI} className={`p-3 rounded-full text-blue-400 bg-blue-500/10 border border-blue-500/20 ${isSyncing ? 'animate-spin' : ''}`}>
             <RefreshCw className="w-5 h-5" />
          </button>
@@ -160,7 +160,7 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
         {/* Nhóm 1: Cơ bản */}
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
           <div onClick={() => toggleSection('basic')} className="p-5 flex justify-between items-center cursor-pointer">
-            <div className="flex items-center gap-2"><User className="w-4 h-4 text-emerald-400" /><h3 className="text-white text-sm font-medium">1. Cá nhân (*)</h3></div>
+            <div className="flex items-center gap-2"><User className="w-4 h-4 text-emerald-400" /><h3 className="text-white text-sm font-medium">1. Personal Information (*)</h3></div>
             <ChevronDown className={`w-4 h-4 text-neutral-500 transition-transform ${expandedSection === 'basic' ? 'rotate-180' : ''}`} />
           </div>
           {expandedSection === 'basic' && (
@@ -224,7 +224,7 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
         {/* Nhóm 2: Mục tiêu */}
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
           <div onClick={() => toggleSection('goals')} className="p-5 flex justify-between items-center cursor-pointer">
-            <div className="flex items-center gap-2"><Target className="w-4 h-4 text-blue-400" /><h3 className="text-white text-sm font-medium">2. Mục tiêu & Lifestyle</h3></div>
+            <div className="flex items-center gap-2"><Target className="w-4 h-4 text-blue-400" /><h3 className="text-white text-sm font-medium">2. Goals & Lifestyle</h3></div>
             <ChevronDown className={`w-4 h-4 text-neutral-500 transition-transform ${expandedSection === 'goals' ? 'rotate-180' : ''}`} />
           </div>
           {expandedSection === 'goals' && (
@@ -240,7 +240,7 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
         {/* Nhóm 3: Dinh dưỡng */}
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
           <div onClick={() => toggleSection('nutrition')} className="p-5 flex justify-between items-center cursor-pointer">
-            <div className="flex items-center gap-2"><Utensils className="w-4 h-4 text-orange-400" /><h3 className="text-white text-sm font-medium">3. Dinh dưỡng</h3></div>
+            <div className="flex items-center gap-2"><Utensils className="w-4 h-4 text-orange-400" /><h3 className="text-white text-sm font-medium">3. Nutrition</h3></div>
             <ChevronDown className={`w-4 h-4 text-neutral-500 transition-transform ${expandedSection === 'nutrition' ? 'rotate-180' : ''}`} />
           </div>
           {expandedSection === 'nutrition' && (
@@ -260,7 +260,7 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
         {/* Nhóm 4: Y tế */}
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
           <div onClick={() => toggleSection('health')} className="p-5 flex justify-between items-center cursor-pointer">
-            <div className="flex items-center gap-2"><HeartPulse className="w-4 h-4 text-red-400" /><h3 className="text-white text-sm font-medium">4. Y tế & Cam kết</h3></div>
+            <div className="flex items-center gap-2"><HeartPulse className="w-4 h-4 text-red-400" /><h3 className="text-white text-sm font-medium">4. Health & Commitment</h3></div>
             <ChevronDown className={`w-4 h-4 text-neutral-500 transition-transform ${expandedSection === 'health' ? 'rotate-180' : ''}`} />
           </div>
           {expandedSection === 'health' && (
@@ -278,7 +278,7 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
 
         <button onClick={handleSave} disabled={isSaving} className={`w-full text-black font-black py-5 rounded-[24px] flex items-center justify-center gap-2 shadow-2xl transition-all mt-4 ${isSaving ? 'bg-neutral-500' : 'bg-white hover:scale-[1.02] active:scale-95'}`}>
           {isSaving ? <RefreshCw className="animate-spin w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />} 
-          {isSaving ? 'SAVING...' : 'ADD CLIENT'}
+          {isSaving ? 'Saving...' : 'Add Trainee'}
         </button>
       </div>
     </div>

@@ -63,9 +63,9 @@ export default function App() {
 
   const coachTabs = [
     { id: 'home', label: 'Home', icon: Home },
-    { id: 'templates', label: 'Templates', icon: Library },
+    { id: 'templates', label: 'Workout Templates', icon: Library },
     { id: 'quick_log', label: 'Start', icon: PersonStanding, isAction: true },
-    { id: 'clients', label: 'Members', icon: Users },
+    { id: 'clients', label: 'Trainees', icon: Users },
     { id: 'payments', label: 'Payments', icon: Wallet },
   ];
 
@@ -269,8 +269,8 @@ export default function App() {
     return (
       <div className="bg-black h-dvh flex justify-center items-center px-6">
         <div className="text-center">
-          <p className="text-neutral-400 text-sm mb-4">Tài khoản chưa được liên kết.</p>
-          <p className="text-neutral-600 text-xs mb-6">Liên hệ coach của bạn để được cấp quyền truy cập.</p>
+          <p className="text-neutral-400 text-sm mb-4">Your account is not linked yet.</p>
+          <p className="text-neutral-600 text-xs mb-6">Please contact your coach for access.</p>
           <button
             onClick={handleLogout}
             className="px-6 py-3 bg-white/5 border border-white/10 rounded-full text-white text-xs hover:bg-white/10 transition-all"

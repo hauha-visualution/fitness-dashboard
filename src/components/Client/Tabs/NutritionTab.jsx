@@ -485,14 +485,14 @@ const NutritionTab = ({ client, readOnly = false }) => {
     { label: 'Calories', value: targets.calories ? `${targets.calories}` : '--', hint: 'kcal/ngày', tone: 'text-orange-200', icon: Flame },
     { label: 'Protein', value: targets.protein ? `${targets.protein}` : '--', hint: 'g/ngày', tone: 'text-blue-200', icon: Target },
     { label: 'Water', value: targets.water ? `${targets.water}` : '--', hint: 'l/ngày', tone: 'text-cyan-200', icon: Droplets },
-    { label: 'Step target', value: targets.stepTarget || '--', hint: 'bám hoạt động nền', tone: 'text-emerald-200', icon: Footprints },
+    { label: 'Step Target', value: targets.stepTarget || '--', hint: 'bám hoạt động nền', tone: 'text-emerald-200', icon: Footprints },
   ];
   const targetSummaryCards = [
     { label: 'Carbs', value: targets.carbs ? `${targets.carbs} g/ngày` : '' },
     { label: 'Fat', value: targets.fat ? `${targets.fat} g/ngày` : '' },
     { label: 'Chất xơ', value: targets.fiber ? `${targets.fiber} g/ngày` : '' },
-    { label: 'Supplement protocol', value: targets.supplementsPlan },
-    { label: 'Nutrition strategy', value: targets.strategyNotes },
+    { label: 'Supplement Protocol', value: targets.supplementsPlan },
+    { label: 'Nutrition Strategy', value: targets.strategyNotes },
   ];
   const mealPlanDays = plan.days || [];
   const activeMealDay = mealPlanDays[activeMealDayIndex] || mealPlanDays[0] || null;
@@ -533,7 +533,7 @@ const NutritionTab = ({ client, readOnly = false }) => {
         key={card.label}
         label={card.label}
         value={card.value}
-        className={card.label === 'Nutrition strategy' ? 'col-span-2' : ''}
+        className={card.label === 'Nutrition Strategy' ? 'col-span-2' : ''}
       />
     ))}
             </div>
@@ -574,7 +574,7 @@ const NutritionTab = ({ client, readOnly = false }) => {
             />
             <EditableMetricCard
               icon={Footprints}
-              label="Step target"
+              label="Step Target"
               value={targets.stepTarget}
               hint="bám hoạt động nền"
               tone="text-emerald-200"
@@ -606,14 +606,14 @@ const NutritionTab = ({ client, readOnly = false }) => {
               onChange={(value) => setTargets((prev) => ({ ...prev, fiber: value }))}
             />
             <EditableDataSquareCard
-              label="Supplement protocol"
+              label="Supplement Protocol"
               value={targets.supplementsPlan}
               placeholder="Ví dụ: whey post-workout, creatine 5g/ngày..."
               multiline
               onChange={(value) => setTargets((prev) => ({ ...prev, supplementsPlan: value }))}
             />
             <EditableDataSquareCard
-              label="Nutrition strategy"
+              label="Nutrition Strategy"
               value={targets.strategyNotes}
               placeholder="Ví dụ: ưu tiên carb quanh giờ tập, giữ bữa tối nhẹ..."
               multiline
@@ -642,12 +642,12 @@ const NutritionTab = ({ client, readOnly = false }) => {
           {readOnly || !isEditingPlan ? (
             <>
               <ReadOnlyBlock label="Mục tiêu tuần này" value={plan.focus} />
-              <ReadOnlyBlock label="Coach note" value={plan.coachingNotes} />
+              <ReadOnlyBlock label="Coach Notes" value={plan.coachingNotes} />
             </>
           ) : (
             <>
               <TextAreaField label="Mục tiêu tuần này" value={plan.focus} onChange={(value) => setPlan((prev) => ({ ...prev, focus: value }))} placeholder="Ví dụ: giữ deficit ổn định, ưu tiên protein đủ, giảm ăn vặt sau 9PM..." rows={3} />
-              <TextAreaField label="Coach note" value={plan.coachingNotes} onChange={(value) => setPlan((prev) => ({ ...prev, coachingNotes: value }))} placeholder="Ăn ngoài, social meal, lưu ý lịch tập..." rows={2} />
+              <TextAreaField label="Coach Notes" value={plan.coachingNotes} onChange={(value) => setPlan((prev) => ({ ...prev, coachingNotes: value }))} placeholder="Ăn ngoài, social meal, lưu ý lịch tập..." rows={2} />
             </>
           )}
         </div>
@@ -692,14 +692,14 @@ const NutritionTab = ({ client, readOnly = false }) => {
                   <ReadOnlyBlock label="Breakfast" value={activeMealDay.breakfast} />
                   <ReadOnlyBlock label="Lunch" value={activeMealDay.lunch} />
                   <ReadOnlyBlock label="Dinner" value={activeMealDay.dinner} />
-                  <ReadOnlyBlock label="Snack / Pre-post workout" value={activeMealDay.snack} />
+                  <ReadOnlyBlock label="Snack / Pre-post Workout" value={activeMealDay.snack} />
                 </div>
               ) : !isEditingPlan ? (
                 <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
                   <ReadOnlyBlock label="Breakfast" value={activeMealDay.breakfast} />
                   <ReadOnlyBlock label="Lunch" value={activeMealDay.lunch} />
                   <ReadOnlyBlock label="Dinner" value={activeMealDay.dinner} />
-                  <ReadOnlyBlock label="Snack / Pre-post workout" value={activeMealDay.snack} />
+                  <ReadOnlyBlock label="Snack / Pre-post Workout" value={activeMealDay.snack} />
                 </div>
               ) : (
                 <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
@@ -707,7 +707,7 @@ const NutritionTab = ({ client, readOnly = false }) => {
                   <TextAreaField label="Breakfast" value={activeMealDay.breakfast} onChange={(value) => updatePlanDay(activeMealDayIndex, 'breakfast', value)} placeholder="Ví dụ: Greek yogurt + berries + whey..." rows={2} />
                   <TextAreaField label="Lunch" value={activeMealDay.lunch} onChange={(value) => updatePlanDay(activeMealDayIndex, 'lunch', value)} placeholder="Ví dụ: ức gà + cơm + rau xanh..." rows={2} />
                   <TextAreaField label="Dinner" value={activeMealDay.dinner} onChange={(value) => updatePlanDay(activeMealDayIndex, 'dinner', value)} placeholder="Ví dụ: cá hồi + khoai + salad..." rows={2} />
-                  <TextAreaField label="Snack / Pre-post workout" value={activeMealDay.snack} onChange={(value) => updatePlanDay(activeMealDayIndex, 'snack', value)} placeholder="Ví dụ: chuối + whey / rice cake + peanut butter..." rows={2} />
+                  <TextAreaField label="Snack / Pre-post Workout" value={activeMealDay.snack} onChange={(value) => updatePlanDay(activeMealDayIndex, 'snack', value)} placeholder="Ví dụ: chuối + whey / rice cake + peanut butter..." rows={2} />
                 </div>
               )}
             </div>
@@ -724,7 +724,7 @@ const NutritionTab = ({ client, readOnly = false }) => {
 
       <SectionCard
         icon={CalendarDays}
-        title="Nutrition Check-In"
+        title="Nutrition Review"
         accentClassName="text-yellow-200"
         action={
           !readOnly ? (
@@ -772,7 +772,7 @@ const NutritionTab = ({ client, readOnly = false }) => {
             <div className="mt-2.5 grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
               <TextAreaField label="Wins" value={checkinForm.wins} onChange={(value) => setCheckinForm((prev) => ({ ...prev, wins: value }))} placeholder="Điểm làm tốt: đủ protein, ăn đúng plan, ít thèm ngọt..." rows={3} />
               <TextAreaField label="Blockers" value={checkinForm.blockers} onChange={(value) => setCheckinForm((prev) => ({ ...prev, blockers: value }))} placeholder="Vướng mắc: tiệc, stress, ngủ kém, đói đêm..." rows={3} />
-              <TextAreaField label="Coach adjustments" value={checkinForm.coach_adjustments} onChange={(value) => setCheckinForm((prev) => ({ ...prev, coach_adjustments: value }))} placeholder="Điều chỉnh tuần sau: tăng carb ngày tập, đổi snack, thêm meal prep..." rows={3} />
+              <TextAreaField label="Coach Adjustments" value={checkinForm.coach_adjustments} onChange={(value) => setCheckinForm((prev) => ({ ...prev, coach_adjustments: value }))} placeholder="Điều chỉnh tuần sau: tăng carb ngày tập, đổi snack, thêm meal prep..." rows={3} />
             </div>
 
           </div>
@@ -810,7 +810,7 @@ const NutritionTab = ({ client, readOnly = false }) => {
                   </div>
 
                   <div className="mt-2.5 grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
-                    <ReadOnlyBlock label="Recovery signals" value={[
+                    <ReadOnlyBlock label="Recovery Signals" value={[
                       latestCheckin?.hunger_score ? `Hunger ${latestCheckin.hunger_score}/10` : '',
                       latestCheckin?.energy_score ? `Energy ${latestCheckin.energy_score}/10` : '',
                       latestCheckin?.digestion_score ? `Digestion ${latestCheckin.digestion_score}/10` : '',
@@ -818,7 +818,7 @@ const NutritionTab = ({ client, readOnly = false }) => {
                     ].filter(Boolean).join(' · ')} />
                     <ReadOnlyBlock label="Wins" value={latestCheckin?.wins} />
                     <ReadOnlyBlock label="Blockers" value={latestCheckin?.blockers} />
-                    <ReadOnlyBlock label="Coach adjustments" value={latestCheckin?.coach_adjustments} />
+                    <ReadOnlyBlock label="Coach Adjustments" value={latestCheckin?.coach_adjustments} />
                   </div>
                 </div>
 
@@ -878,19 +878,19 @@ const NutritionTab = ({ client, readOnly = false }) => {
         <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
           {readOnly ? (
             <>
-              <ReadOnlyBlock label="Shopping list" value={prep.shoppingList} />
-              <ReadOnlyBlock label="Batch cooking" value={prep.batchCooking} />
-              <ReadOnlyBlock label="Pantry staples" value={prep.pantryStaples} />
-              <ReadOnlyBlock label="Eating-out rules" value={prep.eatingOutRules} />
-              <ReadOnlyBlock label="Coach notes" value={prep.coachNotes} />
+              <ReadOnlyBlock label="Shopping List" value={prep.shoppingList} />
+              <ReadOnlyBlock label="Batch Cooking" value={prep.batchCooking} />
+              <ReadOnlyBlock label="Pantry Staples" value={prep.pantryStaples} />
+              <ReadOnlyBlock label="Eating-out Rules" value={prep.eatingOutRules} />
+              <ReadOnlyBlock label="Coach Notes" value={prep.coachNotes} />
             </>
           ) : (
             <>
-              <TextAreaField label="Shopping list" value={prep.shoppingList} onChange={(value) => setPrep((prev) => ({ ...prev, shoppingList: value }))} placeholder="Ức gà, trứng, sữa chua Hy Lạp, rau xanh, berries..." rows={4} />
-              <TextAreaField label="Batch cooking" value={prep.batchCooking} onChange={(value) => setPrep((prev) => ({ ...prev, batchCooking: value }))} placeholder="Chủ nhật prep 3 hộp lunch, luộc sẵn trứng, chia sẵn snack..." rows={4} />
-              <TextAreaField label="Pantry staples" value={prep.pantryStaples} onChange={(value) => setPrep((prev) => ({ ...prev, pantryStaples: value }))} placeholder="Yến mạch, gạo, gia vị không đường, whey, tuna..." rows={4} />
-              <TextAreaField label="Eating-out rules" value={prep.eatingOutRules} onChange={(value) => setPrep((prev) => ({ ...prev, eatingOutRules: value }))} placeholder="Ưu tiên món nướng/hấp, xin sauce riêng, 1 social meal/tuần..." rows={4} />
-              <TextAreaField label="Coach notes" value={prep.coachNotes} onChange={(value) => setPrep((prev) => ({ ...prev, coachNotes: value }))} placeholder="Lưu ý logistics, budget, travel week, món thay thế nhanh..." rows={4} />
+              <TextAreaField label="Shopping List" value={prep.shoppingList} onChange={(value) => setPrep((prev) => ({ ...prev, shoppingList: value }))} placeholder="Ức gà, trứng, sữa chua Hy Lạp, rau xanh, berries..." rows={4} />
+              <TextAreaField label="Batch Cooking" value={prep.batchCooking} onChange={(value) => setPrep((prev) => ({ ...prev, batchCooking: value }))} placeholder="Chủ nhật prep 3 hộp lunch, luộc sẵn trứng, chia sẵn snack..." rows={4} />
+              <TextAreaField label="Pantry Staples" value={prep.pantryStaples} onChange={(value) => setPrep((prev) => ({ ...prev, pantryStaples: value }))} placeholder="Yến mạch, gạo, gia vị không đường, whey, tuna..." rows={4} />
+              <TextAreaField label="Eating-out Rules" value={prep.eatingOutRules} onChange={(value) => setPrep((prev) => ({ ...prev, eatingOutRules: value }))} placeholder="Ưu tiên món nướng/hấp, xin sauce riêng, 1 social meal/tuần..." rows={4} />
+              <TextAreaField label="Coach Notes" value={prep.coachNotes} onChange={(value) => setPrep((prev) => ({ ...prev, coachNotes: value }))} placeholder="Lưu ý logistics, budget, travel week, món thay thế nhanh..." rows={4} />
             </>
           )}
         </div>
@@ -898,7 +898,7 @@ const NutritionTab = ({ client, readOnly = false }) => {
 
       <SectionCard
         icon={Archive}
-        title="Nutrition Info"
+        title="Archive"
         accentClassName="text-neutral-300"
         action={!readOnly ? <IconButton onClick={handleSyncIntakeProfile} isSaving={isSyncingIntake} icon={RefreshCw} /> : null}
       >

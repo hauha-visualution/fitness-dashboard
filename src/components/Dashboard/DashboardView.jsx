@@ -167,7 +167,7 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
       <div className="px-5 mb-5 shrink-0">
         <div className="bg-white/[0.03] border border-white/[0.05] rounded-[16px] p-4 flex justify-between items-center">
           <div className="text-center flex-1">
-            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-1">Buổi/tháng</p>
+            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-1">Sessions This Month</p>
             <p className="text-3xl font-light text-blue-400">{stats.monthly}</p>
           </div>
           <div className="w-px h-10 bg-white/[0.05]"></div>
@@ -177,7 +177,7 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
           </div>
           <div className="w-px h-10 bg-white/[0.05]"></div>
           <div className="text-center flex-1">
-            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-1">Hôm nay</p>
+            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-1">Today</p>
             <p className="text-3xl font-light text-white">{stats.todayTotal}</p>
           </div>
         </div>
@@ -194,7 +194,7 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
               <ChevronLeft className="w-3.5 h-3.5 text-white" />
             </button>
             <button onClick={() => { setWeekStart(getWeekStart(today)); setSelectedDate(today); }} className="px-3 py-1 bg-white/[0.05] rounded-full text-[10px] font-black text-neutral-400 uppercase tracking-wider hover:bg-white/10 transition-colors">
-              Hôm nay
+              Today
             </button>
             <button onClick={() => setWeekStart(addDays(weekStart, 7))} className="p-1.5 bg-white/[0.05] rounded-full hover:bg-white/10 transition-colors">
               <ChevronRight className="w-3.5 h-3.5 text-white" />
@@ -225,7 +225,7 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
       {/* 4. SESSIONS LIST */}
       <div className="px-5 mb-3 flex items-center justify-between shrink-0">
         <div>
-          <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Danh sách buổi tập</p>
+          <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Sessions Schedule</p>
           <p className="text-xs text-neutral-400 font-medium mt-0.5">{DAY_VI[selectedDate.getDay()]} {String(selectedDate.getDate()).padStart(2,'0')}/{String(selectedDate.getMonth()+1).padStart(2,'0')}</p>
         </div>
         {loading && <RefreshCw className="w-3.5 h-3.5 text-neutral-600 animate-spin" />}
@@ -235,7 +235,7 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
         {!loading && selectedSessions.length === 0 && (
           <div className="text-center py-12 animate-slide-up">
             <Dumbbell className="w-8 h-8 mx-auto mb-3 text-neutral-800" />
-            <p className="text-[10px] font-black text-neutral-700 uppercase tracking-widest">Trống lịch</p>
+            <p className="text-[10px] font-black text-neutral-700 uppercase tracking-widest">No sessions scheduled</p>
           </div>
         )}
 

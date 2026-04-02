@@ -9,8 +9,8 @@ const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading }) => {
       {/* HEADER */}
       <div className="flex justify-between items-center mb-8 shrink-0">
          <div>
-           <h1 className="text-2xl font-medium text-white tracking-tight">Client Pool</h1>
-           <p className="text-neutral-500 text-[10px] font-black uppercase tracking-widest mt-1">Total: {clients.length} Active</p>
+           <h1 className="text-2xl font-medium text-white tracking-tight">Trainee List</h1>
+           <p className="text-neutral-500 text-[10px] font-black uppercase tracking-widest mt-1">Total: {clients.length} trainees</p>
          </div>
          <button 
           onClick={onOpenAdd} 
@@ -23,12 +23,12 @@ const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading }) => {
       {isLoading ? (
         <div className="flex flex-col items-center justify-center h-64 mt-10">
           <RefreshCw className="w-8 h-8 mb-4 text-blue-500 animate-spin" />
-          <p className="text-sm text-neutral-400">Đang tải dữ liệu...</p>
+          <p className="text-sm text-neutral-400">Loading data...</p>
         </div>
       ) : clients.length === 0 ? (
          <div className="flex flex-col items-center justify-center h-64 text-center mt-10">
            <Users className="w-12 h-12 mb-4 text-neutral-800" />
-           <p className="text-sm text-neutral-500 font-medium">Chưa có khách hàng trong danh sách.</p>
+           <p className="text-sm text-neutral-500 font-medium">No trainees in the list yet.</p>
          </div>
       ) : (
          <div className="space-y-4">
@@ -55,12 +55,12 @@ const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading }) => {
                     {c.package.remaining === '--' ? (
                       <div className="flex gap-1.5 items-center bg-white/[0.02] border border-white/[0.05] px-3 py-1.5 rounded-full">
                          <Package className="w-2.5 h-2.5 text-neutral-600" />
-                         <span className="text-[8px] font-black text-neutral-600 uppercase tracking-tighter">Unactivated</span>
+                         <span className="text-[8px] font-black text-neutral-600 uppercase tracking-tighter">Not Activated</span>
                       </div>
                     ) : (
                       <div className="flex flex-col items-end">
                         <p className="text-[8px] font-black text-neutral-500 uppercase tracking-widest">Remaining</p>
-                        <p className="text-xs font-bold text-white mt-0.5">{c.package.remaining} Sessions</p>
+                        <p className="text-xs font-bold text-white mt-0.5">{c.package.remaining} sessions</p>
                       </div>
                     )}
                  </div>

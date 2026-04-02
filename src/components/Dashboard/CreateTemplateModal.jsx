@@ -248,7 +248,7 @@ const CreateTemplateModal = ({ onClose, onCreated, session, initialTemplate = nu
 
            {/* Section 2: Assign To */}
            <div>
-             <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Áp dụng cho học viên</label>
+             <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Assigned To</label>
              <div className="flex flex-wrap gap-2">
                {clients.map(c => {
                  const isSel = selectedClientIds.includes(c.id);
@@ -264,7 +264,7 @@ const CreateTemplateModal = ({ onClose, onCreated, session, initialTemplate = nu
 
            {/* Section 3: Exercises List */}
            <div>
-             <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Danh sách bài tập ({exercises.length})</label>
+             <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Exercise List ({exercises.length})</label>
              
              <div className="space-y-3">
                {exercises.map((ex, idx) => (
@@ -279,7 +279,7 @@ const CreateTemplateModal = ({ onClose, onCreated, session, initialTemplate = nu
 
                    <div className="pl-6 grid grid-cols-3 gap-2">
                      <div className="bg-white/[0.04] border border-white/[0.08] rounded-[10px] px-2 py-1.5">
-                       <div className="text-[8px] font-black text-neutral-600 uppercase text-center">Set</div>
+                       <div className="text-[8px] font-black text-neutral-600 uppercase text-center">Sets</div>
                        <div className="mt-1 flex items-center justify-between gap-1">
                          <button type="button" onClick={() => updateExercise(ex.id, 'sets', Math.max(1, ex.sets - 1))} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all">-</button>
                          <span className="min-w-[14px] text-center text-white text-[11px] font-semibold">{ex.sets}</span>
@@ -287,7 +287,7 @@ const CreateTemplateModal = ({ onClose, onCreated, session, initialTemplate = nu
                        </div>
                      </div>
                      <div className="bg-white/[0.04] border border-white/[0.08] rounded-[10px] px-2 py-1.5">
-                       <div className="text-[8px] font-black text-neutral-600 uppercase text-center">Rep</div>
+                       <div className="text-[8px] font-black text-neutral-600 uppercase text-center">Reps</div>
                        <div className="mt-1 flex items-center justify-between gap-1">
                          <button type="button" onClick={() => updateExercise(ex.id, 'reps', Math.max(1, ex.reps - 1))} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all">-</button>
                          <span className="min-w-[20px] text-center text-white text-[11px] font-semibold">{ex.reps}</span>

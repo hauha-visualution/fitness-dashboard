@@ -114,7 +114,7 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
       key: 'photos',
       icon: Image,
       label: 'Cập nhật ảnh',
-      sublabel: 'BEFORE / AFTER',
+      sublabel: 'Progress Photos',
       onClick: () => profileActions?.openPhotos?.(),
     },
     {

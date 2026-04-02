@@ -154,7 +154,7 @@ const CoachPaymentsView = ({ clients = [] }) => {
     {
       label: 'Submitted',
       value: `${payments.filter((payment) => payment.status === 'submitted').length}`,
-      caption: 'Need confirm',
+      caption: 'Awaiting confirmation',
       classes: 'border-amber-500/20 bg-amber-500/[0.06]',
       textClass: 'text-amber-300/80',
       icon: RefreshCw,
@@ -163,14 +163,14 @@ const CoachPaymentsView = ({ clients = [] }) => {
     {
       label: 'Paid',
       value: showExactTotals ? fmtVND(totalPaid) : fmtVNDAbridged(totalPaid),
-      caption: `${payments.filter((payment) => payment.status === 'paid').length} done`,
+      caption: `${payments.filter((payment) => payment.status === 'paid').length} Paid`,
       classes: 'border-emerald-500/20 bg-emerald-500/[0.06]',
       textClass: 'text-emerald-300/80',
       icon: CheckCircle2,
       isCurrency: true,
     },
     {
-      label: 'Void',
+      label: 'Voided',
       value: `${totalCancelled}`,
       caption: 'Cancelled',
       classes: 'border-white/[0.08] bg-white/[0.03]',
@@ -322,7 +322,7 @@ const CoachPaymentsView = ({ clients = [] }) => {
                       </div>
 
                       <div className="flex items-center gap-2 text-white">
-                        <p className="font-semibold truncate">{client?.name || 'Học viên'}</p>
+                        <p className="font-semibold truncate">{client?.name || 'Trainee'}</p>
                         <span className="text-neutral-600">·</span>
                         <span className="truncate">{title}</span>
                       </div>

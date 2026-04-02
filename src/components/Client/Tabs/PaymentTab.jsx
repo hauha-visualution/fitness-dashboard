@@ -147,7 +147,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
     {
       label: 'Khách báo chuyển',
       value: `${submittedPayments.length}`,
-      caption: 'Need confirm',
+      caption: 'Awaiting confirmation',
       classes: 'border-amber-500/20 bg-amber-500/[0.06]',
       textClass: 'text-amber-300/80',
       icon: RefreshCw,
@@ -156,7 +156,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
     {
       label: 'Đã thanh toán',
       value: showExactTotals ? fmtVND(totalPaid) : fmtVNDAbridged(totalPaid),
-      caption: `${payments.filter((payment) => payment.status === 'paid').length} done`,
+      caption: `${payments.filter((payment) => payment.status === 'paid').length} Paid`,
       classes: 'border-emerald-500/20 bg-emerald-500/[0.06]',
       textClass: 'text-emerald-300/80',
       icon: CheckCircle2,
@@ -165,7 +165,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
     {
       label: 'Đã hủy',
       value: `${totalCancelled}`,
-      caption: 'Void',
+      caption: 'Voided',
       classes: 'border-white/[0.08] bg-white/[0.03]',
       textClass: 'text-neutral-400',
       icon: X,
