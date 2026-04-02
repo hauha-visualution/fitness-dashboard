@@ -2,9 +2,14 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Archive,
   CalendarDays,
+  ChevronDown,
   CheckCircle2,
   ChefHat,
   ClipboardList,
+  Droplets,
+  Edit3,
+  Flame,
+  Footprints,
   RefreshCw,
   Save,
   ShoppingCart,
@@ -15,45 +20,20 @@ import { supabase } from '../../../supabaseClient';
 import {
   NUTRITION_ARCHIVE_FIELDS,
   buildNutritionProfileFromSource,
-  buildNutritionSyncAudit,
   buildPhoneCandidates,
+  countFilledNutritionFields,
   createDefaultNutritionCheckin,
   ensureNutritionPlan,
   ensureNutritionPrep,
   ensureNutritionTargets,
+  hasNutritionColumnsInSurveyRow,
   normalizeSurveyResponseRecord,
 } from '../../../utils/nutritionUtils';
 
-const SCORE_OPTIONS = [
-  { value: '1', label: '1/5' },
-  { value: '2', label: '2/5' },
-  { value: '3', label: '3/5' },
-  { value: '4', label: '4/5' },
-  { value: '5', label: '5/5' },
-];
-
-const SYNC_STATUS_META = {
-  synced: {
-    label: 'Khớp',
-    className: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300',
-  },
-  mismatch: {
-    label: 'Lệch',
-    className: 'border-yellow-500/20 bg-yellow-500/10 text-yellow-200',
-  },
-  missing_in_client: {
-    label: 'Thiếu ở client',
-    className: 'border-blue-500/20 bg-blue-500/10 text-blue-200',
-  },
-  missing_in_form: {
-    label: 'Thiếu ở form',
-    className: 'border-orange-500/20 bg-orange-500/10 text-orange-200',
-  },
-  empty: {
-    label: 'Trống',
-    className: 'border-white/10 bg-white/[0.03] text-neutral-500',
-  },
-};
+const SCORE_OPTIONS = Array.from({ length: 10 }, (_, index) => ({
+  value: String(index + 1),
+  label: `${index + 1}/10`,
+}));
 
 const isFilled = (value) => String(value ?? '').trim().length > 0;
 
@@ -75,7 +55,7 @@ const formatDateLabel = (value) => {
 };
 
 const formatTimestampLabel = (value) => {
-  if (!value) return 'Chưa sync';
+  if (!value) return 'Chưa đồng bộ';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString('vi-VN', {
@@ -88,10 +68,10 @@ const formatTimestampLabel = (value) => {
 };
 
 const SectionCard = ({ icon, title, subtitle, accentClassName = 'text-white', children, action }) => (
-  <div className="overflow-hidden rounded-[30px] border border-white/[0.06] bg-white/[0.02] shadow-[0_18px_50px_rgba(0,0,0,0.22)] backdrop-blur-sm">
-    <div className="flex items-start justify-between gap-4 border-b border-white/[0.05] px-6 py-5">
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-11 w-11 items-center justify-center rounded-[18px] border border-white/[0.08] bg-black/30">
+  <div className="overflow-hidden rounded-[28px] border border-white/[0.06] bg-white/[0.02] shadow-[0_18px_50px_rgba(0,0,0,0.22)] backdrop-blur-sm">
+    <div className={`flex items-center justify-between gap-3 border-b border-white/[0.05] px-4 ${subtitle ? 'py-4' : 'py-3'}`}>
+      <div className="flex items-center gap-2.5">
+        <div className={`flex items-center justify-center rounded-[16px] border border-white/[0.08] bg-black/30 ${subtitle ? 'h-10.5 w-10.5' : 'h-9.5 w-9.5'}`}>
           {React.createElement(icon, { className: `h-5 w-5 ${accentClassName}` })}
         </div>
         <div>
@@ -101,20 +81,100 @@ const SectionCard = ({ icon, title, subtitle, accentClassName = 'text-white', ch
       </div>
       {action}
     </div>
-    <div className="px-6 py-5">{children}</div>
+    <div className="px-4 py-3.5">{children}</div>
+  </div>
+);
+
+const MacroHeroCard = ({ icon: Icon, label, value, hint, tone }) => (
+  <div className="min-h-[112px] rounded-[18px] border border-white/[0.06] bg-black/25 p-3">
+    <div className="flex items-center justify-between gap-3">
+      <p className="text-[9px] font-black uppercase tracking-[0.22em] text-neutral-600">{label}</p>
+      <Icon className={`h-4 w-4 ${tone}`} />
+    </div>
+    <p className={`mt-2 text-[22px] font-light ${tone}`}>{value || '--'}</p>
+    <p className="mt-1 text-[11px] text-neutral-500">{hint}</p>
+  </div>
+);
+
+const DataSquareCard = ({ label, value, hint, className = '' }) => (
+  <div className={`flex min-h-[112px] flex-col rounded-[18px] border border-white/[0.06] bg-black/25 p-3 ${className}`}>
+    <p className="text-[9px] font-black uppercase tracking-[0.22em] text-neutral-600">{label}</p>
+    <p className="mt-2 text-sm leading-relaxed text-white whitespace-pre-wrap break-words">
+      {isFilled(value) ? value : '--'}
+    </p>
+    {hint ? <p className="mt-auto pt-2 text-[11px] text-neutral-500">{hint}</p> : null}
+  </div>
+);
+
+const EditableMetricCard = ({
+  icon: Icon,
+  label,
+  value,
+  hint,
+  tone,
+  placeholder,
+  onChange,
+  type = 'text',
+}) => (
+  <div className="flex min-h-[112px] flex-col rounded-[18px] border border-white/[0.06] bg-black/25 p-3">
+    <div className="flex items-center justify-between gap-3">
+      <p className="text-[9px] font-black uppercase tracking-[0.22em] text-neutral-600">{label}</p>
+      <Icon className={`h-4 w-4 ${tone}`} />
+    </div>
+    <input
+      type={type}
+      value={value ?? ''}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder={placeholder}
+      className={`mt-2 w-full border-0 bg-transparent p-0 text-[22px] font-light ${tone} outline-none placeholder:text-neutral-600`}
+    />
+    <p className="mt-auto pt-2 text-[11px] text-neutral-500">{hint}</p>
+  </div>
+);
+
+const EditableDataSquareCard = ({
+  label,
+  value,
+  onChange,
+  placeholder,
+  hint,
+  multiline = false,
+  type = 'text',
+  className = '',
+}) => (
+  <div className={`flex min-h-[112px] flex-col rounded-[18px] border border-white/[0.06] bg-black/25 p-3 ${className}`}>
+    <p className="text-[9px] font-black uppercase tracking-[0.22em] text-neutral-600">{label}</p>
+    {multiline ? (
+      <textarea
+        value={value ?? ''}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        rows={3}
+        className="mt-2 w-full flex-1 resize-none border-0 bg-transparent p-0 text-sm leading-relaxed text-white outline-none placeholder:text-neutral-600"
+      />
+    ) : (
+      <input
+        type={type}
+        value={value ?? ''}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="mt-2 w-full border-0 bg-transparent p-0 text-sm text-white outline-none placeholder:text-neutral-600"
+      />
+    )}
+    {hint ? <p className="mt-auto pt-2 text-[11px] text-neutral-500">{hint}</p> : null}
   </div>
 );
 
 const MetricCard = ({ label, value, hint, tone = 'text-white' }) => (
-  <div className="rounded-[22px] border border-white/[0.06] bg-black/25 p-4">
+  <div className="rounded-[18px] border border-white/[0.06] bg-black/25 p-3">
     <p className="text-[9px] font-black uppercase tracking-[0.22em] text-neutral-600">{label}</p>
-    <p className={`mt-2 text-2xl font-light ${tone}`}>{value === null || value === undefined || value === '' ? '--' : value}</p>
-    {hint && <p className="mt-2 text-[11px] text-neutral-500">{hint}</p>}
+    <p className={`mt-1.5 text-xl font-light ${tone}`}>{value === null || value === undefined || value === '' ? '--' : value}</p>
+    {hint && <p className="mt-1 text-[11px] text-neutral-500">{hint}</p>}
   </div>
 );
 
 const InputField = ({ label, value, onChange, placeholder, type = 'text', min, max, disabled = false }) => (
-  <label className="space-y-2">
+  <label className="space-y-1.5">
     <span className="text-[9px] font-black uppercase tracking-[0.22em] text-neutral-600">{label}</span>
     <input
       type={type}
@@ -124,13 +184,13 @@ const InputField = ({ label, value, onChange, placeholder, type = 'text', min, m
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
       disabled={disabled}
-      className="w-full rounded-[16px] border border-white/[0.08] bg-black/35 px-4 py-3 text-sm text-white outline-none transition-all focus:border-blue-500/40 disabled:cursor-not-allowed disabled:opacity-60"
+      className="w-full rounded-[14px] border border-white/[0.08] bg-black/35 px-3 py-2.5 text-sm text-white outline-none transition-all focus:border-blue-500/40 disabled:cursor-not-allowed disabled:opacity-60"
     />
   </label>
 );
 
 const TextAreaField = ({ label, value, onChange, placeholder, rows = 3, disabled = false }) => (
-  <label className="space-y-2">
+  <label className="space-y-1.5">
     <span className="text-[9px] font-black uppercase tracking-[0.22em] text-neutral-600">{label}</span>
     <textarea
       value={value ?? ''}
@@ -138,26 +198,26 @@ const TextAreaField = ({ label, value, onChange, placeholder, rows = 3, disabled
       placeholder={placeholder}
       rows={rows}
       disabled={disabled}
-      className="w-full resize-none rounded-[16px] border border-white/[0.08] bg-black/35 px-4 py-3 text-sm leading-relaxed text-white outline-none transition-all focus:border-blue-500/40 disabled:cursor-not-allowed disabled:opacity-60"
+      className="w-full resize-none rounded-[14px] border border-white/[0.08] bg-black/35 px-3 py-2.5 text-sm leading-relaxed text-white outline-none transition-all focus:border-blue-500/40 disabled:cursor-not-allowed disabled:opacity-60"
     />
   </label>
 );
 
 const ReadOnlyBlock = ({ label, value, placeholder = '--' }) => (
-  <div className="space-y-2 rounded-[18px] border border-white/[0.05] bg-black/20 p-4">
+  <div className="space-y-1 rounded-[15px] border border-white/[0.05] bg-black/20 p-3">
     <p className="text-[9px] font-black uppercase tracking-[0.22em] text-neutral-600">{label}</p>
     <p className="text-sm leading-relaxed text-white whitespace-pre-wrap">{isFilled(value) ? value : placeholder}</p>
   </div>
 );
 
 const ScoreField = ({ label, value, onChange, disabled = false }) => (
-  <label className="space-y-2">
+  <label className="space-y-1.5">
     <span className="text-[9px] font-black uppercase tracking-[0.22em] text-neutral-600">{label}</span>
     <select
       value={value}
       onChange={(event) => onChange(event.target.value)}
       disabled={disabled}
-      className="w-full rounded-[16px] border border-white/[0.08] bg-black/35 px-4 py-3 text-sm text-white outline-none transition-all focus:border-blue-500/40 disabled:cursor-not-allowed disabled:opacity-60"
+      className="w-full rounded-[14px] border border-white/[0.08] bg-black/35 px-3 py-2.5 text-sm text-white outline-none transition-all focus:border-blue-500/40 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {SCORE_OPTIONS.map((option) => (
         <option key={option.value} value={option.value}>
@@ -168,14 +228,13 @@ const ScoreField = ({ label, value, onChange, disabled = false }) => (
   </label>
 );
 
-const SaveButton = ({ onClick, isSaving, label = 'Lưu thay đổi', className = '' }) => (
+const IconButton = ({ onClick, isSaving, icon: Icon = Save, className = '' }) => (
   <button
     onClick={onClick}
     disabled={isSaving}
-    className={`inline-flex items-center gap-2 rounded-[16px] border border-white/10 bg-white/[0.06] px-4 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-white transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+    className={`inline-flex h-9.5 w-9.5 items-center justify-center rounded-[13px] border border-white/10 bg-white/[0.07] text-white shadow-[0_10px_24px_rgba(0,0,0,0.22)] transition-all hover:bg-white/[0.1] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
   >
-    {isSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-    {label}
+    {isSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}
   </button>
 );
 
@@ -191,14 +250,15 @@ const NutritionTab = ({ client, readOnly = false }) => {
   const [isSavingPlan, setIsSavingPlan] = useState(false);
   const [isSavingPrep, setIsSavingPrep] = useState(false);
   const [isSavingCheckin, setIsSavingCheckin] = useState(false);
+  const [isSyncingIntake, setIsSyncingIntake] = useState(false);
 
-  const [isCheckingSync, setIsCheckingSync] = useState(false);
-  const [isResyncing, setIsResyncing] = useState(false);
-  const [syncAudit, setSyncAudit] = useState(null);
-  const [surveyProfile, setSurveyProfile] = useState(null);
-  const [syncError, setSyncError] = useState('');
   const [checkinError, setCheckinError] = useState('');
   const [nutritionSyncedAt, setNutritionSyncedAt] = useState(client?.nutrition_profile_synced_at || '');
+  const [isEditingTargets, setIsEditingTargets] = useState(false);
+  const [isEditingPlan, setIsEditingPlan] = useState(false);
+  const [isEditingCheckin, setIsEditingCheckin] = useState(false);
+  const [isCheckinHistoryOpen, setIsCheckinHistoryOpen] = useState(false);
+  const [activeMealDayIndex, setActiveMealDayIndex] = useState(0);
 
   useEffect(() => {
     setArchive(buildNutritionProfileFromSource(client));
@@ -206,6 +266,11 @@ const NutritionTab = ({ client, readOnly = false }) => {
     setPlan(ensureNutritionPlan(client?.nutrition_plan));
     setPrep(ensureNutritionPrep(client?.nutrition_prep));
     setNutritionSyncedAt(client?.nutrition_profile_synced_at || '');
+    setIsEditingTargets(false);
+    setIsEditingPlan(false);
+    setIsEditingCheckin(false);
+    setIsCheckinHistoryOpen(false);
+    setActiveMealDayIndex(0);
   }, [client]);
 
   const fetchCheckins = useCallback(async () => {
@@ -233,49 +298,9 @@ const NutritionTab = ({ client, readOnly = false }) => {
     setCheckins(data || []);
   }, [client?.id, readOnly]);
 
-  const runSyncAudit = useCallback(async () => {
-    if (readOnly || !client?.phone) return;
-    setIsCheckingSync(true);
-    setSyncError('');
-
-    try {
-      const { data, error } = await supabase
-        .from('survey_responses')
-        .select('*')
-        .in('phone', buildPhoneCandidates(client.phone))
-        .limit(10);
-
-      if (error) throw error;
-
-      const matchedRow = (data || [])[0];
-      if (!matchedRow) {
-        setSurveyProfile(null);
-        setSyncAudit(null);
-        setSyncError('Không tìm thấy response trong survey_responses cho số điện thoại hiện tại.');
-        return;
-      }
-
-      const normalizedSurvey = normalizeSurveyResponseRecord(matchedRow);
-      const surveyArchive = buildNutritionProfileFromSource(normalizedSurvey);
-
-      setSurveyProfile(surveyArchive);
-      setSyncAudit(buildNutritionSyncAudit(archive, surveyArchive));
-    } catch (error) {
-      setSyncError(error.message || 'Không thể kiểm tra đồng bộ với survey.');
-    } finally {
-      setIsCheckingSync(false);
-    }
-  }, [archive, client?.phone, readOnly]);
-
   useEffect(() => {
     void fetchCheckins();
   }, [fetchCheckins]);
-
-  useEffect(() => {
-    if (!readOnly) {
-      void runSyncAudit();
-    }
-  }, [readOnly, runSyncAudit]);
 
   const saveClientJsonFields = async (payload, onSuccess, setSaving) => {
     if (!client?.id) return;
@@ -297,27 +322,98 @@ const NutritionTab = ({ client, readOnly = false }) => {
       } else {
         alert(`Không thể lưu: ${message}`);
       }
-      return;
+      return false;
     }
 
     onSuccess?.();
     alert('Đã lưu thay đổi.');
+    return true;
   };
 
-  const handleSaveTargets = () => {
-    void saveClientJsonFields(
+  const handleSyncIntakeProfile = async () => {
+    if (readOnly || !client?.id || !client?.phone) return;
+    setIsSyncingIntake(true);
+
+    try {
+      const { data, error } = await supabase
+        .from('survey_responses')
+        .select('*')
+        .in('phone', buildPhoneCandidates(client.phone))
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+
+      const matchedRow = (data || [])[0];
+      if (!matchedRow) {
+        alert('Không tìm thấy dữ liệu form theo số điện thoại hiện tại.');
+        setIsSyncingIntake(false);
+        return;
+      }
+
+      const normalizedSurvey = normalizeSurveyResponseRecord(matchedRow);
+      const surveyArchive = buildNutritionProfileFromSource(normalizedSurvey);
+      const filledNutritionFields = countFilledNutritionFields(surveyArchive);
+      const hasNutritionColumns = hasNutritionColumnsInSurveyRow(matchedRow);
+
+      if (filledNutritionFields === 0) {
+        alert(
+          hasNutritionColumns
+            ? 'Đã tìm thấy response mới nhất, nhưng phần nutrition trong form hiện đang trống.'
+            : 'Đã tìm thấy response nhưng chưa map được field nutrition từ form.',
+        );
+        setIsSyncingIntake(false);
+        return;
+      }
+
+      const payload = Object.entries(surveyArchive).reduce((acc, [key, value]) => {
+        if (isFilled(value)) acc[key] = value;
+        return acc;
+      }, {});
+      const syncedAt = new Date().toISOString();
+
+      const { error: updateError } = await supabase
+        .from('clients')
+        .update({
+          ...payload,
+          nutrition_profile_synced_at: syncedAt,
+        })
+        .eq('id', client.id);
+
+      if (updateError) throw updateError;
+
+      setArchive((prev) => ({ ...prev, ...payload }));
+      setNutritionSyncedAt(syncedAt);
+      alert(`Đã đồng bộ lại ${filledNutritionFields}/9 trường intake từ form.`);
+    } catch (error) {
+      alert(`Không thể đồng bộ hồ sơ intake: ${error.message || 'Thử lại nhé'}`);
+    }
+
+    setIsSyncingIntake(false);
+  };
+
+  const handleSaveTargets = async () => {
+    const saved = await saveClientJsonFields(
       { nutrition_targets: targets },
       () => setTargets({ ...targets }),
       setIsSavingTargets,
     );
+
+    if (saved) {
+      setIsEditingTargets(false);
+    }
   };
 
-  const handleSavePlan = () => {
-    void saveClientJsonFields(
+  const handleSavePlan = async () => {
+    const saved = await saveClientJsonFields(
       { nutrition_plan: plan },
       () => setPlan(ensureNutritionPlan(plan)),
       setIsSavingPlan,
     );
+
+    if (saved) {
+      setIsEditingPlan(false);
+    }
   };
 
   const handleSavePrep = () => {
@@ -326,38 +422,6 @@ const NutritionTab = ({ client, readOnly = false }) => {
       () => setPrep({ ...prep }),
       setIsSavingPrep,
     );
-  };
-
-  const handleResyncFromSurvey = async () => {
-    if (!client?.id || !surveyProfile) return;
-    setIsResyncing(true);
-
-    const payload = Object.entries(surveyProfile).reduce((acc, [key, value]) => {
-      if (isFilled(value)) acc[key] = value;
-      return acc;
-    }, {});
-    const syncedAt = new Date().toISOString();
-
-    const { error } = await supabase
-      .from('clients')
-      .update({
-        ...payload,
-        nutrition_profile_synced_at: syncedAt,
-      })
-      .eq('id', client.id);
-
-    setIsResyncing(false);
-
-    if (error) {
-      alert(`Không thể resync dữ liệu từ Google Form: ${error.message}`);
-      return;
-    }
-
-    const mergedArchive = { ...archive, ...payload };
-    setArchive(mergedArchive);
-    setNutritionSyncedAt(syncedAt);
-    setSyncAudit(buildNutritionSyncAudit(mergedArchive, surveyProfile));
-    alert('Đã copy lại dữ liệu intake từ Google Form sang hồ sơ client.');
   };
 
   const handleSaveCheckin = async () => {
@@ -393,10 +457,15 @@ const NutritionTab = ({ client, readOnly = false }) => {
 
     setCheckinForm(createDefaultNutritionCheckin());
     await fetchCheckins();
+    setIsEditingCheckin(false);
     alert('Đã lưu nutrition check-in.');
   };
 
   const latestCheckin = checkins[0] || null;
+  const archiveItems = useMemo(
+    () => NUTRITION_ARCHIVE_FIELDS.filter((field) => isFilled(archive[field.key])),
+    [archive],
+  );
   const filledPlanDays = useMemo(
     () =>
       (plan.days || []).filter((day) =>
@@ -412,214 +481,278 @@ const NutritionTab = ({ client, readOnly = false }) => {
     }));
   };
 
+  const macroCards = [
+    { label: 'Calories', value: targets.calories ? `${targets.calories}` : '--', hint: 'kcal/ngày', tone: 'text-orange-200', icon: Flame },
+    { label: 'Protein', value: targets.protein ? `${targets.protein}` : '--', hint: 'g/ngày', tone: 'text-blue-200', icon: Target },
+    { label: 'Water', value: targets.water ? `${targets.water}` : '--', hint: 'l/ngày', tone: 'text-cyan-200', icon: Droplets },
+    { label: 'Step target', value: targets.stepTarget || '--', hint: 'bám hoạt động nền', tone: 'text-emerald-200', icon: Footprints },
+  ];
+  const targetSummaryCards = [
+    { label: 'Carbs', value: targets.carbs ? `${targets.carbs} g/ngày` : '' },
+    { label: 'Fat', value: targets.fat ? `${targets.fat} g/ngày` : '' },
+    { label: 'Chất xơ', value: targets.fiber ? `${targets.fiber} g/ngày` : '' },
+    { label: 'Supplement protocol', value: targets.supplementsPlan },
+    { label: 'Nutrition strategy', value: targets.strategyNotes },
+  ];
+  const mealPlanDays = plan.days || [];
+  const activeMealDay = mealPlanDays[activeMealDayIndex] || mealPlanDays[0] || null;
+
   return (
-    <div className="space-y-6 animate-slide-up">
-      {!readOnly && (
-        <SectionCard
-          icon={ClipboardList}
-          title="Google Form Sync"
-          subtitle="Luồng hiện tại là copy dữ liệu từ survey_responses sang clients theo số điện thoại, không phải đồng bộ realtime. Phần này giúp kiểm tra lệch dữ liệu intake trước khi coach lên plan."
-          accentClassName="text-blue-300"
-          action={
-            <button
-              onClick={() => void runSyncAudit()}
-              disabled={isCheckingSync}
-              className="inline-flex items-center gap-2 rounded-[16px] border border-blue-500/20 bg-blue-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-blue-200 transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isCheckingSync ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Check Sync
-            </button>
-          }
-        >
-          <div className="grid gap-3 md:grid-cols-4">
-            <MetricCard label="Lần sync gần nhất" value={formatTimestampLabel(nutritionSyncedAt)} tone="text-blue-200 text-base" />
-            <MetricCard label="Khớp" value={syncAudit?.counts.synced ?? '--'} tone="text-emerald-300" />
-            <MetricCard label="Lệch" value={syncAudit?.counts.mismatch ?? '--'} tone="text-yellow-200" />
-            <MetricCard label="Thiếu ở client" value={syncAudit?.counts.missingInClient ?? '--'} tone="text-blue-200" />
-          </div>
-
-          {syncError && (
-            <div className="mt-4 rounded-[20px] border border-orange-500/20 bg-orange-500/10 px-4 py-3 text-sm text-orange-200">
-              {syncError}
-            </div>
-          )}
-
-          {syncAudit?.items?.length > 0 && (
-            <div className="mt-5 space-y-3">
-              {syncAudit.items.map((item) => {
-                const meta = SYNC_STATUS_META[item.status];
-                return (
-                  <div key={item.key} className="rounded-[20px] border border-white/[0.05] bg-black/20 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-white">{item.label}</p>
-                      <span className={`rounded-full border px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] ${meta.className}`}>
-                        {meta.label}
-                      </span>
-                    </div>
-                    <div className="mt-3 grid gap-3 md:grid-cols-2">
-                      <div className="rounded-[16px] border border-white/[0.05] bg-white/[0.02] p-3">
-                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-neutral-600">Client</p>
-                        <p className="mt-2 text-sm leading-relaxed text-white">{isFilled(item.clientValue) ? item.clientValue : '--'}</p>
-                      </div>
-                      <div className="rounded-[16px] border border-white/[0.05] bg-white/[0.02] p-3">
-                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-neutral-600">Google Form</p>
-                        <p className="mt-2 text-sm leading-relaxed text-white">{isFilled(item.surveyValue) ? item.surveyValue : '--'}</p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-
-              <div className="flex flex-wrap items-center gap-3 pt-1">
-                <button
-                  onClick={handleResyncFromSurvey}
-                  disabled={isResyncing || !surveyProfile}
-                  className="inline-flex items-center gap-2 rounded-[16px] border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200 transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isResyncing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                  Resync Hồ Sơ Intake
-                </button>
-                <p className="text-xs text-neutral-500">
-                  App chỉ ghi đè các field có dữ liệu từ form, không xóa những ghi chú coach đã thêm sau này.
-                </p>
-              </div>
-            </div>
-          )}
-        </SectionCard>
-      )}
-
+    <div className="space-y-5 animate-slide-up">
       <SectionCard
         icon={Target}
         title="Macro & Target"
-        subtitle="Target trung tâm cho giai đoạn hiện tại. Đây là phần coach cập nhật trước, sau đó meal plan và check-in sẽ bám theo."
         accentClassName="text-emerald-300"
-        action={!readOnly ? <SaveButton onClick={handleSaveTargets} isSaving={isSavingTargets} /> : null}
+        action={
+          !readOnly ? (
+            <IconButton
+              onClick={isEditingTargets ? () => void handleSaveTargets() : () => setIsEditingTargets(true)}
+              isSaving={isSavingTargets}
+              icon={isEditingTargets ? Save : Edit3}
+            />
+          ) : null
+        }
       >
-        <div className="grid gap-3 md:grid-cols-4">
-          <MetricCard label="Calories" value={targets.calories ? `${targets.calories}` : '--'} hint="kcal/ngày" tone="text-orange-200" />
-          <MetricCard label="Protein" value={targets.protein ? `${targets.protein}` : '--'} hint="g/ngày" tone="text-blue-200" />
-          <MetricCard label="Carbs" value={targets.carbs ? `${targets.carbs}` : '--'} hint="g/ngày" tone="text-white" />
-          <MetricCard label="Fat" value={targets.fat ? `${targets.fat}` : '--'} hint="g/ngày" tone="text-yellow-200" />
-        </div>
+        {readOnly || !isEditingTargets ? (
+          <>
+            <div className="grid grid-cols-2 gap-2.5">
+              {macroCards.map((card) => (
+                <MacroHeroCard
+                  key={card.label}
+                  icon={card.icon}
+                  label={card.label}
+                  value={card.value}
+                  hint={card.hint}
+                  tone={card.tone}
+                />
+              ))}
+            </div>
+            <div className="mt-2.5 grid grid-cols-2 gap-2.5 xl:grid-cols-3">
+    {targetSummaryCards.map((card) => (
+      <DataSquareCard
+        key={card.label}
+        label={card.label}
+        value={card.value}
+        className={card.label === 'Nutrition strategy' ? 'col-span-2' : ''}
+      />
+    ))}
+            </div>
+          </>
+        ) : null}
 
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          {readOnly ? (
-            <>
-              <ReadOnlyBlock label="Chất xơ" value={targets.fiber ? `${targets.fiber} g/ngày` : ''} />
-              <ReadOnlyBlock label="Nước" value={targets.water ? `${targets.water} l/ngày` : ''} />
-              <ReadOnlyBlock label="Số bữa / ngày" value={targets.mealsPerDay} />
-              <ReadOnlyBlock label="Step target" value={targets.stepTarget} />
-              <ReadOnlyBlock label="Supplement protocol" value={targets.supplementsPlan} />
-              <ReadOnlyBlock label="Nutrition strategy" value={targets.strategyNotes} />
-            </>
-          ) : (
-            <>
-              <div className="grid gap-4 md:grid-cols-2">
-                <InputField label="Calories" value={targets.calories} onChange={(value) => setTargets((prev) => ({ ...prev, calories: value }))} placeholder="Ví dụ 2100" type="number" />
-                <InputField label="Protein (g)" value={targets.protein} onChange={(value) => setTargets((prev) => ({ ...prev, protein: value }))} placeholder="Ví dụ 150" type="number" />
-                <InputField label="Carbs (g)" value={targets.carbs} onChange={(value) => setTargets((prev) => ({ ...prev, carbs: value }))} placeholder="Ví dụ 220" type="number" />
-                <InputField label="Fat (g)" value={targets.fat} onChange={(value) => setTargets((prev) => ({ ...prev, fat: value }))} placeholder="Ví dụ 55" type="number" />
-                <InputField label="Fiber (g)" value={targets.fiber} onChange={(value) => setTargets((prev) => ({ ...prev, fiber: value }))} placeholder="Ví dụ 25" type="number" />
-                <InputField label="Water (l)" value={targets.water} onChange={(value) => setTargets((prev) => ({ ...prev, water: value }))} placeholder="Ví dụ 3" type="number" />
-                <InputField label="Meals / day" value={targets.mealsPerDay} onChange={(value) => setTargets((prev) => ({ ...prev, mealsPerDay: value }))} placeholder="Ví dụ 4" type="number" />
-                <InputField label="Step target" value={targets.stepTarget} onChange={(value) => setTargets((prev) => ({ ...prev, stepTarget: value }))} placeholder="Ví dụ 8000-10000" />
-              </div>
-              <div className="space-y-4">
-                <TextAreaField label="Supplement protocol" value={targets.supplementsPlan} onChange={(value) => setTargets((prev) => ({ ...prev, supplementsPlan: value }))} placeholder="Ví dụ: whey post-workout, creatine 5g/ngày..." />
-                <TextAreaField label="Nutrition strategy" value={targets.strategyNotes} onChange={(value) => setTargets((prev) => ({ ...prev, strategyNotes: value }))} placeholder="Ví dụ: ưu tiên carb quanh giờ tập, giữ bữa tối nhẹ, 1 refeed meal cuối tuần..." rows={5} />
-              </div>
-            </>
-          )}
-        </div>
+        {!readOnly && isEditingTargets ? (
+          <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-3">
+            <EditableMetricCard
+              icon={Flame}
+              label="Calories"
+              value={targets.calories}
+              hint="kcal/ngày"
+              tone="text-orange-200"
+              placeholder="Ví dụ 2100"
+              type="number"
+              onChange={(value) => setTargets((prev) => ({ ...prev, calories: value }))}
+            />
+            <EditableMetricCard
+              icon={Target}
+              label="Protein"
+              value={targets.protein}
+              hint="g/ngày"
+              tone="text-blue-200"
+              placeholder="Ví dụ 150"
+              type="number"
+              onChange={(value) => setTargets((prev) => ({ ...prev, protein: value }))}
+            />
+            <EditableMetricCard
+              icon={Droplets}
+              label="Water"
+              value={targets.water}
+              hint="l/ngày"
+              tone="text-cyan-200"
+              placeholder="Ví dụ 3"
+              type="number"
+              onChange={(value) => setTargets((prev) => ({ ...prev, water: value }))}
+            />
+            <EditableMetricCard
+              icon={Footprints}
+              label="Step target"
+              value={targets.stepTarget}
+              hint="bám hoạt động nền"
+              tone="text-emerald-200"
+              placeholder="Ví dụ 8000-10000"
+              onChange={(value) => setTargets((prev) => ({ ...prev, stepTarget: value }))}
+            />
+            <EditableDataSquareCard
+              label="Carbs"
+              value={targets.carbs}
+              placeholder="Ví dụ 220"
+              hint="g/ngày"
+              type="number"
+              onChange={(value) => setTargets((prev) => ({ ...prev, carbs: value }))}
+            />
+            <EditableDataSquareCard
+              label="Fat"
+              value={targets.fat}
+              placeholder="Ví dụ 55"
+              hint="g/ngày"
+              type="number"
+              onChange={(value) => setTargets((prev) => ({ ...prev, fat: value }))}
+            />
+            <EditableDataSquareCard
+              label="Chất xơ"
+              value={targets.fiber}
+              placeholder="Ví dụ 25"
+              hint="g/ngày"
+              type="number"
+              onChange={(value) => setTargets((prev) => ({ ...prev, fiber: value }))}
+            />
+            <EditableDataSquareCard
+              label="Supplement protocol"
+              value={targets.supplementsPlan}
+              placeholder="Ví dụ: whey post-workout, creatine 5g/ngày..."
+              multiline
+              onChange={(value) => setTargets((prev) => ({ ...prev, supplementsPlan: value }))}
+            />
+            <EditableDataSquareCard
+              label="Nutrition strategy"
+              value={targets.strategyNotes}
+              placeholder="Ví dụ: ưu tiên carb quanh giờ tập, giữ bữa tối nhẹ..."
+              multiline
+              className="col-span-2"
+              onChange={(value) => setTargets((prev) => ({ ...prev, strategyNotes: value }))}
+            />
+          </div>
+        ) : null}
       </SectionCard>
 
       <SectionCard
         icon={ChefHat}
         title="Meal Plan"
-        subtitle="Plan theo ngày trong tuần. Ưu tiên giữ cấu trúc rõ để client nhìn là làm được ngay, không phải đọc quá nhiều ghi chú rời rạc."
         accentClassName="text-pink-300"
-        action={!readOnly ? <SaveButton onClick={handleSavePlan} isSaving={isSavingPlan} /> : null}
+        action={
+          !readOnly ? (
+            <IconButton
+              onClick={isEditingPlan ? () => void handleSavePlan() : () => setIsEditingPlan(true)}
+              isSaving={isSavingPlan}
+              icon={isEditingPlan ? Save : Edit3}
+            />
+          ) : null
+        }
       >
-        <div className="grid gap-4 md:grid-cols-2">
-          {readOnly ? (
+        <div className="grid gap-2.5 md:grid-cols-[1.3fr_0.9fr]">
+          {readOnly || !isEditingPlan ? (
             <>
               <ReadOnlyBlock label="Mục tiêu tuần này" value={plan.focus} />
-              <ReadOnlyBlock label="Coach notes" value={plan.coachingNotes} />
+              <ReadOnlyBlock label="Coach note" value={plan.coachingNotes} />
             </>
           ) : (
             <>
-              <TextAreaField label="Mục tiêu tuần này" value={plan.focus} onChange={(value) => setPlan((prev) => ({ ...prev, focus: value }))} placeholder="Ví dụ: giữ deficit ổn định, ưu tiên protein đủ, giảm ăn vặt sau 9PM..." />
-              <TextAreaField label="Coach notes" value={plan.coachingNotes} onChange={(value) => setPlan((prev) => ({ ...prev, coachingNotes: value }))} placeholder="Các lưu ý về ăn ngoài, lịch tập, ngày social meal, refeed..." />
+              <TextAreaField label="Mục tiêu tuần này" value={plan.focus} onChange={(value) => setPlan((prev) => ({ ...prev, focus: value }))} placeholder="Ví dụ: giữ deficit ổn định, ưu tiên protein đủ, giảm ăn vặt sau 9PM..." rows={3} />
+              <TextAreaField label="Coach note" value={plan.coachingNotes} onChange={(value) => setPlan((prev) => ({ ...prev, coachingNotes: value }))} placeholder="Ăn ngoài, social meal, lưu ý lịch tập..." rows={2} />
             </>
           )}
         </div>
 
-        <div className="mt-5 space-y-4">
-          {(readOnly ? filledPlanDays : plan.days).map((day, index) => (
-            <div key={day.day} className="rounded-[24px] border border-white/[0.05] bg-black/20 p-5">
-              <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="mt-3.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex min-w-max gap-2">
+            {mealPlanDays.map((day, index) => (
+              <button
+              key={`chip-${day.day}`}
+              type="button"
+              onClick={() => setActiveMealDayIndex(index)}
+              className={`rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
+                index === activeMealDayIndex
+                  ? 'border-pink-500/30 bg-pink-500/16 text-pink-100 shadow-[0_8px_18px_rgba(236,72,153,0.12)]'
+                  : [day.context, day.breakfast, day.lunch, day.dinner, day.snack].some((value) => isFilled(value))
+                    ? 'border-pink-500/20 bg-pink-500/10 text-pink-200'
+                    : 'border-white/10 bg-white/[0.03] text-neutral-500'
+              }`}
+            >
+              {day.day}
+            </button>
+          ))}
+          </div>
+        </div>
+
+        <div className="mt-3.5">
+          {activeMealDay ? (
+            <div key={activeMealDay.day} className="rounded-[22px] border border-white/[0.05] bg-gradient-to-br from-white/[0.03] to-black/20 p-3.5">
+              <div className="mb-2.5 flex items-center justify-between gap-2.5">
                 <div>
-                  <p className="text-lg font-semibold text-white">{day.day}</p>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-600">Daily structure</p>
+                  <p className="text-base font-semibold text-white">{activeMealDay.day}</p>
                 </div>
-                {isFilled(day.context) && (
-                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300">
-                    {day.context}
+                {isFilled(activeMealDay.context) && (
+                  <span className="rounded-full border border-pink-500/20 bg-pink-500/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-pink-200">
+                    {activeMealDay.context}
                   </span>
                 )}
               </div>
 
               {readOnly ? (
-                <div className="grid gap-3 md:grid-cols-2">
-                  <ReadOnlyBlock label="Context" value={day.context} />
-                  <ReadOnlyBlock label="Breakfast" value={day.breakfast} />
-                  <ReadOnlyBlock label="Lunch" value={day.lunch} />
-                  <ReadOnlyBlock label="Dinner" value={day.dinner} />
-                  <ReadOnlyBlock label="Snack / Pre-post workout" value={day.snack} />
+                <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
+                  <ReadOnlyBlock label="Breakfast" value={activeMealDay.breakfast} />
+                  <ReadOnlyBlock label="Lunch" value={activeMealDay.lunch} />
+                  <ReadOnlyBlock label="Dinner" value={activeMealDay.dinner} />
+                  <ReadOnlyBlock label="Snack / Pre-post workout" value={activeMealDay.snack} />
+                </div>
+              ) : !isEditingPlan ? (
+                <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
+                  <ReadOnlyBlock label="Breakfast" value={activeMealDay.breakfast} />
+                  <ReadOnlyBlock label="Lunch" value={activeMealDay.lunch} />
+                  <ReadOnlyBlock label="Dinner" value={activeMealDay.dinner} />
+                  <ReadOnlyBlock label="Snack / Pre-post workout" value={activeMealDay.snack} />
                 </div>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <InputField label="Context" value={day.context} onChange={(value) => updatePlanDay(index, 'context', value)} placeholder="Training day / Rest day / Social meal..." />
-                  <TextAreaField label="Breakfast" value={day.breakfast} onChange={(value) => updatePlanDay(index, 'breakfast', value)} placeholder="Ví dụ: Greek yogurt + berries + whey..." rows={3} />
-                  <TextAreaField label="Lunch" value={day.lunch} onChange={(value) => updatePlanDay(index, 'lunch', value)} placeholder="Ví dụ: ức gà + cơm + rau xanh..." rows={3} />
-                  <TextAreaField label="Dinner" value={day.dinner} onChange={(value) => updatePlanDay(index, 'dinner', value)} placeholder="Ví dụ: cá hồi + khoai + salad..." rows={3} />
-                  <TextAreaField label="Snack / Pre-post workout" value={day.snack} onChange={(value) => updatePlanDay(index, 'snack', value)} placeholder="Ví dụ: chuối + whey / rice cake + peanut butter..." rows={3} />
+                <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
+                  <InputField label="Context" value={activeMealDay.context} onChange={(value) => updatePlanDay(activeMealDayIndex, 'context', value)} placeholder="Training day / Rest day / Social meal..." />
+                  <TextAreaField label="Breakfast" value={activeMealDay.breakfast} onChange={(value) => updatePlanDay(activeMealDayIndex, 'breakfast', value)} placeholder="Ví dụ: Greek yogurt + berries + whey..." rows={2} />
+                  <TextAreaField label="Lunch" value={activeMealDay.lunch} onChange={(value) => updatePlanDay(activeMealDayIndex, 'lunch', value)} placeholder="Ví dụ: ức gà + cơm + rau xanh..." rows={2} />
+                  <TextAreaField label="Dinner" value={activeMealDay.dinner} onChange={(value) => updatePlanDay(activeMealDayIndex, 'dinner', value)} placeholder="Ví dụ: cá hồi + khoai + salad..." rows={2} />
+                  <TextAreaField label="Snack / Pre-post workout" value={activeMealDay.snack} onChange={(value) => updatePlanDay(activeMealDayIndex, 'snack', value)} placeholder="Ví dụ: chuối + whey / rice cake + peanut butter..." rows={2} />
                 </div>
               )}
             </div>
-          ))}
-
-          {readOnly && filledPlanDays.length === 0 && (
-            <div className="rounded-[24px] border border-white/[0.05] bg-black/20 px-5 py-10 text-center">
-              <Utensils className="mx-auto h-10 w-10 text-neutral-700" />
-              <p className="mt-3 text-sm text-neutral-500">Coach chưa lên meal plan chi tiết cho bạn.</p>
-            </div>
-          )}
+          ) : null}
         </div>
+
+        {readOnly && filledPlanDays.length === 0 && (
+          <div className="mt-3.5 rounded-[22px] border border-white/[0.05] bg-black/20 px-4 py-8 text-center">
+            <Utensils className="mx-auto h-10 w-10 text-neutral-700" />
+            <p className="mt-3 text-sm text-neutral-500">Coach chưa lên meal plan chi tiết cho bạn.</p>
+          </div>
+        )}
       </SectionCard>
 
       <SectionCard
         icon={CalendarDays}
         title="Nutrition Check-In"
-        subtitle="Theo dõi mức bám plan, năng lượng, tiêu hóa và điều chỉnh của coach. Dùng phần này làm lịch sử vận hành thật, không để note thất lạc trong chat."
         accentClassName="text-yellow-200"
+        action={
+          !readOnly ? (
+            <IconButton
+              onClick={isEditingCheckin ? () => void handleSaveCheckin() : () => setIsEditingCheckin(true)}
+              isSaving={isSavingCheckin}
+              icon={isEditingCheckin ? Save : Edit3}
+              className="border-yellow-500/20 bg-yellow-500/10 text-yellow-100"
+            />
+          ) : null
+        }
       >
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid gap-2.5 md:grid-cols-4">
           <MetricCard label="Latest weigh-in" value={latestCheckin?.avg_weight ? `${latestCheckin.avg_weight}` : '--'} hint="kg" tone="text-white" />
-          <MetricCard label="Adherence" value={latestCheckin?.adherence_score ? `${latestCheckin.adherence_score}/5` : '--'} hint="mức tuân thủ" tone="text-emerald-300" />
+          <MetricCard label="Adherence" value={latestCheckin?.adherence_score ? `${latestCheckin.adherence_score}/10` : '--'} hint="mức tuân thủ" tone="text-emerald-300" />
           <MetricCard label="Protein avg" value={latestCheckin?.protein_avg ? `${latestCheckin.protein_avg}` : '--'} hint="g/ngày" tone="text-blue-200" />
           <MetricCard label="Water avg" value={latestCheckin?.water_liters ? `${latestCheckin.water_liters}` : '--'} hint="l/ngày" tone="text-cyan-200" />
         </div>
 
         {checkinError && (
-          <div className="mt-4 rounded-[20px] border border-orange-500/20 bg-orange-500/10 px-4 py-3 text-sm text-orange-200">
+          <div className="mt-3.5 rounded-[18px] border border-orange-500/20 bg-orange-500/10 px-3.5 py-2.5 text-sm text-orange-200">
             {checkinError}
           </div>
         )}
 
-        {!readOnly && (
-          <div className="mt-5 rounded-[26px] border border-white/[0.05] bg-black/20 p-5">
-            <div className="grid gap-4 md:grid-cols-2">
+        {!readOnly && isEditingCheckin && (
+          <div className="mt-3.5 rounded-[22px] border border-white/[0.05] bg-black/20 p-3.5">
+            <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
               <InputField label="Ngày check-in" value={checkinForm.checkin_date} onChange={(value) => setCheckinForm((prev) => ({ ...prev, checkin_date: value }))} type="date" />
               <InputField label="Cân nặng trung bình (kg)" value={checkinForm.avg_weight} onChange={(value) => setCheckinForm((prev) => ({ ...prev, avg_weight: value }))} type="number" />
               <InputField label="Calories avg" value={checkinForm.calories_avg} onChange={(value) => setCheckinForm((prev) => ({ ...prev, calories_avg: value }))} type="number" />
@@ -628,91 +761,121 @@ const NutritionTab = ({ client, readOnly = false }) => {
               <InputField label="Water avg (l)" value={checkinForm.water_liters} onChange={(value) => setCheckinForm((prev) => ({ ...prev, water_liters: value }))} type="number" />
             </div>
 
-            <div className="mt-4 grid gap-4 md:grid-cols-4">
+            <div className="mt-2.5 grid gap-2.5 md:grid-cols-2 xl:grid-cols-5">
               <ScoreField label="Tuân thủ" value={checkinForm.adherence_score} onChange={(value) => setCheckinForm((prev) => ({ ...prev, adherence_score: value }))} />
               <ScoreField label="Hunger" value={checkinForm.hunger_score} onChange={(value) => setCheckinForm((prev) => ({ ...prev, hunger_score: value }))} />
               <ScoreField label="Energy" value={checkinForm.energy_score} onChange={(value) => setCheckinForm((prev) => ({ ...prev, energy_score: value }))} />
               <ScoreField label="Digestion" value={checkinForm.digestion_score} onChange={(value) => setCheckinForm((prev) => ({ ...prev, digestion_score: value }))} />
-            </div>
-
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <TextAreaField label="Wins" value={checkinForm.wins} onChange={(value) => setCheckinForm((prev) => ({ ...prev, wins: value }))} placeholder="Điểm làm tốt: đủ protein, ăn đúng plan, ít thèm ngọt..." />
-              <TextAreaField label="Blockers" value={checkinForm.blockers} onChange={(value) => setCheckinForm((prev) => ({ ...prev, blockers: value }))} placeholder="Vướng mắc: tiệc, stress, ngủ kém, đói đêm..." />
               <ScoreField label="Sleep" value={checkinForm.sleep_score} onChange={(value) => setCheckinForm((prev) => ({ ...prev, sleep_score: value }))} />
-              <TextAreaField label="Coach adjustments" value={checkinForm.coach_adjustments} onChange={(value) => setCheckinForm((prev) => ({ ...prev, coach_adjustments: value }))} placeholder="Điều chỉnh tuần sau: tăng carb ngày tập, đổi snack, thêm meal prep..." />
             </div>
 
-            <div className="mt-5">
-              <SaveButton onClick={handleSaveCheckin} isSaving={isSavingCheckin} label="Lưu Check-In" className="bg-yellow-500/10 text-yellow-100 border-yellow-500/20" />
+            <div className="mt-2.5 grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
+              <TextAreaField label="Wins" value={checkinForm.wins} onChange={(value) => setCheckinForm((prev) => ({ ...prev, wins: value }))} placeholder="Điểm làm tốt: đủ protein, ăn đúng plan, ít thèm ngọt..." rows={3} />
+              <TextAreaField label="Blockers" value={checkinForm.blockers} onChange={(value) => setCheckinForm((prev) => ({ ...prev, blockers: value }))} placeholder="Vướng mắc: tiệc, stress, ngủ kém, đói đêm..." rows={3} />
+              <TextAreaField label="Coach adjustments" value={checkinForm.coach_adjustments} onChange={(value) => setCheckinForm((prev) => ({ ...prev, coach_adjustments: value }))} placeholder="Điều chỉnh tuần sau: tăng carb ngày tập, đổi snack, thêm meal prep..." rows={3} />
             </div>
+
           </div>
         )}
 
-        <div className="mt-5 space-y-3">
-          {checkins.length === 0 ? (
-            <div className="rounded-[24px] border border-white/[0.05] bg-black/20 px-5 py-10 text-center">
-              <ClipboardList className="mx-auto h-10 w-10 text-neutral-700" />
-              <p className="mt-3 text-sm text-neutral-500">
-                {readOnly ? 'Chưa có nutrition check-in nào được lưu.' : 'Hãy lưu check-in đầu tiên để bắt đầu theo dõi dinh dưỡng.'}
-              </p>
-            </div>
-          ) : (
-            checkins.map((item) => (
-              <div key={item.id} className="rounded-[24px] border border-white/[0.05] bg-black/20 p-5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-white">{formatDateLabel(item.checkin_date)}</p>
-                    <p className="mt-1 text-[10px] font-black uppercase tracking-[0.22em] text-neutral-600">Nutrition review</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {item.adherence_score && (
-                      <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200">
-                        Bám plan {item.adherence_score}/5
-                      </span>
-                    )}
-                    {item.avg_weight && (
-                      <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300">
-                        {item.avg_weight} kg
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-4 grid gap-3 md:grid-cols-4">
-                  <MetricCard label="Calories" value={item.calories_avg ? `${item.calories_avg}` : '--'} tone="text-orange-200" />
-                  <MetricCard label="Protein" value={item.protein_avg ? `${item.protein_avg}` : '--'} tone="text-blue-200" />
-                  <MetricCard label="Steps" value={item.steps_avg ? `${item.steps_avg}` : '--'} tone="text-white" />
-                  <MetricCard label="Water" value={item.water_liters ? `${item.water_liters}` : '--'} tone="text-cyan-200" />
-                </div>
-
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <ReadOnlyBlock label="Wins" value={item.wins} />
-                  <ReadOnlyBlock label="Blockers" value={item.blockers} />
-                  <ReadOnlyBlock label="Coach adjustments" value={item.coach_adjustments} />
-                  <ReadOnlyBlock
-                    label="Recovery signals"
-                    value={[
-                      item.hunger_score ? `Hunger ${item.hunger_score}/5` : '',
-                      item.energy_score ? `Energy ${item.energy_score}/5` : '',
-                      item.digestion_score ? `Digestion ${item.digestion_score}/5` : '',
-                      item.sleep_score ? `Sleep ${item.sleep_score}/5` : '',
-                    ].filter(Boolean).join(' · ')}
-                  />
-                </div>
+        {!isEditingCheckin && (
+          <div className="mt-3.5 space-y-2.5">
+            {checkins.length === 0 ? (
+              <div className="rounded-[22px] border border-white/[0.05] bg-black/20 px-4 py-8 text-center">
+                <ClipboardList className="mx-auto h-10 w-10 text-neutral-700" />
+                <p className="mt-3 text-sm text-neutral-500">
+                  {readOnly ? 'Chưa có nutrition check-in nào được lưu.' : 'Chưa có check-in nào. Bấm edit để tạo check-in đầu tiên.'}
+                </p>
               </div>
-            ))
-          )}
-        </div>
+            ) : (
+              <>
+                <div className="rounded-[20px] border border-white/[0.05] bg-black/20 p-3.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2.5">
+                    <div>
+                      <p className="text-sm font-semibold text-white">{formatDateLabel(latestCheckin?.checkin_date)}</p>
+                      <p className="mt-1 text-[10px] font-black uppercase tracking-[0.22em] text-neutral-600">Latest review</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {latestCheckin?.adherence_score && (
+                        <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200">
+                          Bám plan {latestCheckin.adherence_score}/10
+                        </span>
+                      )}
+                      {latestCheckin?.avg_weight && (
+                        <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300">
+                          {latestCheckin.avg_weight} kg
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-2.5 grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
+                    <ReadOnlyBlock label="Recovery signals" value={[
+                      latestCheckin?.hunger_score ? `Hunger ${latestCheckin.hunger_score}/10` : '',
+                      latestCheckin?.energy_score ? `Energy ${latestCheckin.energy_score}/10` : '',
+                      latestCheckin?.digestion_score ? `Digestion ${latestCheckin.digestion_score}/10` : '',
+                      latestCheckin?.sleep_score ? `Sleep ${latestCheckin.sleep_score}/10` : '',
+                    ].filter(Boolean).join(' · ')} />
+                    <ReadOnlyBlock label="Wins" value={latestCheckin?.wins} />
+                    <ReadOnlyBlock label="Blockers" value={latestCheckin?.blockers} />
+                    <ReadOnlyBlock label="Coach adjustments" value={latestCheckin?.coach_adjustments} />
+                  </div>
+                </div>
+
+                {checkins.length > 1 && (
+                  <div className="rounded-[20px] border border-white/[0.05] bg-black/20">
+                    <button
+                      type="button"
+                      onClick={() => setIsCheckinHistoryOpen((prev) => !prev)}
+                      className="flex w-full items-center justify-between px-4 py-3 text-left"
+                    >
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-600">Check-in history</p>
+                        <p className="mt-1 text-sm text-neutral-400">{checkins.length} lượt đã lưu</p>
+                      </div>
+                      <ChevronDown className={`h-4 w-4 text-neutral-500 transition-transform ${isCheckinHistoryOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isCheckinHistoryOpen && (
+                      <div className="border-t border-white/[0.05] px-3.5 py-3">
+                        <div className="space-y-2">
+                          {checkins.map((item) => (
+                            <div key={item.id} className="rounded-[16px] border border-white/[0.05] bg-white/[0.02] px-3 py-2.5">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="text-sm font-medium text-white">{formatDateLabel(item.checkin_date)}</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {item.adherence_score && (
+                                    <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">
+                                      {item.adherence_score}/10
+                                    </span>
+                                  )}
+                                  {item.avg_weight && (
+                                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-neutral-300">
+                                      {item.avg_weight} kg
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </SectionCard>
 
       <SectionCard
         icon={ShoppingCart}
         title="Shopping & Prep"
-        subtitle="Quy về một chỗ toàn bộ shopping list, batch-cooking và rules thực tế để client bám được plan trong đời sống thường ngày."
         accentClassName="text-cyan-200"
-        action={!readOnly ? <SaveButton onClick={handleSavePrep} isSaving={isSavingPrep} /> : null}
+        action={!readOnly ? <IconButton onClick={handleSavePrep} isSaving={isSavingPrep} /> : null}
       >
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
           {readOnly ? (
             <>
               <ReadOnlyBlock label="Shopping list" value={prep.shoppingList} />
@@ -723,11 +886,11 @@ const NutritionTab = ({ client, readOnly = false }) => {
             </>
           ) : (
             <>
-              <TextAreaField label="Shopping list" value={prep.shoppingList} onChange={(value) => setPrep((prev) => ({ ...prev, shoppingList: value }))} placeholder="Ức gà, trứng, sữa chua Hy Lạp, rau xanh, berries..." rows={5} />
-              <TextAreaField label="Batch cooking" value={prep.batchCooking} onChange={(value) => setPrep((prev) => ({ ...prev, batchCooking: value }))} placeholder="Chủ nhật prep 3 hộp lunch, luộc sẵn trứng, chia sẵn snack..." rows={5} />
-              <TextAreaField label="Pantry staples" value={prep.pantryStaples} onChange={(value) => setPrep((prev) => ({ ...prev, pantryStaples: value }))} placeholder="Yến mạch, gạo, gia vị không đường, whey, tuna..." rows={5} />
-              <TextAreaField label="Eating-out rules" value={prep.eatingOutRules} onChange={(value) => setPrep((prev) => ({ ...prev, eatingOutRules: value }))} placeholder="Ưu tiên món nướng/hấp, xin sauce riêng, 1 social meal/tuần..." rows={5} />
-              <TextAreaField label="Coach notes" value={prep.coachNotes} onChange={(value) => setPrep((prev) => ({ ...prev, coachNotes: value }))} placeholder="Lưu ý logistics, budget, travel week, món thay thế nhanh..." rows={5} />
+              <TextAreaField label="Shopping list" value={prep.shoppingList} onChange={(value) => setPrep((prev) => ({ ...prev, shoppingList: value }))} placeholder="Ức gà, trứng, sữa chua Hy Lạp, rau xanh, berries..." rows={4} />
+              <TextAreaField label="Batch cooking" value={prep.batchCooking} onChange={(value) => setPrep((prev) => ({ ...prev, batchCooking: value }))} placeholder="Chủ nhật prep 3 hộp lunch, luộc sẵn trứng, chia sẵn snack..." rows={4} />
+              <TextAreaField label="Pantry staples" value={prep.pantryStaples} onChange={(value) => setPrep((prev) => ({ ...prev, pantryStaples: value }))} placeholder="Yến mạch, gạo, gia vị không đường, whey, tuna..." rows={4} />
+              <TextAreaField label="Eating-out rules" value={prep.eatingOutRules} onChange={(value) => setPrep((prev) => ({ ...prev, eatingOutRules: value }))} placeholder="Ưu tiên món nướng/hấp, xin sauce riêng, 1 social meal/tuần..." rows={4} />
+              <TextAreaField label="Coach notes" value={prep.coachNotes} onChange={(value) => setPrep((prev) => ({ ...prev, coachNotes: value }))} placeholder="Lưu ý logistics, budget, travel week, món thay thế nhanh..." rows={4} />
             </>
           )}
         </div>
@@ -735,18 +898,24 @@ const NutritionTab = ({ client, readOnly = false }) => {
 
       <SectionCard
         icon={Archive}
-        title="Intake Archive"
-        subtitle="Bản tóm tắt gọn của thông tin client đã điền ban đầu. Mục này để lưu trữ và tham chiếu nhanh, không còn là trọng tâm chính của tab."
+        title="Nutrition Info"
         accentClassName="text-neutral-300"
+        action={!readOnly ? <IconButton onClick={handleSyncIntakeProfile} isSaving={isSyncingIntake} icon={RefreshCw} /> : null}
       >
-        <div className="grid gap-3 md:grid-cols-2">
-          {NUTRITION_ARCHIVE_FIELDS.map((field) => (
-            <div key={field.key} className={`rounded-[20px] border border-white/[0.05] bg-black/20 p-4 ${field.key === 'favoritefoods' ? 'md:col-span-2' : ''}`}>
-              <p className="text-[9px] font-black uppercase tracking-[0.22em] text-neutral-600">{field.label}</p>
-              <p className="mt-2 text-sm leading-relaxed text-white">{isFilled(archive[field.key]) ? archive[field.key] : '--'}</p>
-            </div>
-          ))}
-        </div>
+        {archiveItems.length > 0 ? (
+          <div className="grid gap-2.5 md:grid-cols-2">
+            {archiveItems.map((field) => (
+              <div key={field.key} className="rounded-[16px] border border-white/[0.05] bg-black/20 px-3.5 py-2.5">
+                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-neutral-600">{field.label}</p>
+                <p className="mt-1.5 text-sm leading-relaxed text-white">{archive[field.key]}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-[18px] border border-white/[0.05] bg-black/20 px-3.5 py-5 text-center text-sm text-neutral-500">
+            Chưa có dữ liệu intake nào được lưu.
+          </div>
+        )}
       </SectionCard>
     </div>
   );

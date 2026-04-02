@@ -5,6 +5,9 @@ import {
   buildNutritionProfileFromSource,
   buildNutritionSyncAudit,
   buildPhoneCandidates,
+  COMMITMENT_LEVEL_OPTIONS,
+  countFilledNutritionFields,
+  hasNutritionColumnsInSurveyRow,
   normalizeSurveyResponseRecord,
 } from '../../utils/nutritionUtils';
 
@@ -30,6 +33,12 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
 
   const toggleSection = (id) => setExpandedSection(expandedSection === id ? null : id);
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const commitmentOptions = Array.from(
+    new Set([
+      ...COMMITMENT_LEVEL_OPTIONS,
+      ...(formData.commitmentlevel ? [formData.commitmentlevel] : []),
+    ]),
+  );
 
   // 2. HÀM SYNC THÔNG MINH: Đã thêm Log để Hạo dễ debug
   const handleSyncAPI = async () => {
@@ -41,6 +50,7 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
         .from('survey_responses')
         .select('*')
         .in('phone', phoneCandidates)
+        .order('created_at', { ascending: false })
         .limit(10);
 
       if (error) throw error;
@@ -50,11 +60,29 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
         console.log("Dữ liệu gốc từ survey_responses:", matchedRow);
 
         const mappedData = normalizeSurveyResponseRecord(matchedRow);
+        const mappedNutritionProfile = buildNutritionProfileFromSource(mappedData);
+        const filledNutritionFields = countFilledNutritionFields(mappedNutritionProfile);
+        const hasNutritionColumns = hasNutritionColumnsInSurveyRow(matchedRow);
+
+        if (filledNutritionFields === 0) {
+          if (hasNutritionColumns) {
+            alert(
+              "Đã tìm thấy response trong survey_responses, nhưng các mục nutrition của client này đang trống.\n\n" +
+              "Tức là sync vẫn chạy, chỉ là Google Form chưa có dữ liệu dinh dưỡng để copy sang."
+            );
+          } else {
+            alert(
+              "Đã tìm thấy response trong survey_responses nhưng chưa map được field nutrition.\n\n" +
+              "Khả năng cao tên cột từ Google Form đang khác schema hiện tại. Mở console để xem raw row và bổ sung alias mapping."
+            );
+          }
+        }
+
         setFormData(prev => ({ ...prev, ...mappedData }));
 
         const audit = buildNutritionSyncAudit(
           buildNutritionProfileFromSource({ ...formData, ...mappedData }),
-          buildNutritionProfileFromSource(mappedData),
+          mappedNutritionProfile,
         );
 
         alert(
@@ -240,9 +268,9 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
               <textarea name="medicalconditions" value={formData.medicalconditions} onChange={handleChange} rows="2" placeholder="Bệnh lý (Xương khớp, tim mạch...)" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm resize-none"></textarea>
               <input type="text" name="supplements" value={formData.supplements} onChange={handleChange} placeholder="Thuốc / TPBS đang dùng" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
               <select name="commitmentlevel" value={formData.commitmentlevel} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-neutral-400 text-sm outline-none">
-                <option>Sẵn sàng tuân thủ 100%</option>
-                <option>Sẵn sàng phần lớn</option>
-                <option>Cần đốc thúc</option>
+                {commitmentOptions.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
               </select>
             </div>
           )}
