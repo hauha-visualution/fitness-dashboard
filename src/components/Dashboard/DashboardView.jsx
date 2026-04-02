@@ -81,6 +81,44 @@ const getSessionPalette = (sessionItem) => {
   return SESSION_PALETTES[getDateHash(sessionItem.client?.name || sessionItem.id || '') % SESSION_PALETTES.length];
 };
 
+const getDaySessionState = (daySessions = []) => {
+  const activeSessions = daySessions.filter((sessionItem) => sessionItem.status !== 'cancelled');
+
+  if (activeSessions.length === 0) return 'none';
+  if (activeSessions.some((sessionItem) => sessionItem.status === 'in_progress')) return 'in_progress';
+  if (activeSessions.some((sessionItem) => sessionItem.status !== 'completed')) return 'scheduled';
+  return 'completed';
+};
+
+const getDayStateVisuals = (dayState) => {
+  switch (dayState) {
+    case 'completed':
+      return {
+        fill: 'rgba(200,245,63,0.78)',
+        dot: 'var(--app-accent)',
+        countClassName: 'app-accent-text',
+      };
+    case 'in_progress':
+      return {
+        fill: 'rgba(96,180,255,0.82)',
+        dot: 'var(--app-blue)',
+        countClassName: 'app-blue-text',
+      };
+    case 'scheduled':
+      return {
+        fill: 'rgba(255,255,255,0.32)',
+        dot: 'rgba(255,255,255,0.72)',
+        countClassName: 'text-white/60',
+      };
+    default:
+      return {
+        fill: 'rgba(255,255,255,0)',
+        dot: 'transparent',
+        countClassName: 'text-white/28',
+      };
+  }
+};
+
 const buildQuickLogSelection = (sessionItem) => ({
   sessionId: sessionItem.id,
   clientId: sessionItem.client_id,
@@ -104,6 +142,8 @@ const buildCalendarDays = (displayedMonth, sessionMap, selectedDate, today) => {
     const date = addDays(gridStart, index);
     const iso = toLocalISOString(date);
     const daySessions = sessionMap[iso] || [];
+    const dayState = getDaySessionState(daySessions);
+    const visuals = getDayStateVisuals(dayState);
 
     return {
       iso,
@@ -111,7 +151,9 @@ const buildCalendarDays = (displayedMonth, sessionMap, selectedDate, today) => {
       isCurrentMonth: date.getMonth() === monthStart.getMonth(),
       isSelected: isSameDate(date, selectedDate),
       isToday: isSameDate(date, today),
-      hasSessions: daySessions.some((sessionItem) => sessionItem.status !== 'cancelled'),
+      hasSessions: dayState !== 'none',
+      dayState,
+      dotColor: visuals.dot,
     };
   });
 };
@@ -275,9 +317,16 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
     const workWeek = weekDays.slice(0, 5);
     const counts = workWeek.map((day) => {
       const iso = toLocalISOString(day);
+      const daySessions = sessionMap[iso] || [];
+      const dayState = getDaySessionState(daySessions);
+      const visuals = getDayStateVisuals(dayState);
+
       return {
         label: CALENDAR_DAY_LABELS[(day.getDay() + 6) % 7],
-        count: (sessionMap[iso] || []).filter((sessionItem) => sessionItem.status !== 'cancelled').length,
+        count: daySessions.filter((sessionItem) => sessionItem.status !== 'cancelled').length,
+        dayState,
+        fill: visuals.fill,
+        countClassName: visuals.countClassName,
         isSelectedWeekDay: isSameDate(day, selectedDate),
       };
     });
@@ -486,15 +535,20 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
 
             <div className="px-4 py-4 space-y-3">
               {weekBars.map((bar) => (
-                <div key={bar.label} className="flex items-center gap-3">
+                <div
+                  key={bar.label}
+                  className={`flex items-center gap-3 rounded-[12px] transition-all ${
+                    bar.isSelectedWeekDay ? 'bg-white/[0.03] px-2 py-1 -mx-2' : ''
+                  }`}
+                >
                   <div className="min-w-[18px] text-[9px] font-black uppercase tracking-wide text-white/24">{bar.label}</div>
                   <div className="flex-1 h-[10px] rounded-full bg-white/[0.05] overflow-hidden">
                     <div
-                      className={`h-full rounded-full ${bar.isSelectedWeekDay ? 'bg-[rgba(200,245,63,0.78)]' : 'bg-[rgba(200,245,63,0.42)]'}`}
-                      style={{ width: bar.width }}
+                      className="h-full rounded-full"
+                      style={{ width: bar.width, background: bar.fill }}
                     />
                   </div>
-                  <div className={`min-w-[12px] text-right text-[10px] font-black ${bar.isSelectedWeekDay ? 'app-accent-text' : 'text-white/28'}`}>
+                  <div className={`min-w-[12px] text-right text-[10px] font-black ${bar.count > 0 ? bar.countClassName : 'text-white/28'}`}>
                     {bar.count}
                   </div>
                 </div>
@@ -561,7 +615,10 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
                   >
                     {day.date.getDate()}
                     {day.hasSessions && (
-                      <span className={`absolute bottom-[6px] left-1/2 -translate-x-1/2 w-[4px] h-[4px] rounded-full ${day.isSelected ? 'bg-[var(--app-accent)]' : 'bg-[var(--app-accent)]/80'}`} />
+                      <span
+                        className="absolute bottom-[6px] left-1/2 -translate-x-1/2 w-[4px] h-[4px] rounded-full"
+                        style={{ background: day.dotColor }}
+                      />
                     )}
                   </button>
                 ))}
@@ -571,7 +628,15 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
             <div className="px-4 pb-4 flex items-center gap-4">
               <div className="flex items-center gap-2 text-[9px] font-bold text-white/24">
                 <span className="w-2 h-2 rounded-full bg-[var(--app-accent)]" />
-                Has Sessions
+                Done
+              </div>
+              <div className="flex items-center gap-2 text-[9px] font-bold text-white/24">
+                <span className="w-2 h-2 rounded-full bg-[var(--app-blue)]" />
+                In Progress
+              </div>
+              <div className="flex items-center gap-2 text-[9px] font-bold text-white/24">
+                <span className="w-2 h-2 rounded-full bg-white/60" />
+                Scheduled
               </div>
               <div className="flex items-center gap-2 text-[9px] font-bold text-white/24">
                 <span className="w-2 h-2 rounded-full bg-[rgba(200,245,63,0.35)] border border-[rgba(200,245,63,0.5)]" />
