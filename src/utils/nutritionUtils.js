@@ -12,6 +12,15 @@ export const NUTRITION_ARCHIVE_FIELDS = [
   { key: 'commitmentlevel', label: 'Mức cam kết' },
 ];
 
+export const COMMITMENT_LEVEL_OPTIONS = [
+  'Sẵn sàng tuân thủ 100%',
+  'Sẵn sàng phần lớn',
+  'Cần đốc thúc',
+  'Hoàn toàn sẵn sàng, em rất quyết tâm!',
+  'Phần lớn là được, miễn phù hợp với lịch sinh hoạt',
+  'Hơi khó, không chắc chắn lắm vì bận công việc...',
+];
+
 const SURVEY_FIELD_ALIASES = {
   cookinghabit: ['cookinghabit', 'cooking_habit'],
   cookingtime: ['cookingtime', 'cooking_time'],
@@ -28,6 +37,22 @@ const SURVEY_FIELD_ALIASES = {
   sleephabits: ['sleephabits', 'sleep_habits'],
 };
 
+const SURVEY_FIELD_KEYWORDS = {
+  cookinghabit: ['cookinghabit', 'thoiquennauan', 'nauan', 'cookhabit'],
+  cookingtime: ['cookingtime', 'thoigiannau', 'giannau', 'cooktime'],
+  foodbudget: ['foodbudget', 'ngansach', 'budgetan', 'foodmoney'],
+  dietaryrestriction: ['dietaryrestriction', 'dikieng', 'ankieng', 'diung', 'restriction'],
+  avoidfoods: ['avoidfoods', 'thucphamtranh', 'foodavoid', 'khongan', 'tranh'],
+  favoritefoods: ['favoritefoods', 'monyeuthich', 'foodfavorite', 'yeuthich'],
+  medicalconditions: ['medicalconditions', 'benhly', 'benhnen', 'medical', 'healthissue'],
+  supplements: ['supplements', 'tpbs', 'thucphambosung', 'thuocdangdung', 'supplement'],
+  commitmentlevel: ['commitmentlevel', 'camket', 'mucdocamket', 'discipline'],
+  traininghistory: ['traininghistory', 'lichtutap', 'lichsutap', 'historytap'],
+  targetduration: ['targetduration', 'thoigianmongmuon', 'targettime', 'duration'],
+  jobtype: ['jobtype', 'congviec', 'tinhchatcongviec', 'jobnature'],
+  sleephabits: ['sleephabits', 'giacngu', 'sleep', 'thoiquengiacngu'],
+};
+
 const isFilled = (value) => {
   if (value === null || value === undefined) return false;
   if (typeof value === 'string') return value.trim().length > 0;
@@ -42,23 +67,82 @@ const cleanToken = (value) =>
     .replace(/\s*,\s*/g, ',')
     .trim();
 
+const normalizeLookupKey = (value) =>
+  String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+
+export const normalizeDateForDateInput = (value) => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+
+  const slashMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashMatch) {
+    const first = Number(slashMatch[1]);
+    const second = Number(slashMatch[2]);
+    const year = slashMatch[3];
+
+    // Spreadsheet locale is en_US, so dates coming from the form output are MM/DD/YYYY.
+    const month = String(first).padStart(2, '0');
+    const day = String(second).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    const year = parsed.getFullYear();
+    const month = String(parsed.getMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  return raw;
+};
+
 export const normalizeSurveyResponseRecord = (row = {}) => {
   const lowered = {};
+  const normalizedEntries = [];
 
   Object.entries(row || {}).forEach(([key, value]) => {
-    lowered[String(key).toLowerCase()] = typeof value === 'string' ? value.trim() : value;
+    const normalizedValue = typeof value === 'string' ? value.trim() : value;
+    const loweredKey = String(key).toLowerCase();
+    lowered[loweredKey] = normalizedValue;
+    normalizedEntries.push({
+      originalKey: key,
+      loweredKey,
+      normalizedKey: normalizeLookupKey(key),
+      value: normalizedValue,
+    });
   });
 
   const mapped = { ...lowered };
   Object.entries(SURVEY_FIELD_ALIASES).forEach(([target, aliases]) => {
-    const match = aliases
+    let match = aliases
       .map((alias) => lowered[alias.toLowerCase()])
       .find((value) => isFilled(value));
+
+    if (!isFilled(match)) {
+      const keywords = SURVEY_FIELD_KEYWORDS[target] || [];
+      const keywordMatch = normalizedEntries.find((entry) =>
+        isFilled(entry.value) && keywords.some((keyword) => entry.normalizedKey.includes(keyword)),
+      );
+      match = keywordMatch?.value;
+    }
 
     if (match !== undefined) {
       mapped[target] = match;
     }
   });
+
+  if (mapped.dob !== undefined) {
+    mapped.dob = normalizeDateForDateInput(mapped.dob);
+  }
 
   return mapped;
 };
@@ -68,6 +152,21 @@ export const buildNutritionProfileFromSource = (source = {}) =>
     acc[field.key] = source?.[field.key] ?? '';
     return acc;
   }, {});
+
+export const countFilledNutritionFields = (source = {}) =>
+  NUTRITION_ARCHIVE_FIELDS.filter((field) => isFilled(source?.[field.key])).length;
+
+export const hasNutritionColumnsInSurveyRow = (row = {}) => {
+  const normalizedKeys = Object.keys(row || {}).map((key) => normalizeLookupKey(key));
+
+  return Object.entries(SURVEY_FIELD_KEYWORDS).some(([field, keywords]) => {
+    const aliases = SURVEY_FIELD_ALIASES[field] || [];
+    return normalizedKeys.some((normalizedKey) =>
+      aliases.some((alias) => normalizeLookupKey(alias) === normalizedKey) ||
+      keywords.some((keyword) => normalizedKey.includes(keyword)),
+    );
+  });
+};
 
 export const buildNutritionSyncAudit = (clientSource = {}, surveySource = {}) => {
   const items = NUTRITION_ARCHIVE_FIELDS.map((field) => {

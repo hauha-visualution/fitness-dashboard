@@ -5,6 +5,7 @@ import {
   Clock3,
   CreditCard,
   Library,
+  Plus,
   RefreshCw,
   Tag,
   Wallet,
@@ -42,7 +43,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
       .order('created_at', { ascending: false });
 
     if (error) {
-      alert(`Không tải được payment: ${error.message}`);
+      alert(`Unable to load payments: ${error.message}`);
       setLoading(false);
       return;
     }
@@ -85,7 +86,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
         coach_confirmed_at: new Date().toISOString(),
         paid_at: new Date().toISOString(),
       },
-      'Không thể cập nhật payment'
+      'Unable to update payment'
     );
   };
 
@@ -96,7 +97,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
         status: 'cancelled',
         cancelled_at: new Date().toISOString(),
       },
-      'Không thể hủy payment'
+      'Unable to void payment'
     );
   };
 
@@ -108,7 +109,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
     });
 
     if (error) {
-      alert(`Không thể báo đã chuyển: ${error.message}`);
+      alert(`Unable to submit transfer: ${error.message}`);
       setActioningId(null);
       return;
     }
@@ -126,17 +127,17 @@ const PaymentTab = ({ client, readOnly = false }) => {
   const totalCancelled = payments.filter((payment) => payment.status === 'cancelled').length;
 
   const buildTimeline = (payment) => {
-    const entries = [`Tạo ${fmtDate(payment.created_at)}`];
-    if (payment.customer_marked_at) entries.push(`Khách báo ${fmtDate(payment.customer_marked_at)}`);
-    if (payment.coach_confirmed_at) entries.push(`Coach xác nhận ${fmtDate(payment.coach_confirmed_at)}`);
-    if (payment.paid_at) entries.push(`Hoàn tất ${fmtDate(payment.paid_at)}`);
-    if (payment.cancelled_at) entries.push(`Hủy ${fmtDate(payment.cancelled_at)}`);
+    const entries = [`Created ${fmtDate(payment.created_at)}`];
+    if (payment.customer_marked_at) entries.push(`Submitted ${fmtDate(payment.customer_marked_at)}`);
+    if (payment.coach_confirmed_at) entries.push(`Confirmed ${fmtDate(payment.coach_confirmed_at)}`);
+    if (payment.paid_at) entries.push(`Completed ${fmtDate(payment.paid_at)}`);
+    if (payment.cancelled_at) entries.push(`Voided ${fmtDate(payment.cancelled_at)}`);
     return entries.join(' · ');
   };
 
   const summaryCards = [
     {
-      label: 'Chờ xử lý',
+      label: 'Open',
       value: showExactTotals ? fmtVND(totalOutstanding) : fmtVNDAbridged(totalOutstanding),
       caption: `${outstandingPayments.length} open`,
       classes: 'border-red-500/20 bg-red-500/[0.06]',
@@ -145,27 +146,27 @@ const PaymentTab = ({ client, readOnly = false }) => {
       isCurrency: true,
     },
     {
-      label: 'Khách báo chuyển',
+      label: 'Submitted',
       value: `${submittedPayments.length}`,
-      caption: 'Need confirm',
+      caption: 'Awaiting confirmation',
       classes: 'border-amber-500/20 bg-amber-500/[0.06]',
       textClass: 'text-amber-300/80',
       icon: RefreshCw,
       isCurrency: false,
     },
     {
-      label: 'Đã thanh toán',
+      label: 'Paid',
       value: showExactTotals ? fmtVND(totalPaid) : fmtVNDAbridged(totalPaid),
-      caption: `${payments.filter((payment) => payment.status === 'paid').length} done`,
-      classes: 'border-emerald-500/20 bg-emerald-500/[0.06]',
-      textClass: 'text-emerald-300/80',
+      caption: `${payments.filter((payment) => payment.status === 'paid').length} Paid`,
+      classes: 'border-[rgba(200,245,63,0.2)] bg-[rgba(200,245,63,0.06)]',
+      textClass: 'text-[rgba(200,245,63,0.85)]',
       icon: CheckCircle2,
       isCurrency: true,
     },
     {
-      label: 'Đã hủy',
+      label: 'Voided',
       value: `${totalCancelled}`,
-      caption: 'Void',
+      caption: 'Voided',
       classes: 'border-white/[0.08] bg-white/[0.03]',
       textClass: 'text-neutral-400',
       icon: X,
@@ -177,19 +178,19 @@ const PaymentTab = ({ client, readOnly = false }) => {
     {
       id: 'open',
       label: 'Open',
-      description: 'Đang chờ xử lý hoặc chờ coach xác nhận',
+      description: 'Waiting for payment or coach confirmation',
       items: payments.filter((payment) => isOutstandingPayment(payment.status)),
     },
     {
       id: 'paid',
       label: 'Paid',
-      description: 'Các khoản đã hoàn tất',
+      description: 'Completed payments',
       items: payments.filter((payment) => payment.status === 'paid'),
     },
     {
       id: 'cancelled',
       label: 'Cancelled',
-      description: 'Các khoản đã hủy',
+      description: 'Voided requests',
       items: payments.filter((payment) => payment.status === 'cancelled'),
     },
   ].filter((group) => group.items.length > 0);
@@ -204,17 +205,17 @@ const PaymentTab = ({ client, readOnly = false }) => {
 
   return (
     <>
-      <div className="space-y-4 animate-slide-up">
+      <div className="space-y-5 pt-2 animate-slide-up">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-neutral-600 mb-1">
+          <div className="pt-1">
+            <p className="app-label text-[11px] font-black uppercase tracking-[0.24em] mb-0.5">
               Payments
             </p>
-            <p className="text-neutral-500 text-sm">
-              {isCoachView
-                ? 'Quản lý yêu cầu thanh toán, xác nhận chuyển khoản và chốt công nợ.'
-                : 'Theo dõi khoản cần thanh toán và báo cho coach khi bạn đã chuyển khoản.'}
-            </p>
+            {!isCoachView && (
+              <p className="text-neutral-500 text-sm">
+                Track what you owe and let your coach know once the transfer has been sent.
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -223,7 +224,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
               onClick={() => {
                 void fetchPayments();
               }}
-              className="w-11 h-11 rounded-full border border-white/10 bg-white/[0.04] text-neutral-300 flex items-center justify-center active:scale-95 transition-all"
+              className="app-ghost-button w-11 h-11 rounded-full border text-neutral-300 flex items-center justify-center active:scale-95 transition-all"
               aria-label="Refresh"
               title="Refresh"
             >
@@ -234,9 +235,11 @@ const PaymentTab = ({ client, readOnly = false }) => {
               <button
                 type="button"
                 onClick={() => setShowCreateModal(true)}
-                className="px-4 py-3 rounded-[16px] border border-blue-400/20 bg-blue-500/[0.12] text-blue-300 text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all"
+                className="app-cta-button h-11 w-11 rounded-full border flex items-center justify-center active:scale-95 transition-all"
+                aria-label="Create payment"
+                title="Create payment"
               >
-                New
+                <Plus className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -254,7 +257,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
                     if (card.isCurrency) setShowExactTotals((current) => !current);
                   }}
                   className={`rounded-[16px] border px-3 py-2.5 text-left ${card.classes} ${card.isCurrency ? 'cursor-pointer active:scale-[0.98] transition-transform' : 'cursor-default'}`}
-                  title={card.isCurrency ? 'Tap để đổi giữa số rút gọn và số đầy đủ' : undefined}
+                  title={card.isCurrency ? 'Toggle between compact and exact totals' : undefined}
                 >
                   <div className="flex items-center gap-1.5 mb-1">
                     <Icon className={`w-3.5 h-3.5 ${card.textClass}`} />
@@ -273,11 +276,11 @@ const PaymentTab = ({ client, readOnly = false }) => {
         {payments.length === 0 ? (
           <div className="text-center py-12 text-neutral-700 rounded-[28px] border border-white/[0.06] bg-white/[0.02]">
             <CreditCard className="w-8 h-8 mx-auto mb-3 opacity-30" />
-            <p className="text-[10px] font-black uppercase tracking-[0.28em]">Chưa có payment nào</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.28em]">No Payments Yet</p>
             <p className="text-neutral-500 text-sm mt-2 px-6">
               {isCoachView
-                ? 'Bạn có thể tạo payment thủ công cho dịch vụ mới hoặc tạo package để hệ thống sinh công nợ tự động.'
-                : 'Coach chưa tạo yêu cầu thanh toán nào cho bạn.'}
+                ? 'Create a manual payment for a new service or create a package so the system can open the charge automatically.'
+                : 'Your coach has not created any payment request for you yet.'}
             </p>
           </div>
         ) : (
@@ -375,7 +378,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
                                   void handleMarkPaid(payment);
                                 }}
                                 disabled={isBusy}
-                                className="min-w-[88px] px-4 py-2 rounded-[12px] border border-emerald-500/30 bg-emerald-500/[0.12] text-emerald-300 text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                                className="min-w-[88px] px-4 py-2 rounded-[12px] border border-[rgba(200,245,63,0.3)] bg-[rgba(200,245,63,0.14)] text-[var(--app-accent)] text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
                               >
                                 {isBusy ? <RefreshCw className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
                                 Paid
@@ -402,7 +405,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
                                   void handleMarkPaid(payment);
                                 }}
                                 disabled={isBusy}
-                                className="min-w-[88px] px-4 py-2 rounded-[12px] border border-emerald-500/30 bg-emerald-500/[0.12] text-emerald-300 text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                                className="min-w-[88px] px-4 py-2 rounded-[12px] border border-[rgba(200,245,63,0.3)] bg-[rgba(200,245,63,0.14)] text-[var(--app-accent)] text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
                               >
                                 {isBusy ? <RefreshCw className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
                                 Confirm

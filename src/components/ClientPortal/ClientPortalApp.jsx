@@ -32,17 +32,17 @@ const ClientHomeTab = ({ client, onLogout }) => {
             name={client?.name}
             avatarUrl={client?.avatar_url || client?.avatar}
             sizeClassName="w-12 h-12"
-            ringClassName="border border-white/10 bg-white/5"
-            textClassName="text-sm font-black text-blue-300"
+            ringClassName="border border-[rgba(200,245,63,0.28)] bg-[linear-gradient(135deg,rgba(200,245,63,0.18),rgba(96,180,255,0.18))]"
+            textClassName="text-sm font-black app-accent-text"
           />
           <div>
-            <p className="text-[10px] font-black text-neutral-600 uppercase tracking-widest">Xin chào 👋</p>
-            <h2 className="text-white font-medium text-lg leading-tight">{client?.name || 'Học viên'}</h2>
+            <p className="text-[10px] font-black text-neutral-600 uppercase tracking-widest">Welcome 👋</p>
+            <h2 className="text-white font-medium text-lg leading-tight">{client?.name || 'Trainee'}</h2>
           </div>
         </div>
         <button
           onClick={onLogout}
-          className="p-2.5 bg-white/[0.04] border border-white/[0.08] rounded-full text-neutral-600 active:scale-90 transition-all"
+          className="app-ghost-button p-2.5 border rounded-full text-neutral-600 active:scale-90 transition-all"
         >
           <LogOut className="w-4 h-4" />
         </button>
@@ -57,17 +57,17 @@ const ClientHomeTab = ({ client, onLogout }) => {
       )}
 
       {/* Card gói tập */}
-      <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] border border-white/10 rounded-[28px] p-6 relative overflow-hidden">
+        <div className="app-glass-panel rounded-[28px] border p-6 relative overflow-hidden">
         <Zap className="absolute -right-3 -top-3 w-20 h-20 text-white/[0.04]" />
-        <p className="text-[9px] font-black text-neutral-500 uppercase tracking-widest mb-3">Gói tập hiện tại</p>
+        <p className="text-[9px] font-black text-neutral-500 uppercase tracking-widest mb-3">Current Package</p>
         <div className="flex items-end justify-between mb-4">
           <div>
             <p className="text-3xl font-light text-white">{remaining}</p>
-            <p className="text-[9px] font-black text-neutral-600 uppercase mt-0.5">Buổi còn lại</p>
+            <p className="text-[9px] font-black text-neutral-600 uppercase mt-0.5">Sessions Left</p>
           </div>
           <div className="text-right">
             <p className="text-lg font-light text-neutral-400">{total}</p>
-            <p className="text-[9px] font-black text-neutral-600 uppercase mt-0.5">Tổng buổi</p>
+            <p className="text-[9px] font-black text-neutral-600 uppercase mt-0.5">Total Sessions</p>
           </div>
         </div>
         {/* Progress bar */}
@@ -99,7 +99,7 @@ const ClientHomeTab = ({ client, onLogout }) => {
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-[20px] p-4 flex items-center gap-3">
           <Bell className="w-5 h-5 text-yellow-400 shrink-0" />
           <div>
-            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-0.5">Cam kết</p>
+            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-0.5">Commitment</p>
             <p className="text-white text-sm">{client.commitmentlevel}</p>
           </div>
         </div>
@@ -110,7 +110,7 @@ const ClientHomeTab = ({ client, onLogout }) => {
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-[20px] p-4 flex items-center gap-3">
           <Clock className="w-5 h-5 text-blue-400 shrink-0" />
           <div>
-            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-0.5">Thời gian tập</p>
+            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-0.5">Training Time</p>
             <p className="text-white text-sm">{client.trainingtime}</p>
           </div>
         </div>
@@ -181,7 +181,7 @@ const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
 
   if (isLoading) {
     return (
-      <div className="h-screen bg-black flex items-center justify-center">
+      <div className="app-screen-shell h-screen flex items-center justify-center">
         <div className="w-10 h-10 border-2 border-white/10 border-t-white/40 rounded-full animate-spin" />
       </div>
     );
@@ -223,7 +223,7 @@ const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
   };
 
   return (
-    <div className="h-screen bg-[#0a0a0a] flex flex-col relative">
+    <div className="app-screen-shell h-screen flex flex-col relative">
 
       {/* Top bar (hiển thị khi không ở home) */}
       {activeTab !== 'home' && (
@@ -236,7 +236,7 @@ const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
           </div>
           <button
             onClick={onLogout}
-            className="p-2.5 bg-white/[0.04] border border-white/[0.08] rounded-full text-neutral-600"
+            className="app-ghost-button p-2.5 border rounded-full text-neutral-600"
           >
             <LogOut className="w-4 h-4" />
           </button>
@@ -247,18 +247,18 @@ const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
       {renderContent()}
 
       {/* Bottom Navigation */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[94%] bg-black/80 backdrop-blur-3xl border border-white/10 rounded-[32px] p-1.5 flex justify-between z-50 shadow-2xl">
+      <div className="app-nav-shell absolute bottom-6 left-1/2 -translate-x-1/2 w-[94%] rounded-[32px] p-1.5 flex justify-between z-50 shadow-2xl">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`flex-1 py-3.5 rounded-[26px] flex flex-col items-center justify-center gap-1 transition-all duration-300 ${
               activeTab === tab.id
-                ? 'bg-white/5 text-white scale-100'
+                ? 'app-nav-item-active scale-100'
                 : 'text-neutral-600 scale-90 opacity-50'
             }`}
           >
-            <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-white' : 'text-neutral-700'}`} />
+            <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'app-accent-text' : 'text-neutral-700'}`} />
             <span className="text-[7px] font-black uppercase tracking-tighter">{tab.label}</span>
           </button>
         ))}

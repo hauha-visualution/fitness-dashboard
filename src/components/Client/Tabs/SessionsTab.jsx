@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { Dumbbell, CheckCircle2, Clock, ChevronDown, ChevronUp, RefreshCw, Plus, X } from 'lucide-react';
+import { Dumbbell, CheckCircle2, Clock, ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 
 // ─── Helpers ─────────────────────────────────────────────────
-const DAY_VI = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+const DAY_VI = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const formatSessionDate = (dateStr) => {
   const d = new Date(dateStr + 'T00:00:00');
@@ -35,7 +35,6 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedPkg, setExpandedPkg] = useState('active'); // default expand active
-  const [markingId, setMarkingId] = useState(null);
   const [showExtraModal, setShowExtraModal] = useState(false);
   const [extraPackage, setExtraPackage] = useState(null);
   const [extraDate, setExtraDate] = useState('');
@@ -64,37 +63,13 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
     return () => window.clearTimeout(timeoutId);
   }, [fetchData, refreshKey]);
 
-  // Mark session as completed
-  const markDone = async (sessionId) => {
-    setMarkingId(sessionId);
-    const { error } = await supabase
-      .from('sessions')
-      .update({ status: 'completed', completed_at: new Date().toISOString() })
-      .eq('id', sessionId);
-
-    if (!error) {
-      setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, status: 'completed', completed_at: new Date().toISOString() } : s));
-      // Check if this was the last session → auto-complete the package
-      const session = sessions.find(s => s.id === sessionId);
-      if (session) {
-        const pkgSessions = sessions.filter(s => s.package_id === session.package_id);
-        const willBeAllDone = pkgSessions.filter(s => s.id !== sessionId && ['scheduled', 'in_progress'].includes(s.status)).length === 0;
-        if (willBeAllDone) {
-          await supabase.from('packages').update({ status: 'completed' }).eq('id', session.package_id);
-          setPackages(prev => prev.map(p => p.id === session.package_id ? { ...p, status: 'completed' } : p));
-        }
-      }
-    }
-    setMarkingId(null);
-  };
-
   const openExtraModal = (pkg, pkgSessions) => {
     const activeSessions = pkgSessions
       .filter(sessionItem => ['scheduled', 'in_progress'].includes(sessionItem.status))
       .sort((a, b) => a.session_number - b.session_number || a.scheduled_date.localeCompare(b.scheduled_date) || a.scheduled_time.localeCompare(b.scheduled_time));
 
     if (activeSessions.length === 0) {
-      alert('Không còn session nào trong gói để thêm buổi phát sinh.');
+      alert('There are no active sessions left in this package to insert an extra one.');
       return;
     }
 
@@ -118,7 +93,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
     });
 
     if (error) {
-      alert(`Không thể thêm buổi phát sinh: ${error.message}`);
+      alert(`Unable to add extra session: ${error.message}`);
       setAddingExtra(false);
       return;
     }
@@ -138,7 +113,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
   if (sessions.length === 0) return (
     <div className="text-center py-20 space-y-3 animate-slide-up">
       <Dumbbell className="w-12 h-12 mx-auto text-neutral-800" />
-      <p className="text-neutral-600 text-xs font-black uppercase tracking-widest">Chưa có buổi tập</p>
+      <p className="text-neutral-600 text-xs font-black uppercase tracking-widest">No Sessions Yet</p>
     </div>
   );
 
@@ -179,12 +154,12 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
             >
               <div className="flex items-center gap-3">
                 <span className={`text-[10px] font-black uppercase tracking-widest ${isActive ? 'text-blue-400' : 'text-neutral-600'}`}>
-                  Gói #{String(pkg.package_number).padStart(2, '0')}
+                  Package #{String(pkg.package_number).padStart(2, '0')}
                 </span>
-                <span className="text-xs text-neutral-600">{completedCount}/{pkg.total_sessions} buổi</span>
+                <span className="text-xs text-neutral-600">{completedCount}/{pkg.total_sessions} sessions</span>
                 {isActive && nextSession && (
                   <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                    Đang tập
+                    Active
                   </span>
                 )}
               </div>
@@ -210,7 +185,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                     {isActive && (
                       <div className="flex items-center justify-between gap-3 py-2 px-1">
                         <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">
-                          Sắp tới · {upcomingSessions.length} buổi
+                          Upcoming · {upcomingSessions.length} sessions
                         </p>
                         {!readOnly && nextSession && (
                           <button
@@ -218,7 +193,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                             className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-[10px] font-black uppercase transition-all active:scale-90 bg-white/[0.05] border border-white/[0.08] text-white"
                           >
                             <Plus className="w-3 h-3" />
-                            Thêm buổi phát sinh
+                            Add Extra Session
                           </button>
                         )}
                       </div>
@@ -250,15 +225,15 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                           <div className="flex-1">
                             <p className={`text-xs font-medium ${today || isInProgress ? 'text-blue-300' : 'text-white'}`}>
                               {short}
-                              {today && <span className="text-[9px] font-black text-blue-400 ml-1">HÔM NAY</span>}
-                              {isInProgress && <span className="text-[9px] font-black text-blue-400 ml-1">ĐANG TẬP</span>}
+                              {today && <span className="text-[9px] font-black text-blue-400 ml-1">TODAY</span>}
+                              {isInProgress && <span className="text-[9px] font-black text-blue-400 ml-1">LIVE</span>}
                             </p>
                             <p className="text-[10px] text-neutral-600">{sess.scheduled_time?.slice(0, 5)}</p>
                           </div>
 
                           {/* Mark done button (coach only) */}
                           {!readOnly && (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center">
                               <button
                                 onClick={() => onOpenQuickLog?.({
                                   sessionId: sess.id,
@@ -273,22 +248,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                                 className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-[10px] font-black uppercase transition-all active:scale-90 bg-blue-500/10 border border-blue-500/20 text-blue-400"
                               >
                                 <Clock className="w-3 h-3" />
-                                Log
-                              </button>
-                              <button
-                                onClick={() => markDone(sess.id)}
-                                disabled={markingId === sess.id}
-                                className={`flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-[10px] font-black uppercase transition-all active:scale-90 ${
-                                  past || today || isInProgress
-                                    ? 'bg-emerald-500/15 border border-emerald-500/25 text-emerald-400'
-                                    : 'bg-white/[0.04] border border-white/[0.08] text-neutral-600'
-                                }`}
-                              >
-                                {markingId === sess.id
-                                  ? <RefreshCw className="w-3 h-3 animate-spin" />
-                                  : <CheckCircle2 className="w-3 h-3" />
-                                }
-                                Done
+                                Record
                               </button>
                             </div>
                           )}
@@ -302,7 +262,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                 {doneSessions.length > 0 && (
                   <>
                     <p className="text-[9px] font-black text-neutral-700 uppercase tracking-widest py-2 px-1 mt-2">
-                      Đã hoàn thành · {doneSessions.length} buổi
+                      Completed · {doneSessions.length} sessions
                     </p>
                     {doneSessions.map(sess => {
                       const { dayLabel, short } = formatSessionDate(sess.scheduled_date);
@@ -326,7 +286,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                 {cancelledSessions.length > 0 && (
                   <>
                     <p className="text-[9px] font-black text-red-400/70 uppercase tracking-widest py-2 px-1 mt-2">
-                      Đã hủy · {cancelledSessions.length} buổi
+                      Cancelled · {cancelledSessions.length} sessions
                     </p>
                     {cancelledSessions.map(sess => {
                       const { dayLabel, short } = formatSessionDate(sess.scheduled_date);
@@ -361,9 +321,9 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
           <div className="w-full max-w-[420px] bg-[#111113] border border-white/10 rounded-t-[28px] p-5 pb-8 animate-slide-up">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Buổi phát sinh</p>
+                <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Extra Session</p>
                 <h3 className="text-white font-semibold text-lg">
-                  Gói #{String(extraPackage?.package_number || '').padStart(2, '0')}
+                  Package #{String(extraPackage?.package_number || '').padStart(2, '0')}
                 </h3>
               </div>
               <button onClick={() => setShowExtraModal(false)} className="p-2 bg-white/5 rounded-full text-neutral-400">
@@ -374,11 +334,11 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
             <div className="space-y-4">
               <div className="bg-white/[0.03] border border-white/[0.06] rounded-[14px] px-4 py-3">
                 <p className="text-[10px] text-neutral-400 leading-relaxed">
-                  Chọn ngày giờ buổi tập phát sinh ngoài lịch cố định. Hệ thống sẽ tự tìm buổi liền kề trước đó để gán số thứ tự mới và dồn các buổi phía sau lên tiếp.
+                  Choose the date and time for a session outside the fixed schedule. The system will place it after the nearest previous session and shift the following ones forward.
                 </p>
               </div>
               <div>
-                <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-2">Ngày tập phát sinh</label>
+                <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-2">Session Date</label>
                 <input
                   type="date"
                   value={extraDate}
@@ -387,7 +347,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                 />
               </div>
               <div>
-                <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-2">Giờ tập</label>
+                <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-2">Session Time</label>
                 <input
                   type="time"
                   value={extraTime}
@@ -396,12 +356,12 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                 />
               </div>
               <div>
-                <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-2">Ghi chú</label>
+                <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-2">Note</label>
                 <input
                   type="text"
                   value={extraNote}
                   onChange={e => setExtraNote(e.target.value)}
-                  placeholder="VD: Bù buổi công tác"
+                  placeholder="Example: Rescheduled business trip session"
                   className="w-full bg-white/[0.04] border border-white/[0.08] rounded-[14px] px-4 py-3 text-white text-sm outline-none focus:border-white/20"
                 />
               </div>
@@ -412,14 +372,14 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                 onClick={() => setShowExtraModal(false)}
                 className="flex-1 py-3.5 rounded-[16px] border border-white/[0.08] bg-white/[0.04] text-white font-bold text-sm"
               >
-                Hủy
+                Cancel
               </button>
               <button
                 onClick={handleCreateExtraSession}
                 disabled={addingExtra || !extraDate || !extraTime}
                 className="flex-1 py-3.5 rounded-[16px] bg-white text-black font-bold text-sm disabled:opacity-50"
               >
-                {addingExtra ? 'Đang thêm...' : 'Thêm buổi'}
+                {addingExtra ? 'Adding...' : 'Add Session'}
               </button>
             </div>
           </div>

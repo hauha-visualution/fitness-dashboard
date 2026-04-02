@@ -59,7 +59,7 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
         .order('package_number', { ascending: false });
 
       if (error) {
-        alert(`Không tải được gói tập: ${error.message}`);
+        alert(`Unable to load packages: ${error.message}`);
         setLoadingPackages(false);
         return;
       }
@@ -121,7 +121,7 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
     const { error } = await supabase.from('payments').insert([payload]);
 
     if (error) {
-      alert(`Không thể tạo payment: ${error.message}`);
+      alert(`Unable to create payment: ${error.message}`);
       setIsSaving(false);
       return;
     }
@@ -132,7 +132,7 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
 
   return ReactDOM.createPortal(
     <div className="fixed inset-0 z-[600] bg-black/60 backdrop-blur-sm px-4 py-8">
-      <div className="mx-auto w-full max-w-[420px] max-h-full overflow-hidden rounded-[32px] border border-white/10 bg-[#101010] shadow-2xl flex flex-col">
+      <div className="mx-auto w-full max-w-[420px] max-h-full overflow-hidden rounded-[32px] border border-white/10 bg-[var(--app-bg-dialog)] shadow-2xl flex flex-col">
         <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.32em] text-neutral-600 mb-1">
@@ -140,13 +140,13 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
             </p>
             <h3 className="text-white text-lg font-semibold">Create Payment</h3>
             <p className="text-neutral-500 text-xs mt-1">
-              Tạo yêu cầu thanh toán mới cho học viên hoặc dịch vụ phát sinh.
+              Create a new payment request for a trainee or an additional service.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-10 h-10 rounded-full border border-white/10 bg-white/[0.04] text-neutral-400 flex items-center justify-center active:scale-95 transition-all"
+            className="app-ghost-button w-10 h-10 rounded-full border flex items-center justify-center active:scale-95 transition-all"
             aria-label="Close"
             title="Close"
           >
@@ -158,21 +158,21 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
           {clients.length > 1 && (
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">
-                Client
+                Trainee
               </label>
               <select
                 value={form.clientId}
                 onChange={(event) => updateField('clientId', event.target.value)}
                 className="w-full rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none"
               >
-                <option value="" className="bg-[#101010]">Select client</option>
+                <option value="" className="bg-[#101010]">Select trainee</option>
                 {clients.map((client) => (
                   <option key={client.id} value={client.id} className="bg-[#101010]">
                     {client.name}
                   </option>
                 ))}
               </select>
-              <p className="text-neutral-500 text-xs">Chọn học viên sẽ nhận yêu cầu thanh toán này.</p>
+              <p className="text-neutral-500 text-xs">Choose which trainee should receive this payment request.</p>
             </div>
           )}
 
@@ -183,7 +183,7 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
               </div>
               <div>
                 <p className="text-white font-medium">{selectedClient.name}</p>
-                <p className="text-neutral-500 text-xs">{selectedClient.goal || 'Không có ghi chú mục tiêu'}</p>
+                <p className="text-neutral-500 text-xs">{selectedClient.goal || 'No goal note yet'}</p>
               </div>
             </div>
           )}
@@ -230,11 +230,11 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
                 </option>
                 {packages.map((pkg) => (
                   <option key={pkg.id} value={pkg.id} className="bg-[#101010]">
-                    {`Package #${String(pkg.package_number).padStart(2, '0')} · ${pkg.total_sessions} buổi`}
+                    {`Package #${String(pkg.package_number).padStart(2, '0')} · ${pkg.total_sessions} sessions`}
                   </option>
                 ))}
               </select>
-              <p className="text-neutral-500 text-xs">Có thể liên kết với gói tập nếu payment này thuộc một package cụ thể.</p>
+              <p className="text-neutral-500 text-xs">Link this payment to a package when it belongs to a specific training block.</p>
             </div>
           )}
 
@@ -249,7 +249,7 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
               placeholder="Nutrition Service"
               className="w-full rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none"
             />
-            <p className="text-neutral-500 text-xs">Tên ngắn gọn để khách hàng dễ hiểu khoản cần thanh toán.</p>
+            <p className="text-neutral-500 text-xs">Use a short title so the client immediately understands the charge.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -265,7 +265,7 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
                 placeholder="0"
                 className="w-full rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none"
               />
-              <p className="text-neutral-500 text-xs">{Number(form.amount) > 0 ? fmtVND(form.amount) : 'Nhập số tiền cần thu.'}</p>
+              <p className="text-neutral-500 text-xs">{Number(form.amount) > 0 ? fmtVND(form.amount) : 'Enter the amount to collect.'}</p>
             </div>
 
             <div className="space-y-2">
@@ -291,16 +291,16 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
 
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">
-              Detail
+              Details
             </label>
             <textarea
               rows={4}
               value={form.detailNote}
               onChange={(event) => updateField('detailNote', event.target.value)}
-              placeholder="Ghi chú chi tiết về dịch vụ, thời hạn, yêu cầu chuyển khoản..."
+              placeholder="Service details, due note, transfer instructions..."
               className="w-full rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none resize-none"
             />
-            <p className="text-neutral-500 text-xs">Phần chú giải tiếng Việt để coach và khách hàng cùng nhìn ra đúng dịch vụ đang được thu tiền.</p>
+            <p className="text-neutral-500 text-xs">Add supporting details so both coach and trainee can clearly recognize this charge.</p>
           </div>
 
           <div className="rounded-[22px] border border-white/[0.08] bg-white/[0.03] px-4 py-4 flex items-start gap-3">
@@ -310,7 +310,7 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
             <div>
               <p className="text-white font-medium">{form.title || 'New payment'}</p>
               <p className="text-neutral-500 text-sm mt-1">
-                Sau khi tạo, payment sẽ ở trạng thái chờ thanh toán. Khách có thể bấm báo đã chuyển, hoặc coach xác nhận trực tiếp sau.
+                Once created, the payment starts in pending status. The trainee can mark it as sent, or the coach can confirm it directly later.
               </p>
             </div>
           </div>
@@ -320,7 +320,7 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 rounded-[14px] border border-white/10 bg-white/[0.04] text-neutral-300 text-[11px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all"
+            className="app-ghost-button px-4 py-2.5 rounded-[14px] border text-neutral-300 text-[11px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all"
           >
             Cancel
           </button>
@@ -330,9 +330,9 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
               void handleCreate();
             }}
             disabled={!canSubmit || isSaving}
-            className="px-4 py-2.5 rounded-[14px] border border-blue-400/20 bg-blue-500/[0.12] text-blue-300 text-[11px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50"
+            className="app-cta-button px-4 py-2.5 rounded-[14px] border text-[11px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50"
           >
-            {isSaving ? 'Saving' : 'Create'}
+            {isSaving ? 'Saving...' : 'Create'}
           </button>
         </div>
       </div>

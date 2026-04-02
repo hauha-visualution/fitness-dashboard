@@ -127,17 +127,17 @@ const CreateTemplateModal = ({ onClose, onCreated, session, initialTemplate = nu
       .filter(exercise => exercise.name);
 
     if (!cleanName) {
-      setErrorMessage('Vui lòng nhập tên gói bài tập.');
+      setErrorMessage('Please enter a template name.');
       return;
     }
 
     if (cleanedExercises.length === 0) {
-      setErrorMessage('Cần ít nhất 1 bài tập có tên để tạo gói.');
+      setErrorMessage('Add at least one named exercise before saving.');
       return;
     }
 
     if (cleanedExercises.length !== exercises.length) {
-      setErrorMessage('Một số bài tập đang để trống tên. Hãy điền hoặc xoá trước khi lưu.');
+      setErrorMessage('Some exercises are missing names. Fill them in or remove them before saving.');
       return;
     }
 
@@ -145,7 +145,7 @@ const CreateTemplateModal = ({ onClose, onCreated, session, initialTemplate = nu
     setErrorMessage('');
     const coachEmail = session?.user?.email;
     if (!coachEmail) {
-      setErrorMessage('Không tìm thấy thông tin coach. Hãy đăng nhập lại rồi thử lại.');
+      setErrorMessage('Coach account was not found. Please sign in again and retry.');
       setSaving(false);
       return;
     }
@@ -215,7 +215,7 @@ const CreateTemplateModal = ({ onClose, onCreated, session, initialTemplate = nu
       onClose();
     } catch (error) {
       console.error('Create template error:', error);
-      setErrorMessage(error.message || 'Không thể tạo gói bài tập. Vui lòng thử lại.');
+      setErrorMessage(error.message || 'Unable to save the workout template. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -227,13 +227,13 @@ const CreateTemplateModal = ({ onClose, onCreated, session, initialTemplate = nu
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { if (!saving) onClose(); }} />
       
       {/* Sheet / Full modal */}
-      <div className="absolute bottom-0 w-full h-[92vh] bg-[#0d0d0d] border-t border-white/10 rounded-t-[32px] flex flex-col overflow-hidden animate-slide-up shadow-2xl">
+      <div className="absolute bottom-0 w-full h-[92vh] bg-[var(--app-bg-dialog)] border-t border-white/10 rounded-t-[32px] flex flex-col overflow-hidden animate-slide-up shadow-2xl">
         
         {/* Header (Sticky) */}
-        <div className="bg-[#0d0d0d]/95 backdrop-blur-xl z-10 px-6 pt-5 pb-4 border-b border-white/[0.06] flex flex-col shrink-0 gap-3">
+        <div className="bg-[rgba(13,27,46,0.95)] backdrop-blur-xl z-10 px-6 pt-5 pb-4 border-b border-white/[0.06] flex flex-col shrink-0 gap-3">
           <div className="flex justify-between items-center">
-            <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-widest shrink-0">{isEditMode ? 'Chỉnh Sửa Gói' : 'Tạo Gói Mới'}</span>
-            <button onClick={onClose} disabled={saving} className="p-1.5 bg-white/[0.04] border border-white/[0.08] rounded-full text-neutral-500 active:scale-90 transition-all shrink-0 disabled:opacity-40"><X className="w-4 h-4" /></button>
+            <span className="app-label text-[11px] font-bold uppercase tracking-widest shrink-0">{isEditMode ? 'Edit Template' : 'New Template'}</span>
+            <button onClick={onClose} disabled={saving} className="app-ghost-button p-1.5 border rounded-full active:scale-90 transition-all shrink-0 disabled:opacity-40"><X className="w-4 h-4" /></button>
           </div>
         </div>
 
@@ -242,18 +242,18 @@ const CreateTemplateModal = ({ onClose, onCreated, session, initialTemplate = nu
            
            {/* Section 1: Template Name */}
            <div>
-             <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Tên gói bài tập</label>
-             <input type="text" value={templateName} onChange={e => { setTemplateName(e.target.value); setErrorMessage(''); }} placeholder="VD: Full body A — Thứ 4" className="w-full bg-white/[0.04] border border-white/[0.1] rounded-[14px] py-3 px-4 text-white text-sm font-medium outline-none focus:border-white/30 transition-all" />
+             <label className="app-label block text-[9px] font-black uppercase tracking-widest mb-3">Template Name</label>
+             <input type="text" value={templateName} onChange={e => { setTemplateName(e.target.value); setErrorMessage(''); }} placeholder="Example: Full Body A - Wednesday" className="w-full bg-white/[0.04] border border-white/[0.1] rounded-[14px] py-3 px-4 text-white text-sm font-medium outline-none focus:border-[var(--app-accent-strong)] transition-all" />
            </div>
 
            {/* Section 2: Assign To */}
            <div>
-             <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Áp dụng cho học viên</label>
+             <label className="app-label block text-[9px] font-black uppercase tracking-widest mb-3">Assigned To</label>
              <div className="flex flex-wrap gap-2">
                {clients.map(c => {
                  const isSel = selectedClientIds.includes(c.id);
                  return (
-                   <button key={c.id} onClick={() => toggleClient(c.id)} className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${isSel ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300' : 'bg-white/[0.04] border border-white/[0.08] text-neutral-500 hover:bg-white/[0.08]'}`}>
+                   <button key={c.id} onClick={() => toggleClient(c.id)} className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${isSel ? 'border-[var(--app-accent-soft)] bg-[var(--app-accent-faint)] text-[var(--app-accent)]' : 'bg-white/[0.04] border border-white/[0.08] text-neutral-500 hover:bg-white/[0.08]'}`}>
                      {isSel && <Check className="w-3.5 h-3.5" />}
                      {c.name}
                    </button>
@@ -264,14 +264,14 @@ const CreateTemplateModal = ({ onClose, onCreated, session, initialTemplate = nu
 
            {/* Section 3: Exercises List */}
            <div>
-             <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Danh sách bài tập ({exercises.length})</label>
+             <label className="app-label block text-[9px] font-black uppercase tracking-widest mb-3">Exercise List ({exercises.length})</label>
              
              <div className="space-y-3">
                {exercises.map((ex, idx) => (
                  <div key={ex.id} draggable onDragStart={(e) => handleDragStart(e, idx)} onDragEnd={handleDragEnd} onDragOver={(e) => handleDragOver(e, idx)} className="bg-white/[0.03] border border-white/[0.06] rounded-[18px] p-3 flex flex-col gap-2.5 relative cursor-move">
                    <div className="flex items-center gap-2">
                      <GripVertical className="w-4 h-4 text-white/20 shrink-0" />
-                     <input type="text" placeholder={`Tên bài tập #${idx + 1}`} value={ex.name} onChange={e => updateExercise(ex.id, 'name', e.target.value)} className="flex-1 min-w-0 bg-transparent text-white font-semibold text-sm outline-none placeholder:text-neutral-600" />
+                     <input type="text" placeholder={`Exercise #${idx + 1}`} value={ex.name} onChange={e => updateExercise(ex.id, 'name', e.target.value)} className="flex-1 min-w-0 bg-transparent text-white font-semibold text-sm outline-none placeholder:text-neutral-600" />
                      <button type="button" onClick={() => removeExercise(ex.id)} className="p-1.5 h-fit text-red-500/60 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all">
                        <Trash2 className="w-4 h-4" />
                      </button>
@@ -279,7 +279,7 @@ const CreateTemplateModal = ({ onClose, onCreated, session, initialTemplate = nu
 
                    <div className="pl-6 grid grid-cols-3 gap-2">
                      <div className="bg-white/[0.04] border border-white/[0.08] rounded-[10px] px-2 py-1.5">
-                       <div className="text-[8px] font-black text-neutral-600 uppercase text-center">Set</div>
+                       <div className="text-[8px] font-black text-neutral-600 uppercase text-center">Sets</div>
                        <div className="mt-1 flex items-center justify-between gap-1">
                          <button type="button" onClick={() => updateExercise(ex.id, 'sets', Math.max(1, ex.sets - 1))} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all">-</button>
                          <span className="min-w-[14px] text-center text-white text-[11px] font-semibold">{ex.sets}</span>
@@ -287,7 +287,7 @@ const CreateTemplateModal = ({ onClose, onCreated, session, initialTemplate = nu
                        </div>
                      </div>
                      <div className="bg-white/[0.04] border border-white/[0.08] rounded-[10px] px-2 py-1.5">
-                       <div className="text-[8px] font-black text-neutral-600 uppercase text-center">Rep</div>
+                       <div className="text-[8px] font-black text-neutral-600 uppercase text-center">Reps</div>
                        <div className="mt-1 flex items-center justify-between gap-1">
                          <button type="button" onClick={() => updateExercise(ex.id, 'reps', Math.max(1, ex.reps - 1))} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all">-</button>
                          <span className="min-w-[20px] text-center text-white text-[11px] font-semibold">{ex.reps}</span>
@@ -305,31 +305,31 @@ const CreateTemplateModal = ({ onClose, onCreated, session, initialTemplate = nu
                    </div>
 
                    <div className="pl-6">
-                     <input type="text" placeholder="Ghi chú bài tập (tuỳ chọn)" value={ex.note} onChange={e => updateExercise(ex.id, 'note', e.target.value)} className="w-full bg-black/40 border border-white/[0.05] rounded-[10px] py-2 px-3 text-neutral-300 text-xs outline-none focus:border-white/20 transition-all" />
+                     <input type="text" placeholder="Exercise note (optional)" value={ex.note} onChange={e => updateExercise(ex.id, 'note', e.target.value)} className="w-full bg-black/40 border border-white/[0.05] rounded-[10px] py-2 px-3 text-neutral-300 text-xs outline-none focus:border-white/20 transition-all" />
                    </div>
                  </div>
                ))}
                
                <button onClick={addExercise} className="w-full py-3.5 border border-dashed border-white/20 rounded-[18px] text-neutral-400 text-sm font-medium flex items-center justify-center gap-2 hover:bg-white/[0.02] active:border-white/40 transition-all">
-                 <Plus className="w-4 h-4" /> Thêm bài tập
+                 <Plus className="w-4 h-4" /> Add Exercise
                </button>
              </div>
            </div>
         </div>
 
         {/* Footer */}
-        <div className="bg-[#0d0d0d]/95 backdrop-blur-xl shrink-0 p-5 pt-3 border-t border-white/[0.06] pb-8">
+        <div className="bg-[rgba(13,27,46,0.95)] backdrop-blur-xl shrink-0 p-5 pt-3 border-t border-white/[0.06] pb-8">
            {errorMessage && (
              <div className="mb-3 rounded-[16px] border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
                {errorMessage}
              </div>
            )}
            <div className="flex gap-3">
-           <button onClick={onClose} disabled={saving} className="flex-1 py-4 bg-white/[0.04] border border-white/[0.08] text-white font-bold rounded-[18px] active:scale-95 transition-all text-sm disabled:opacity-50">
-             Huỷ
+           <button onClick={onClose} disabled={saving} className="app-ghost-button flex-1 py-4 border text-white font-bold rounded-[18px] active:scale-95 transition-all text-sm disabled:opacity-50">
+             Cancel
            </button>
-           <button onClick={handleSave} disabled={saving || !templateName.trim() || exercises.length === 0} className="flex-1 py-4 bg-white text-black font-bold rounded-[18px] active:scale-[0.98] transition-all text-sm disabled:opacity-50">
-             {saving ? (isEditMode ? 'Đang lưu...' : 'Đang tạo...') : (isEditMode ? 'Lưu thay đổi' : 'Tạo gói bài tập')}
+           <button onClick={handleSave} disabled={saving || !templateName.trim() || exercises.length === 0} className="app-cta-button flex-1 py-4 border text-black font-bold rounded-[18px] active:scale-[0.98] transition-all text-sm disabled:opacity-50">
+             {saving ? (isEditMode ? 'Saving...' : 'Creating...') : (isEditMode ? 'Save Changes' : 'Create Template')}
            </button>
            </div>
         </div>

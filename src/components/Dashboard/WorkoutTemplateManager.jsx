@@ -78,16 +78,16 @@ const WorkoutTemplateManager = ({ session }) => {
   }, {});
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-b from-[#161616] via-[#0c0c0d] to-black overflow-hidden">
+    <div className="app-screen-shell h-screen flex flex-col overflow-hidden">
       <div className="px-5 pt-5 pb-4 border-b border-white/[0.05] shrink-0">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Quản lý</p>
-            <h2 className="text-lg font-semibold text-white">Gói bài tập</h2>
+            <p className="app-label text-[9px] font-black uppercase tracking-widest">Quản lý</p>
+            <h2 className="text-lg font-semibold text-white">Workout Templates</h2>
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center justify-center w-11 h-11 rounded-[14px] bg-white text-black active:scale-95 transition-all shadow-lg"
+            className="app-cta-button inline-flex items-center justify-center w-11 h-11 rounded-[14px] border active:scale-95 transition-all"
             aria-label="Tạo gói bài tập"
             title="Tạo gói bài tập"
           >
@@ -105,15 +105,15 @@ const WorkoutTemplateManager = ({ session }) => {
           <div className="text-center py-16 space-y-4">
             <Dumbbell className="w-12 h-12 mx-auto text-neutral-800" />
             <div>
-              <p className="text-white font-medium">Chưa có gói bài tập</p>
-              <p className="text-neutral-600 text-xs mt-1">Tạo gói ở đây để Quick Log dùng lại cho mọi session.</p>
+              <p className="text-white font-medium">No workout templates yet</p>
+              <p className="app-label text-xs mt-1">Create templates here so you can quickly add them to sessions.</p>
             </div>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="mx-auto flex items-center gap-2 px-5 py-3 rounded-[18px] bg-white/[0.05] border border-white/[0.08] text-white font-bold text-sm active:scale-95 transition-all"
+              className="app-ghost-button mx-auto flex items-center gap-2 px-5 py-3 rounded-[18px] border font-bold text-sm active:scale-95 transition-all"
             >
               <Plus className="w-4 h-4" />
-              Tạo gói đầu tiên
+              Create your first template
             </button>
           </div>
         ) : (
@@ -126,21 +126,21 @@ const WorkoutTemplateManager = ({ session }) => {
               const exerciseCount = template.template_exercises?.length || 0;
 
               return (
-                <div key={template.id} className="rounded-[24px] border border-white/[0.06] bg-white/[0.03] overflow-hidden">
+                <div key={template.id} className="app-glass-panel rounded-[24px] border overflow-hidden">
                   <button
                     onClick={() => setExpandedTemplateId(expanded ? null : template.id)}
                     className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left"
                   >
                     <div className="min-w-0">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">Gói bài tập</p>
+                      <p className="app-label text-[9px] font-black uppercase tracking-widest">Workout Templates</p>
                       <h3 className="text-white font-semibold text-base truncate mt-1">{template.name}</h3>
                       <div className="flex flex-wrap items-center gap-2 mt-2">
-                        <span className="inline-flex items-center gap-1.5 text-[10px] text-neutral-500">
-                          <Dumbbell className="w-3 h-3 text-neutral-600" />
+                        <span className="inline-flex items-center gap-1.5 text-[10px] app-subtle-text">
+                          <Dumbbell className="w-3 h-3 app-label" />
                           {exerciseCount}
                         </span>
-                        <span className="inline-flex items-center gap-1.5 text-[10px] text-neutral-500">
-                          <UserRound className="w-3 h-3 text-neutral-600" />
+                        <span className="inline-flex items-center gap-1.5 text-[10px] app-subtle-text">
+                          <UserRound className="w-3 h-3 app-label" />
                           {assignedNames.length}
                         </span>
                       </div>
@@ -152,7 +152,7 @@ const WorkoutTemplateManager = ({ session }) => {
                           e.stopPropagation();
                           setEditingTemplate(template);
                         }}
-                        className="inline-flex items-center justify-center w-10 h-10 rounded-[12px] border border-white/[0.08] bg-white/[0.04] text-white active:scale-95 transition-all"
+                        className="app-ghost-button inline-flex items-center justify-center w-10 h-10 rounded-[12px] border active:scale-95 transition-all"
                         aria-label={`Sửa ${template.name}`}
                         title="Sửa"
                       >
@@ -170,30 +170,30 @@ const WorkoutTemplateManager = ({ session }) => {
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
-                      {expanded ? <ChevronUp className="w-4 h-4 text-neutral-500" /> : <ChevronDown className="w-4 h-4 text-neutral-500" />}
+                      {expanded ? <ChevronUp className="w-4 h-4 app-subtle-text" /> : <ChevronDown className="w-4 h-4 app-subtle-text" />}
                     </div>
                   </button>
 
                   {expanded && (
                     <div className="px-5 pb-5 pt-1 border-t border-white/[0.05] space-y-4">
                       <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600 mb-2">Áp dụng cho</p>
+                        <p className="app-label text-[9px] font-black uppercase tracking-widest mb-2">Assigned To</p>
                         {assignedNames.length > 0 ? (
                           <div className="flex flex-wrap gap-2">
                             {assignedNames.map((name) => (
-                              <span key={name} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-[11px] font-semibold text-blue-300">
+                              <span key={name} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-[rgba(96,180,255,0.12)] border border-[rgba(96,180,255,0.2)] text-[11px] font-semibold app-blue-text">
                                 <UserRound className="w-3 h-3" />
                                 {name}
                               </span>
                             ))}
                           </div>
                         ) : (
-                          <p className="text-sm text-neutral-500">Chưa assign cho học viên nào.</p>
+                          <p className="text-sm text-neutral-500">No trainees assigned yet.</p>
                         )}
                       </div>
 
                       <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600 mb-2">Danh sách bài tập</p>
+                        <p className="app-label text-[9px] font-black uppercase tracking-widest mb-2">Exercise List</p>
                         <div className="space-y-2">
                           {[...(template.template_exercises || [])]
                             .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -203,11 +203,11 @@ const WorkoutTemplateManager = ({ session }) => {
                                   <div className="min-w-0">
                                     <p className="text-sm font-semibold text-white truncate">{idx + 1}. {exercise.name}</p>
                                     {exercise.note && (
-                                      <p className="text-[11px] text-neutral-500 mt-1">{exercise.note}</p>
+                                      <p className="text-[11px] app-subtle-text mt-1">{exercise.note}</p>
                                     )}
                                   </div>
                                   <div className="shrink-0 text-right">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-neutral-600">Set / Rep / Kg</p>
+                                    <p className="app-label text-[10px] font-black uppercase tracking-widest">Sets / Reps / Kg</p>
                                     <p className="text-sm font-semibold text-neutral-300">{exercise.sets} / {exercise.reps} / {exercise.weight}</p>
                                   </div>
                                 </div>
@@ -258,7 +258,7 @@ const WorkoutTemplateManager = ({ session }) => {
             </div>
 
             <p className="text-sm leading-relaxed text-neutral-400">
-              Xóa gói này sẽ xóa luôn toàn bộ bài tập và assignment của gói đó. Quick Log sẽ không còn chọn được gói này nữa.
+              Xóa gói này sẽ xóa luôn toàn bộ bài tập và assignment của gói đó. Start Workout sẽ không còn chọn được gói này nữa.
             </p>
 
             <div className="flex gap-3 mt-6">

@@ -33,6 +33,7 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
   const [profileActions, setProfileActions] = useState(null);
 
   const isProfileTab = activeSubTab === 'profile';
+  const profileHeading = `${client?.name || 'Trainee'}'s Profile`;
 
   const openDeleteModal = () => {
     setIsProfileMenuOpen(false);
@@ -114,7 +115,7 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
       key: 'photos',
       icon: Image,
       label: 'Cập nhật ảnh',
-      sublabel: 'BEFORE / AFTER',
+      sublabel: 'Progress Photos',
       onClick: () => profileActions?.openPhotos?.(),
     },
     {
@@ -128,7 +129,7 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
   ];
 
   return (
-    <div className="relative flex h-screen flex-col overflow-hidden bg-[#0a0a0a] animate-slide-up">
+    <div className="app-screen-shell relative flex h-dvh min-h-0 flex-col overflow-hidden animate-slide-up">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-gradient-to-b from-blue-500/[0.08] via-blue-500/[0.03] to-transparent blur-3xl" />
       <div className="pointer-events-none absolute -right-16 top-32 h-40 w-40 rounded-full bg-blue-400/10 blur-3xl" />
       <div className="pointer-events-none absolute -left-20 bottom-28 h-48 w-48 rounded-full bg-neutral-500/10 blur-3xl" />
@@ -136,20 +137,20 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
       <div className="relative z-20 grid shrink-0 grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-3 border-b border-white/[0.04] bg-black/30 px-4 py-3 backdrop-blur-xl">
         <button
           onClick={onBack}
-          className="p-2.5 bg-white/5 border border-white/10 rounded-full text-white active:scale-90 transition-all shadow-lg shadow-black/20"
+          className="app-ghost-button p-2.5 border rounded-full text-white active:scale-90 transition-all shadow-lg shadow-black/20"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
 
         <p className="px-4 text-center text-[9px] font-black uppercase tracking-widest text-neutral-600">
-          HỒ SƠ HỌC VIÊN
+          {profileHeading}
         </p>
 
         {isProfileTab ? (
           <button
             onClick={() => setIsProfileMenuOpen((prev) => !prev)}
             className={`p-2.5 rounded-full border text-white active:scale-90 transition-all shadow-lg shadow-black/20 ${
-              isProfileMenuOpen ? 'bg-white/10 border-white/20' : 'bg-white/5 border-white/10'
+              isProfileMenuOpen ? 'app-nav-item-active' : 'app-ghost-button'
             }`}
           >
             <MoreHorizontal className="w-4 h-4" />
@@ -168,7 +169,7 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
             className="fixed inset-0 z-[200] bg-black/50"
           />
 
-          <div className="absolute top-[52px] right-4 z-[210] w-[200px] overflow-hidden rounded-[20px] border border-white/10 bg-[#1a1a1c] shadow-2xl shadow-black/40 backdrop-blur-xl">
+          <div className="absolute top-[52px] right-4 z-[210] w-[200px] overflow-hidden rounded-[20px] border border-white/10 bg-[var(--app-bg-dialog)] shadow-2xl shadow-black/40 backdrop-blur-xl">
             {menuItems.map((item, index) => (
               <button
                 key={item.key}
@@ -188,37 +189,39 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
         </>
       )}
 
-      <div className="hide-scrollbar relative z-10 flex-1 overflow-y-auto px-4 pb-40">
+      <div className="hide-scrollbar relative z-10 min-h-0 flex-1 overflow-y-auto px-4 pb-6">
         {renderContent()}
       </div>
 
-      <div className="absolute bottom-6 left-1/2 z-50 flex w-[92%] -translate-x-1/2 justify-between rounded-[32px] border border-white/10 bg-black/80 p-1.5 shadow-2xl shadow-black/40 backdrop-blur-3xl">
-        {[
-          { id: 'profile', icon: User, label: 'Profile' },
-          { id: 'package', icon: Package, label: 'Gói tập' },
-          { id: 'sessions', icon: Dumbbell, label: 'Sessions' },
-          { id: 'nutrition', icon: Utensils, label: 'Nutrition' },
-          { id: 'payment', icon: CreditCard, label: 'Payment' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => {
-              setActiveSubTab(tab.id);
-              setIsProfileMenuOpen(false);
-            }}
-            className={`flex flex-1 flex-col items-center justify-center gap-1 rounded-[26px] py-4 transition-all duration-300 ${
-              activeSubTab === tab.id ? 'scale-100 bg-white/5 text-white shadow-inner shadow-white/5' : 'scale-90 text-neutral-600 opacity-50'
-            }`}
-          >
-            <tab.icon className={`w-5 h-5 ${activeSubTab === tab.id ? 'text-white' : 'text-neutral-700'}`} />
-            <span className="text-[7px] font-black uppercase tracking-widest">{tab.label}</span>
-          </button>
-        ))}
+      <div className="relative z-20 shrink-0 px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-3">
+        <div className="app-nav-shell flex w-full justify-between rounded-[32px] p-1.5 shadow-2xl shadow-black/40">
+          {[
+            { id: 'profile', icon: User, label: 'Profile' },
+            { id: 'package', icon: Package, label: 'Gói tập' },
+            { id: 'sessions', icon: Dumbbell, label: 'Sessions' },
+            { id: 'nutrition', icon: Utensils, label: 'Nutrition' },
+            { id: 'payment', icon: CreditCard, label: 'Payment' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveSubTab(tab.id);
+                setIsProfileMenuOpen(false);
+              }}
+              className={`flex flex-1 flex-col items-center justify-center gap-1 rounded-[26px] py-4 transition-all duration-300 ${
+                activeSubTab === tab.id ? 'scale-100 app-nav-item-active shadow-inner shadow-white/5' : 'scale-90 text-neutral-600 opacity-50'
+              }`}
+            >
+              <tab.icon className={`w-5 h-5 ${activeSubTab === tab.id ? 'app-accent-text' : 'text-neutral-700'}`} />
+              <span className="text-[7px] font-black uppercase tracking-widest">{tab.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {showDeleteModal && (
         <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-[360px] rounded-[32px] border border-red-500/20 bg-[#1a1a1c] p-8 shadow-2xl animate-slide-up">
+          <div className="w-full max-w-[360px] rounded-[32px] border border-red-500/20 bg-[var(--app-bg-dialog)] p-8 shadow-2xl animate-slide-up">
             <div className="mb-6 flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
                 <AlertTriangle className="w-6 h-6 text-red-500" />
@@ -270,7 +273,7 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="flex-1 rounded-[16px] border border-white/10 bg-white/5 py-3 text-[11px] font-black uppercase tracking-wider text-white transition-all hover:bg-white/10 active:scale-95"
+                className="app-ghost-button flex-1 rounded-[16px] border py-3 text-[11px] font-black uppercase tracking-wider transition-all hover:bg-white/10 active:scale-95"
               >
                 Hủy
               </button>

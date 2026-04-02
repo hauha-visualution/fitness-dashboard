@@ -3,7 +3,7 @@ import { Package, Zap, Plus, Lock, ChevronDown, ChevronUp, Calendar, Trash2, Ale
 import { supabase } from '../../../supabaseClient';
 import CreatePackageModal from '../Modals/CreatePackageModal';
 
-const DAY_VI = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+const DAY_VI = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const formatScheduleLabel = (weekly_schedule) => {
   if (!weekly_schedule?.length) return '';
@@ -68,7 +68,7 @@ const PackageTab = ({ client, readOnly = false }) => {
       .eq('id', packageToDelete.id);
 
     if (error) {
-      alert(`Không thể xóa gói tập: ${error.message}`);
+      alert(`Unable to delete package: ${error.message}`);
       setDeletingPackage(false);
       return;
     }
@@ -99,18 +99,18 @@ const PackageTab = ({ client, readOnly = false }) => {
       <div className="text-center py-16 space-y-4">
         <Package className="w-12 h-12 mx-auto text-neutral-800" />
         <div>
-          <p className="text-white font-medium">Chưa có gói tập</p>
+          <p className="text-white font-medium">No Package Yet</p>
           <p className="text-neutral-600 text-xs mt-1">
-            {readOnly ? 'Coach chưa tạo gói tập cho bạn.' : 'Tạo gói đầu tiên cho học viên.'}
+            {readOnly ? 'Your coach has not created a package for you yet.' : 'Create the first package for this trainee.'}
           </p>
         </div>
         {!readOnly && (
           <button
             onClick={() => setShowModal(true)}
-            className="mx-auto flex items-center gap-2 bg-white text-black font-bold px-6 py-3 rounded-[20px] text-sm active:scale-95 transition-all shadow-lg"
+            className="app-cta-button mx-auto flex items-center gap-2 border px-6 py-3 rounded-[20px] text-sm active:scale-95 transition-all shadow-lg"
           >
             <Plus className="w-4 h-4" />
-            Tạo Gói Đầu Tiên
+            Create First Package
           </button>
         )}
       </div>
@@ -125,15 +125,15 @@ const PackageTab = ({ client, readOnly = false }) => {
 
       {/* Active Package Card */}
       {activePackage && (
-        <div className="bg-gradient-to-br from-blue-500/20 to-purple-500/15 border border-white/10 rounded-[32px] p-6 relative overflow-hidden">
+        <div className="border border-[var(--app-accent-soft)] bg-[linear-gradient(135deg,rgba(200,245,63,0.12),rgba(96,180,255,0.08))] rounded-[32px] p-6 relative overflow-hidden">
           <Zap className="absolute -right-4 -top-4 w-24 h-24 text-white/[0.04] rotate-12" />
           <div className="flex items-start justify-between mb-4">
             <div>
-              <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Gói đang tập</p>
+              <p className="text-[9px] font-black text-[var(--app-accent)] uppercase tracking-widest">Active Package</p>
               <h3 className="text-white font-medium text-xl mt-0.5">
-                Gói #{String(activePackage.package_number).padStart(2, '0')}
-                {activePackage.note && <span className="text-sm text-blue-300/70 font-normal ml-2">· {activePackage.note}</span>}
-                <span className="text-sm text-neutral-500 font-normal ml-2">· {activePackage.total_sessions} buổi</span>
+                Package #{String(activePackage.package_number).padStart(2, '0')}
+                {activePackage.note && <span className="text-sm text-[var(--app-accent)]/70 font-normal ml-2">· {activePackage.note}</span>}
+                <span className="text-sm text-neutral-500 font-normal ml-2">· {activePackage.total_sessions} sessions</span>
               </h3>
             </div>
             <div className="flex items-center gap-2">
@@ -141,7 +141,7 @@ const PackageTab = ({ client, readOnly = false }) => {
                 <button
                   onClick={() => setPackageToDelete(activePackage)}
                   className="p-2.5 rounded-full border border-red-500/20 bg-red-500/10 text-red-400 active:scale-90 transition-all"
-                  aria-label="Xóa gói tập"
+                  aria-label="Delete package"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -151,7 +151,7 @@ const PackageTab = ({ client, readOnly = false }) => {
           </div>
 
           <div className="flex justify-around items-center mb-5">
-            {[{ val: remaining, label: 'Còn lại' }, { val: done, label: 'Đã tập' }, { val: total, label: 'Tổng buổi' }].map((item, i) => (
+            {[{ val: remaining, label: 'Remaining' }, { val: done, label: 'Completed' }, { val: total, label: 'Total Sessions' }].map((item, i) => (
               <React.Fragment key={i}>
                 {i > 0 && <div className="w-px h-10 bg-white/10" />}
                 <div className="text-center">
@@ -163,9 +163,9 @@ const PackageTab = ({ client, readOnly = false }) => {
           </div>
 
           <div className="h-1.5 bg-white/10 rounded-full overflow-hidden mb-3">
-            <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-700" style={{ width: `${progressPct}%` }} />
+            <div className="h-full bg-[linear-gradient(90deg,var(--app-accent),var(--app-blue))] rounded-full transition-all duration-700" style={{ width: `${progressPct}%` }} />
           </div>
-          <p className="text-[9px] text-neutral-600">{progressPct}% hoàn thành</p>
+          <p className="text-[9px] text-neutral-600">{progressPct}% complete</p>
 
           {activePackage.weekly_schedule?.length > 0 && (
             <div className="mt-4 pt-4 border-t border-white/[0.06] flex items-center gap-2">
@@ -174,7 +174,7 @@ const PackageTab = ({ client, readOnly = false }) => {
             </div>
           )}
           {activePackage.bonus_sessions > 0 && (
-            <p className="text-[10px] text-purple-400 mt-2">🎁 Bao gồm {activePackage.bonus_sessions} buổi tặng</p>
+            <p className="text-[10px] text-purple-400 mt-2">Includes {activePackage.bonus_sessions} bonus sessions</p>
           )}
         </div>
       )}
@@ -184,17 +184,17 @@ const PackageTab = ({ client, readOnly = false }) => {
         canCreateNew ? (
           <button
             onClick={() => setShowModal(true)}
-            className="w-full flex items-center justify-center gap-2 bg-white/[0.05] border border-white/10 hover:bg-white/[0.08] text-white font-bold py-4 rounded-[24px] text-sm active:scale-[0.98] transition-all"
+            className="app-ghost-button w-full flex items-center justify-center gap-2 border hover:bg-white/[0.08] text-white font-bold py-4 rounded-[24px] text-sm active:scale-[0.98] transition-all"
           >
             <Plus className="w-4 h-4" />
-            Tạo Gói #{String(nextPackageNumber).padStart(2, '0')}
+            Create Package #{String(nextPackageNumber).padStart(2, '0')}
           </button>
         ) : (
           <div className="flex items-center gap-3 bg-white/[0.02] border border-white/[0.06] rounded-[24px] px-5 py-4">
             <Lock className="w-4 h-4 text-neutral-700 shrink-0" />
             <p className="text-neutral-600 text-xs">
-              Gói mới được tạo khi gói hiện tại còn dưới 5 buổi
-              <span className="text-neutral-500"> (hiện còn {remaining})</span>
+              A new package can be created once the current one has fewer than 5 sessions left
+              <span className="text-neutral-500"> ({remaining} remaining now)</span>
             </p>
           </div>
         )
@@ -203,7 +203,7 @@ const PackageTab = ({ client, readOnly = false }) => {
       {/* Package History */}
       {completedPackages.length > 0 && (
         <div>
-          <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3 ml-1">Lịch sử gói</p>
+          <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3 ml-1">Package History</p>
           <div className="space-y-2">
             {completedPackages.map(pkg => {
               const cnt = sessionCounts[pkg.id] ?? {};
@@ -212,12 +212,12 @@ const PackageTab = ({ client, readOnly = false }) => {
                 <div key={pkg.id} className="bg-white/[0.02] border border-white/[0.06] rounded-[20px] overflow-hidden">
                   <button onClick={() => setExpandedPkg(expanded ? null : pkg.id)} className="w-full flex items-center justify-between px-5 py-4">
                     <div className="flex items-center gap-3">
-                      <span className="text-[10px] font-black text-neutral-600 uppercase">Gói #{String(pkg.package_number).padStart(2, '0')}</span>
+                      <span className="text-[10px] font-black text-neutral-600 uppercase">Package #{String(pkg.package_number).padStart(2, '0')}</span>
                       {pkg.note && <span className="text-[10px] text-neutral-500 font-medium">{pkg.note}</span>}
-                      <span className="text-xs text-neutral-500">{pkg.total_sessions} buổi</span>
+                      <span className="text-xs text-neutral-500">{pkg.total_sessions} sessions</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-[9px] font-black text-neutral-700 uppercase">Hoàn thành</span>
+                      <span className="text-[9px] font-black text-neutral-700 uppercase">Completed</span>
                       {!readOnly && (
                         <button
                           onClick={(e) => {
@@ -225,7 +225,7 @@ const PackageTab = ({ client, readOnly = false }) => {
                             setPackageToDelete(pkg);
                           }}
                           className="p-2 rounded-full border border-red-500/15 bg-red-500/10 text-red-400 active:scale-90 transition-all"
-                          aria-label={`Xóa gói ${pkg.package_number}`}
+                          aria-label={`Delete package ${pkg.package_number}`}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -235,10 +235,10 @@ const PackageTab = ({ client, readOnly = false }) => {
                   </button>
                   {expanded && (
                     <div className="px-5 pb-4 border-t border-white/[0.04] pt-3 space-y-1.5 text-xs text-neutral-500">
-                      <div className="flex justify-between"><span>Tổng buổi</span><span className="text-white">{pkg.total_sessions}</span></div>
-                      <div className="flex justify-between"><span>Đã tập</span><span className="text-emerald-400">{cnt.completed ?? 0}</span></div>
-                      {pkg.price > 0 && <div className="flex justify-between"><span>Giá tiền</span><span className="text-white">{pkg.price.toLocaleString('vi-VN')} đ</span></div>}
-                      {pkg.weekly_schedule?.length > 0 && <div className="flex justify-between"><span>Lịch</span><span className="text-white">{formatScheduleLabel(pkg.weekly_schedule)}</span></div>}
+                      <div className="flex justify-between"><span>Total Sessions</span><span className="text-white">{pkg.total_sessions}</span></div>
+                      <div className="flex justify-between"><span>Completed</span><span className="text-emerald-400">{cnt.completed ?? 0}</span></div>
+                      {pkg.price > 0 && <div className="flex justify-between"><span>Price</span><span className="text-white">{pkg.price.toLocaleString('vi-VN')} đ</span></div>}
+                      {pkg.weekly_schedule?.length > 0 && <div className="flex justify-between"><span>Schedule</span><span className="text-white">{formatScheduleLabel(pkg.weekly_schedule)}</span></div>}
                     </div>
                   )}
                 </div>
@@ -260,13 +260,13 @@ const PackageTab = ({ client, readOnly = false }) => {
                 <AlertTriangle className="w-5 h-5 text-red-400" />
               </div>
               <div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-red-400/70">Xóa gói tập</p>
-                <h3 className="text-white font-semibold">Gói #{String(packageToDelete.package_number).padStart(2, '0')}</h3>
+                <p className="text-[9px] font-black uppercase tracking-widest text-red-400/70">Delete Package</p>
+                <h3 className="text-white font-semibold">Package #{String(packageToDelete.package_number).padStart(2, '0')}</h3>
               </div>
             </div>
 
             <p className="text-sm leading-relaxed text-neutral-400">
-              Xóa gói này sẽ xóa luôn toàn bộ session thuộc gói do đang dùng liên kết `ON DELETE CASCADE`.
+              Deleting this package will also remove every linked session because the relationship uses `ON DELETE CASCADE`.
             </p>
 
             <div className="flex gap-3 mt-6">
@@ -274,14 +274,14 @@ const PackageTab = ({ client, readOnly = false }) => {
                 onClick={() => setPackageToDelete(null)}
                 className="flex-1 py-3.5 rounded-[16px] border border-white/[0.08] bg-white/[0.04] text-white font-bold text-sm"
               >
-                Hủy
+                Cancel
               </button>
               <button
                 onClick={handleDeletePackage}
                 disabled={deletingPackage}
                 className="flex-1 py-3.5 rounded-[16px] bg-red-500 text-white font-bold text-sm disabled:opacity-50"
               >
-                {deletingPackage ? 'Đang xóa...' : 'Xóa gói'}
+                {deletingPackage ? 'Deleting...' : 'Delete Package'}
               </button>
             </div>
           </div>

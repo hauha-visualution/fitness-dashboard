@@ -5,21 +5,49 @@ import {
   buildNutritionProfileFromSource,
   buildNutritionSyncAudit,
   buildPhoneCandidates,
+  COMMITMENT_LEVEL_OPTIONS,
+  countFilledNutritionFields,
+  hasNutritionColumnsInSurveyRow,
   normalizeSurveyResponseRecord,
 } from '../../utils/nutritionUtils';
 
+const COMMITMENT_VALUE_MAP = {
+  'Sẵn sàng tuân thủ 100%': 'Fully Committed',
+  'Sẵn sàng phần lớn': 'Mostly Committed',
+  'Cần đốc thúc': 'Needs Accountability',
+  'Hoàn toàn sẵn sàng, em rất quyết tâm!': 'Highly Motivated',
+  'Phần lớn là được, miễn phù hợp với lịch sinh hoạt': 'Flexible But Committed',
+  'Hơi khó, không chắc chắn lắm vì bận công việc...': 'Needs a Realistic Plan',
+};
+
+const ENGLISH_COMMITMENT_OPTIONS = [
+  'Fully Committed',
+  'Mostly Committed',
+  'Needs Accountability',
+  'Highly Motivated',
+  'Flexible But Committed',
+  'Needs a Realistic Plan',
+];
+
+const normalizeGenderValue = (value = '') => {
+  if (value === 'Nam') return 'Male';
+  if (value === 'Nữ') return 'Female';
+  return value || 'Male';
+};
+
+const normalizeCommitmentValue = (value = '') =>
+  COMMITMENT_VALUE_MAP[value] || value || 'Fully Committed';
+
 const AddClientView = ({ onBack, onSave, coachEmail }) => {
-  // 1. Khai báo state chuẩn khớp 100% với Schema Supabase bảng 'clients'
   const initialFormState = {
-    name: '', phone: '', email: '', gender: 'Nam', dob: '',
+    name: '', phone: '', email: '', gender: 'Male', dob: '',
     height: '', weight: '', goal: '',
     traininghistory: '', jobtype: '', trainingtime: '', targetduration: '',
     cookinghabit: '', dietaryrestriction: '', favoritefoods: '', avoidfoods: '',
     cookingtime: '', foodbudget: '', medicalconditions: '',
-    supplements: '', sleephabits: '', commitmentlevel: 'Sẵn sàng tuân thủ 100%',
+    supplements: '', sleephabits: '', commitmentlevel: 'Fully Committed',
   };
 
-  // Password riêng (không lưu vào DB, chỉ dùng để tạo auth account)
   const [clientPassword, setClientPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -30,10 +58,16 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
 
   const toggleSection = (id) => setExpandedSection(expandedSection === id ? null : id);
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const commitmentOptions = Array.from(
+    new Set([
+      ...ENGLISH_COMMITMENT_OPTIONS,
+      ...COMMITMENT_LEVEL_OPTIONS.map(normalizeCommitmentValue),
+      ...(formData.commitmentlevel ? [formData.commitmentlevel] : []),
+    ]),
+  );
 
-  // 2. HÀM SYNC THÔNG MINH: Đã thêm Log để Hạo dễ debug
   const handleSyncAPI = async () => {
-    if (!formData.phone) return alert("Nhập SĐT để Sync!");
+    if (!formData.phone) return alert('Enter a phone number before syncing.');
     setIsSyncing(true);
     try {
       const phoneCandidates = buildPhoneCandidates(formData.phone);
@@ -41,57 +75,78 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
         .from('survey_responses')
         .select('*')
         .in('phone', phoneCandidates)
+        .order('created_at', { ascending: false })
         .limit(10);
 
       if (error) throw error;
 
       const matchedRow = (data || [])[0];
       if (matchedRow) {
-        console.log("Dữ liệu gốc từ survey_responses:", matchedRow);
+        console.log('Raw survey_responses row:', matchedRow);
 
         const mappedData = normalizeSurveyResponseRecord(matchedRow);
-        setFormData(prev => ({ ...prev, ...mappedData }));
+        const normalizedMappedData = {
+          ...mappedData,
+          gender: normalizeGenderValue(mappedData.gender),
+          commitmentlevel: normalizeCommitmentValue(mappedData.commitmentlevel),
+        };
+        const mappedNutritionProfile = buildNutritionProfileFromSource(mappedData);
+        const filledNutritionFields = countFilledNutritionFields(mappedNutritionProfile);
+        const hasNutritionColumns = hasNutritionColumnsInSurveyRow(matchedRow);
+
+        if (filledNutritionFields === 0) {
+          if (hasNutritionColumns) {
+            alert(
+              'A matching survey response was found, but the nutrition fields are still empty.\n\n' +
+              'Sync worked correctly. The linked Google Form row simply does not include nutrition details yet.'
+            );
+          } else {
+            alert(
+              'A survey response was found, but the nutrition fields could not be mapped.\n\n' +
+              'The Google Form column names likely differ from the current schema. Check the console and extend the alias mapping if needed.'
+            );
+          }
+        }
+
+        setFormData(prev => ({ ...prev, ...normalizedMappedData }));
 
         const audit = buildNutritionSyncAudit(
-          buildNutritionProfileFromSource({ ...formData, ...mappedData }),
-          buildNutritionProfileFromSource(mappedData),
+          buildNutritionProfileFromSource({ ...formData, ...normalizedMappedData }),
+          mappedNutritionProfile,
         );
 
         alert(
-          `Đồng bộ thành công!\n\n` +
+          `Sync complete.\n\n` +
           `Nutrition profile:\n` +
-          `• Khớp: ${audit.counts.synced}\n` +
-          `• Lấy mới từ form: ${audit.counts.missingInClient}\n` +
-          `• Chênh lệch sau sync: ${audit.counts.mismatch}\n\n` +
-          `Hãy kiểm tra lại các mục Lifestyle & Dinh dưỡng phía dưới.`
+          `• Matched: ${audit.counts.synced}\n` +
+          `• Added from form: ${audit.counts.missingInClient}\n` +
+          `• Still mismatched: ${audit.counts.mismatch}\n\n` +
+          `Review the Goals, Lifestyle, and Nutrition sections below.`
         );
       } else {
-        alert("Không tìm thấy dữ liệu! Có thể Apps Script chưa đẩy được dữ liệu lên.");
+        alert('No survey data was found for this phone number yet.');
       }
     } catch (e) {
-      console.error("Lỗi Sync:", e);
-      alert("Lỗi kết nối Sync!");
+      console.error('Sync error:', e);
+      alert('Sync connection failed.');
     }
     setIsSyncing(false);
   };
 
-  // 3. HÀM SAVE: Tạo auth account + lưu client record
   const handleSave = async () => {
-    if (!formData.name || !formData.phone) return alert("Họ tên và SĐT là bắt buộc!");
-    if (!clientPassword || clientPassword.length < 6) return alert("Mật khẩu học viên phải ít nhất 6 ký tự!");
+    if (!formData.name || !formData.phone) return alert('Full name and phone number are required.');
+    if (!clientPassword || clientPassword.length < 6) return alert('Trainee password must be at least 6 characters.');
 
     setIsSaving(true);
 
-    // Bước 1: Tạo tài khoản Supabase Auth cho học viên (dùng SĐT làm username)
     const { userId, error: authError } = await createClientAuthAccount(formData.phone, clientPassword);
 
     if (authError) {
-      alert("Lỗi tạo tài khoản: " + authError);
+      alert('Account creation failed: ' + authError);
       setIsSaving(false);
       return;
     }
 
-    // Bước 2: Lưu client record vào DB
     const allowedKeys = Object.keys(initialFormState);
     const cleanPayload = {};
     allowedKeys.forEach(key => {
@@ -100,7 +155,6 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
       }
     });
 
-    // Gắn auth_user_id, username (= SĐT), và coach_email
     cleanPayload.auth_user_id = userId;
     cleanPayload.username = formData.phone.replace(/\s/g, '');
     cleanPayload.coach_email = coachEmail || null;
@@ -109,148 +163,141 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
 
     setIsSaving(false);
     if (!dbError) {
-      alert(`✅ Đã tạo xong!\n\nThông tin đăng nhập cho học viên:\n• Username: ${formData.phone}\n• Mật khẩu: ${clientPassword}\n\nHãy chia sẻ thông tin này cho học viên.`);
+      alert(`Trainee created successfully.\n\nLogin details:\n• Username: ${formData.phone}\n• Password: ${clientPassword}\n\nShare these credentials with the trainee.`);
       onSave();
       onBack();
     } else {
-      alert("Lỗi khi lưu: " + dbError.message);
+      alert('Save failed: ' + dbError.message);
     }
   };
 
   return (
-    <div className="h-screen flex flex-col relative z-20 bg-[#0a0a0a] overflow-y-auto px-6 animate-slide-up hide-scrollbar">
+    <div className="app-screen-shell h-screen flex flex-col relative z-20 overflow-y-auto px-6 animate-slide-up hide-scrollbar">
       {/* Header */}
-      <div className="sticky top-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-2xl -mx-6 px-6 pt-6 pb-4 border-b border-white/[0.05] flex justify-between items-center">
-         <button onClick={onBack} className="p-3 bg-white/[0.05] border border-white/10 rounded-full text-white active:scale-90 transition-all"><ArrowLeft className="w-5 h-5" /></button>
-         <h2 className="text-[10px] font-black tracking-[0.2em] text-white/40 uppercase">Onboarding Form</h2>
-         <button onClick={handleSyncAPI} className={`p-3 rounded-full text-blue-400 bg-blue-500/10 border border-blue-500/20 ${isSyncing ? 'animate-spin' : ''}`}>
+      <div className="sticky top-0 z-50 bg-[rgba(13,27,46,0.95)] backdrop-blur-2xl -mx-6 px-6 pt-6 pb-4 border-b border-white/[0.05] flex justify-between items-center">
+         <button onClick={onBack} className="app-ghost-button p-3 border rounded-full text-white active:scale-90 transition-all"><ArrowLeft className="w-5 h-5" /></button>
+         <h2 className="text-[10px] font-black tracking-[0.2em] text-white/40 uppercase">New Trainee Form</h2>
+         <button onClick={handleSyncAPI} className={`app-ghost-button p-3 rounded-full border text-[var(--app-blue)] ${isSyncing ? 'animate-spin' : ''}`}>
             <RefreshCw className="w-5 h-5" />
          </button>
       </div>
 
       <div className="flex-1 pb-32 pt-4 space-y-4">
-        {/* Nhóm 1: Cơ bản */}
-        <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
+        <div className="app-glass-panel border rounded-[24px] overflow-hidden">
           <div onClick={() => toggleSection('basic')} className="p-5 flex justify-between items-center cursor-pointer">
-            <div className="flex items-center gap-2"><User className="w-4 h-4 text-emerald-400" /><h3 className="text-white text-sm font-medium">1. Cá nhân (*)</h3></div>
+            <div className="flex items-center gap-2"><User className="w-4 h-4 text-emerald-400" /><h3 className="text-white text-sm font-medium">1. Personal Information (*)</h3></div>
             <ChevronDown className={`w-4 h-4 text-neutral-500 transition-transform ${expandedSection === 'basic' ? 'rotate-180' : ''}`} />
           </div>
           {expandedSection === 'basic' && (
             <div className="px-5 pb-5 space-y-3">
-              <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Họ và Tên *" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
-              <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="Số điện thoại *" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+              <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Full Name *" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+              <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="Phone Number *" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
               <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="Email" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
 
-              {/* ---- ĐĂNG NHẬP HỌC VIÊN ---- */}
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-[16px] p-4 space-y-3">
+              <div className="bg-[var(--app-accent-faint)] border border-[var(--app-accent-soft)] rounded-[16px] p-4 space-y-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Tài khoản học viên</p>
+                  <ShieldCheck className="w-4 h-4 text-[var(--app-accent)]" />
+                  <p className="text-[10px] font-black text-[var(--app-accent)] uppercase tracking-widest">Trainee Account</p>
                 </div>
 
-                {/* Username = SĐT (hiển thị readonly) */}
                 <div>
-                  <p className="text-[9px] text-neutral-600 mb-1 ml-1">Username (tự động = SĐT)</p>
+                  <p className="text-[9px] text-neutral-600 mb-1 ml-1">Username (auto from phone)</p>
                   <div className="w-full bg-black/30 border border-white/5 rounded-xl p-3 text-neutral-500 text-sm font-mono">
-                    {formData.phone || '(nhập SĐT phía trên)'}
+                    {formData.phone || '(enter phone number above)'}
                   </div>
                 </div>
 
-                {/* Password do coach đặt */}
                 <div>
-                  <p className="text-[9px] text-neutral-600 mb-1 ml-1">Mật khẩu (coach tạo, cấp cho HV)</p>
+                  <p className="text-[9px] text-neutral-600 mb-1 ml-1">Password (created by coach)</p>
                   <div className="relative">
-                    <KeyRound className="w-4 h-4 text-emerald-500/60 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <KeyRound className="w-4 h-4 text-[var(--app-accent)]/70 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={clientPassword}
                       onChange={(e) => setClientPassword(e.target.value)}
-                      placeholder="Đặt mật khẩu cho học viên (≥6 ký tự)"
-                      className="w-full bg-black/40 border border-emerald-500/20 rounded-xl py-3 pl-10 pr-16 text-white text-sm outline-none focus:border-emerald-500/50"
+                      placeholder="Set trainee password (6+ characters)"
+                      className="w-full bg-black/40 border border-[var(--app-accent-soft)] rounded-xl py-3 pl-10 pr-16 text-white text-sm outline-none focus:border-[var(--app-accent-strong)]"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-neutral-600 uppercase tracking-widest"
                     >
-                      {showPassword ? 'Ẩn' : 'Hiện'}
+                      {showPassword ? 'Hide' : 'Show'}
                     </button>
                   </div>
                   <p className="text-[9px] text-neutral-600 mt-1 ml-1">
-                    Sau khi lưu, app sẽ hiện thông tin đăng nhập để bạn chia sẻ cho học viên.
+                    After saving, the app will confirm the login details so you can share them with the trainee.
                   </p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <input type="date" name="dob" value={formData.dob} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-neutral-400 text-xs outline-none" />
-                <select name="gender" value={formData.gender} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-neutral-400 text-sm outline-none"><option>Nam</option><option>Nữ</option></select>
+                <select name="gender" value={formData.gender} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-neutral-400 text-sm outline-none"><option>Male</option><option>Female</option></select>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <input type="text" name="height" value={formData.height} onChange={handleChange} placeholder="Cao (cm)" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
-                <input type="text" name="weight" value={formData.weight} onChange={handleChange} placeholder="Nặng (kg)" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+                <input type="text" name="height" value={formData.height} onChange={handleChange} placeholder="Height (cm)" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+                <input type="text" name="weight" value={formData.weight} onChange={handleChange} placeholder="Weight (kg)" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
               </div>
             </div>
           )}
         </div>
 
-        {/* Nhóm 2: Mục tiêu */}
-        <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
+        <div className="app-glass-panel border rounded-[24px] overflow-hidden">
           <div onClick={() => toggleSection('goals')} className="p-5 flex justify-between items-center cursor-pointer">
-            <div className="flex items-center gap-2"><Target className="w-4 h-4 text-blue-400" /><h3 className="text-white text-sm font-medium">2. Mục tiêu & Lifestyle</h3></div>
+            <div className="flex items-center gap-2"><Target className="w-4 h-4 text-blue-400" /><h3 className="text-white text-sm font-medium">2. Goals & Lifestyle</h3></div>
             <ChevronDown className={`w-4 h-4 text-neutral-500 transition-transform ${expandedSection === 'goals' ? 'rotate-180' : ''}`} />
           </div>
           {expandedSection === 'goals' && (
             <div className="px-5 pb-5 space-y-3">
-              <input type="text" name="goal" value={formData.goal} onChange={handleChange} placeholder="Mục tiêu chính" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
-              <input type="text" name="targetduration" value={formData.targetduration} onChange={handleChange} placeholder="Thời gian mong muốn" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
-              <input type="text" name="jobtype" value={formData.jobtype} onChange={handleChange} placeholder="Tính chất công việc" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
-              <input type="text" name="sleephabits" value={formData.sleephabits} onChange={handleChange} placeholder="Thói quen giấc ngủ" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+              <input type="text" name="goal" value={formData.goal} onChange={handleChange} placeholder="Primary Goal" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+              <input type="text" name="targetduration" value={formData.targetduration} onChange={handleChange} placeholder="Target Timeline" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+              <input type="text" name="jobtype" value={formData.jobtype} onChange={handleChange} placeholder="Work Style" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+              <input type="text" name="sleephabits" value={formData.sleephabits} onChange={handleChange} placeholder="Sleep Routine" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
             </div>
           )}
         </div>
 
-        {/* Nhóm 3: Dinh dưỡng */}
-        <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
+        <div className="app-glass-panel border rounded-[24px] overflow-hidden">
           <div onClick={() => toggleSection('nutrition')} className="p-5 flex justify-between items-center cursor-pointer">
-            <div className="flex items-center gap-2"><Utensils className="w-4 h-4 text-orange-400" /><h3 className="text-white text-sm font-medium">3. Dinh dưỡng</h3></div>
+            <div className="flex items-center gap-2"><Utensils className="w-4 h-4 text-orange-400" /><h3 className="text-white text-sm font-medium">3. Nutrition</h3></div>
             <ChevronDown className={`w-4 h-4 text-neutral-500 transition-transform ${expandedSection === 'nutrition' ? 'rotate-180' : ''}`} />
           </div>
           {expandedSection === 'nutrition' && (
             <div className="px-5 pb-5 space-y-3">
-              <input type="text" name="cookinghabit" value={formData.cookinghabit} onChange={handleChange} placeholder="Thói quen nấu ăn" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
-              <input type="text" name="dietaryrestriction" value={formData.dietaryrestriction} onChange={handleChange} placeholder="Dị ứng / Kiêng đặc biệt" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
-              <textarea name="favoritefoods" value={formData.favoritefoods} onChange={handleChange} rows="2" placeholder="Món yêu thích" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm resize-none"></textarea>
-              <input type="text" name="avoidfoods" value={formData.avoidfoods} onChange={handleChange} placeholder="Thực phẩm cần tránh" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+              <input type="text" name="cookinghabit" value={formData.cookinghabit} onChange={handleChange} placeholder="Cooking Habit" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+              <input type="text" name="dietaryrestriction" value={formData.dietaryrestriction} onChange={handleChange} placeholder="Allergies / Restrictions" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
+              <textarea name="favoritefoods" value={formData.favoritefoods} onChange={handleChange} rows="2" placeholder="Favorite Foods" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm resize-none"></textarea>
+              <input type="text" name="avoidfoods" value={formData.avoidfoods} onChange={handleChange} placeholder="Foods to Avoid" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm outline-none" />
               <div className="grid grid-cols-2 gap-3">
-                <input type="text" name="cookingtime" value={formData.cookingtime} onChange={handleChange} placeholder="Giờ nấu/ngày" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
-                <input type="text" name="foodbudget" value={formData.foodbudget} onChange={handleChange} placeholder="Ngân sách ăn" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
+                <input type="text" name="cookingtime" value={formData.cookingtime} onChange={handleChange} placeholder="Cooking Time / Day" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
+                <input type="text" name="foodbudget" value={formData.foodbudget} onChange={handleChange} placeholder="Food Budget" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
               </div>
             </div>
           )}
         </div>
 
-        {/* Nhóm 4: Y tế */}
-        <div className="bg-white/[0.02] border border-white/[0.05] rounded-[24px] overflow-hidden">
+        <div className="app-glass-panel border rounded-[24px] overflow-hidden">
           <div onClick={() => toggleSection('health')} className="p-5 flex justify-between items-center cursor-pointer">
-            <div className="flex items-center gap-2"><HeartPulse className="w-4 h-4 text-red-400" /><h3 className="text-white text-sm font-medium">4. Y tế & Cam kết</h3></div>
+            <div className="flex items-center gap-2"><HeartPulse className="w-4 h-4 text-red-400" /><h3 className="text-white text-sm font-medium">4. Health & Commitment</h3></div>
             <ChevronDown className={`w-4 h-4 text-neutral-500 transition-transform ${expandedSection === 'health' ? 'rotate-180' : ''}`} />
           </div>
           {expandedSection === 'health' && (
             <div className="px-5 pb-5 space-y-3">
-              <textarea name="medicalconditions" value={formData.medicalconditions} onChange={handleChange} rows="2" placeholder="Bệnh lý (Xương khớp, tim mạch...)" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm resize-none"></textarea>
-              <input type="text" name="supplements" value={formData.supplements} onChange={handleChange} placeholder="Thuốc / TPBS đang dùng" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
+              <textarea name="medicalconditions" value={formData.medicalconditions} onChange={handleChange} rows="2" placeholder="Medical Conditions (joints, heart, injuries...)" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm resize-none"></textarea>
+              <input type="text" name="supplements" value={formData.supplements} onChange={handleChange} placeholder="Current Supplements / Medication" className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white text-sm" />
               <select name="commitmentlevel" value={formData.commitmentlevel} onChange={handleChange} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-neutral-400 text-sm outline-none">
-                <option>Sẵn sàng tuân thủ 100%</option>
-                <option>Sẵn sàng phần lớn</option>
-                <option>Cần đốc thúc</option>
+                {commitmentOptions.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
               </select>
             </div>
           )}
         </div>
 
-        <button onClick={handleSave} disabled={isSaving} className={`w-full text-black font-black py-5 rounded-[24px] flex items-center justify-center gap-2 shadow-2xl transition-all mt-4 ${isSaving ? 'bg-neutral-500' : 'bg-white hover:scale-[1.02] active:scale-95'}`}>
+        <button onClick={handleSave} disabled={isSaving} className={`w-full text-black font-black py-5 rounded-[24px] flex items-center justify-center gap-2 shadow-2xl transition-all mt-4 ${isSaving ? 'bg-neutral-500' : 'app-cta-button hover:scale-[1.02] active:scale-95'}`}>
           {isSaving ? <RefreshCw className="animate-spin w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />} 
-          {isSaving ? 'SAVING...' : 'ADD CLIENT'}
+          {isSaving ? 'Saving...' : 'Add Trainee'}
         </button>
       </div>
     </div>
