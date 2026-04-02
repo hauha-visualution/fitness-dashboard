@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Home, Users, Library, PersonStanding, Wallet } from 'lucide-react';
+import { ArrowRight, Dumbbell, Home, Library, PersonStanding, ShieldCheck, UserCheck, Users, Wallet } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
 // Import các thành phần chính
@@ -39,9 +39,84 @@ const normalizeQuickLogSelection = (selection = null) => {
   };
 };
 
+const getRouteContextFromPath = (pathname = '/') => {
+  const normalizedPath = pathname.replace(/\/+$/, '') || '/';
+
+  if (normalizedPath === '/coach' || normalizedPath === '/coach/login') return 'coach';
+  if (normalizedPath === '/portal' || normalizedPath === '/portal/login') return 'client';
+  return 'landing';
+};
+
+const getPathForContext = (context, isAuthenticated = false) => {
+  if (context === 'coach') return isAuthenticated ? '/coach' : '/coach/login';
+  if (context === 'client') return isAuthenticated ? '/portal' : '/portal/login';
+  return '/';
+};
+
+const AccessLandingScreen = ({ onChooseCoach, onChooseClient }) => (
+  <div className="app-screen-shell h-dvh w-full flex flex-col justify-center relative z-20 overflow-hidden px-6">
+    <div className="absolute top-[-10%] left-[-20%] w-[140%] h-[400px] bg-white/[0.03] blur-[100px] pointer-events-none"></div>
+
+    <div className="relative z-10 animate-slide-up">
+      <div className="text-center mb-8">
+        <div className="w-16 h-16 bg-[linear-gradient(135deg,rgba(200,245,63,0.22),rgba(96,180,255,0.18))] border border-[rgba(200,245,63,0.3)] rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_30px_rgba(200,245,63,0.08)]">
+          <Dumbbell className="w-8 h-8 app-accent-text" />
+        </div>
+        <h1 className="text-2xl font-medium text-white tracking-tight">Aesthetics Hub</h1>
+        <p className="text-neutral-500 text-[10px] font-black uppercase tracking-widest mt-2">
+          Choose your workspace
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        <button
+          type="button"
+          onClick={onChooseCoach}
+          className="w-full text-left app-glass-panel border rounded-[28px] p-5 active:scale-[0.99] transition-all"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex gap-4">
+              <div className="w-12 h-12 rounded-[18px] bg-[linear-gradient(135deg,rgba(200,245,63,0.18),rgba(120,240,160,0.08))] border border-[rgba(200,245,63,0.2)] flex items-center justify-center shrink-0">
+                <UserCheck className="w-5 h-5 app-accent-text" />
+              </div>
+              <div>
+                <p className="text-white text-lg font-semibold">Coach Workspace</p>
+                <p className="text-white/55 text-sm mt-1">Sign in to manage trainees, sessions, templates, and payments.</p>
+              </div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-white/35 shrink-0 mt-1" />
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={onChooseClient}
+          className="w-full text-left app-glass-panel border rounded-[28px] p-5 active:scale-[0.99] transition-all"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex gap-4">
+              <div className="w-12 h-12 rounded-[18px] bg-[linear-gradient(135deg,rgba(96,180,255,0.18),rgba(120,160,255,0.08))] border border-[rgba(96,180,255,0.2)] flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-5 h-5 app-blue-text" />
+              </div>
+              <div>
+                <p className="text-white text-lg font-semibold">Trainee Portal</p>
+                <p className="text-white/55 text-sm mt-1">Use the login link, phone number, and password your coach shared with you.</p>
+              </div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-white/35 shrink-0 mt-1" />
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 export default function App() {
   const [session, setSession] = useState(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [routeContext, setRouteContext] = useState(() => (
+    typeof window === 'undefined' ? 'landing' : getRouteContextFromPath(window.location.pathname)
+  ));
 
   // Role: 'coach' | 'client' | 'unknown' | null
   const [userRole, setUserRole] = useState(null);
@@ -68,6 +143,19 @@ export default function App() {
     { id: 'clients', label: 'Trainees', icon: Users },
     { id: 'payments', label: 'Payments', icon: Wallet },
   ];
+
+  const navigateToContext = useCallback((context, { isAuthenticated = false, replace = false } = {}) => {
+    const nextPath = getPathForContext(context, isAuthenticated);
+
+    if (typeof window !== 'undefined') {
+      const currentPath = window.location.pathname || '/';
+      if (currentPath !== nextPath) {
+        window.history[replace ? 'replaceState' : 'pushState']({}, '', nextPath);
+      }
+    }
+
+    setRouteContext(context);
+  }, []);
 
   // ============================================================
   // Phát hiện role sau khi đăng nhập
@@ -143,17 +231,33 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const handlePopState = () => {
+      setRouteContext(getRouteContextFromPath(window.location.pathname));
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (!session || !userRole || userRole === 'unknown') return;
+    navigateToContext(userRole === 'client' ? 'client' : 'coach', { isAuthenticated: true, replace: true });
+  }, [navigateToContext, session, userRole]);
+
   const handleLogin = (supabaseSession) => {
     setSession(supabaseSession);
     detectRole(supabaseSession);
   };
 
   const handleLogout = async () => {
+    const logoutContext = userRole === 'client' ? 'client' : 'coach';
     await supabase.auth.signOut();
     setSession(null);
     setCoachProfile(null);
     setClientProfile(null);
     setUserRole(null);
+    navigateToContext(logoutContext, { replace: true });
   };
 
   // Gọi lại sau khi CoachProfileView lưu thành công → refresh
@@ -246,7 +350,33 @@ export default function App() {
     );
   }
 
-  if (!session) return <div className="app-root-shell h-dvh flex justify-center"><AuthScreen onLogin={handleLogin} /></div>;
+  if (!session) {
+    return (
+      <div className="app-root-shell min-h-screen flex justify-center font-sans">
+        <div className="app-shell-frame w-full max-w-[420px] h-dvh relative overflow-hidden flex flex-col">
+          <GlobalStyles />
+          {routeContext === 'coach' ? (
+            <AuthScreen
+              onLogin={handleLogin}
+              mode="coach"
+              onBack={() => navigateToContext('landing')}
+            />
+          ) : routeContext === 'client' ? (
+            <AuthScreen
+              onLogin={handleLogin}
+              mode="client"
+              onBack={() => navigateToContext('landing')}
+            />
+          ) : (
+            <AccessLandingScreen
+              onChooseCoach={() => navigateToContext('coach')}
+              onChooseClient={() => navigateToContext('client')}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // ==== CLIENT PORTAL ====
   if (userRole === 'client') {

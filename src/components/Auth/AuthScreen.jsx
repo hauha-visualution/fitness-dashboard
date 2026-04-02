@@ -1,18 +1,31 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dumbbell, User, Lock, ArrowLeft, AlertCircle, RefreshCw, UserCheck, Users, UserPlus } from 'lucide-react';
 import { supabase, toAuthEmail } from '../../supabaseClient';
 
 // Alias để dùng trong component này
 const toEmail = toAuthEmail;
 
-const AuthScreen = ({ onLogin }) => {
-  const [role, setRole] = useState('coach'); // 'coach' | 'client'
+const AuthScreen = ({ onLogin, mode = null, onBack = null }) => {
+  const lockedRole = mode === 'coach' || mode === 'client';
+  const initialRole = mode === 'client' ? 'client' : 'coach';
+  const [role, setRole] = useState(initialRole); // 'coach' | 'client'
   const [isRegister, setIsRegister] = useState(false); // toggle đăng ký coach mới
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState(''); // chỉ dùng khi đăng ký coach mới
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!lockedRole) return;
+
+    setRole(initialRole);
+    setUsername('');
+    setPassword('');
+    setFullName('');
+    setError('');
+    setIsRegister(false);
+  }, [initialRole, lockedRole]);
 
   // Reset form khi đổi role
   const handleRoleChange = (newRole) => {
@@ -119,6 +132,16 @@ const AuthScreen = ({ onLogin }) => {
       <div className="absolute top-[-10%] left-[-20%] w-[140%] h-[400px] bg-white/[0.03] blur-[100px] pointer-events-none"></div>
 
       <div className="w-full relative z-10 animate-slide-up">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="app-ghost-button mb-5 p-3 border rounded-full text-white active:scale-90 transition-all"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+        )}
+
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-[linear-gradient(135deg,rgba(200,245,63,0.22),rgba(96,180,255,0.18))] border border-[rgba(200,245,63,0.3)] rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_30px_rgba(200,245,63,0.08)]">
@@ -128,40 +151,51 @@ const AuthScreen = ({ onLogin }) => {
           <p className="text-neutral-500 text-[10px] font-black uppercase tracking-widest mt-2">
             {role === 'coach'
               ? (isRegister ? 'Coach Sign Up' : 'Coach Sign In')
-              : 'Trainee Sign In'}
+              : 'Trainee Portal Sign In'}
           </p>
         </div>
 
         {/* Role Toggle: Coach / Trainee */}
-        <div className="app-glass-panel flex border p-1.5 rounded-[28px] mb-5 gap-1">
-          <button
-            type="button"
-            onClick={() => handleRoleChange('coach')}
-            className={`flex-1 py-3.5 rounded-[22px] flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
-              role === 'coach'
-                ? 'app-cta-button shadow-lg'
-                : 'text-neutral-600 hover:text-neutral-400'
-            }`}
-          >
-            <UserCheck className="w-3.5 h-3.5" />
-            Coach
-          </button>
-          <button
-            type="button"
-            onClick={() => handleRoleChange('client')}
-            className={`flex-1 py-3.5 rounded-[22px] flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
-              role === 'client'
-                ? 'app-cta-button shadow-lg'
-                : 'text-neutral-600 hover:text-neutral-400'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            Trainee
-          </button>
-        </div>
+        {!lockedRole && (
+          <div className="app-glass-panel flex border p-1.5 rounded-[28px] mb-5 gap-1">
+            <button
+              type="button"
+              onClick={() => handleRoleChange('coach')}
+              className={`flex-1 py-3.5 rounded-[22px] flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
+                role === 'coach'
+                  ? 'app-cta-button shadow-lg'
+                  : 'text-neutral-600 hover:text-neutral-400'
+              }`}
+            >
+              <UserCheck className="w-3.5 h-3.5" />
+              Coach
+            </button>
+            <button
+              type="button"
+              onClick={() => handleRoleChange('client')}
+              className={`flex-1 py-3.5 rounded-[22px] flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
+                role === 'client'
+                  ? 'app-cta-button shadow-lg'
+                  : 'text-neutral-600 hover:text-neutral-400'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              Trainee
+            </button>
+          </div>
+        )}
 
         {/* Form đăng nhập */}
         <div className="app-glass-panel border rounded-[32px] p-6 shadow-2xl">
+          {role === 'client' && (
+            <div className="mb-4 rounded-[18px] border border-blue-500/20 bg-blue-500/10 px-4 py-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-blue-300">Trainee Portal</p>
+              <p className="text-[11px] leading-relaxed text-blue-100/80 mt-1">
+                You do not need to create an account here. Use the phone number and password shared by your coach.
+              </p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
 
             {/* Tên hiển thị (chỉ khi đăng ký coach mới) */}

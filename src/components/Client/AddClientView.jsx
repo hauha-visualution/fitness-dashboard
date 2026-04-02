@@ -55,6 +55,7 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
   const [expandedSection, setExpandedSection] = useState('basic');
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const traineePortalUrl = typeof window !== 'undefined' ? `${window.location.origin}/portal/login` : '/portal/login';
 
   const toggleSection = (id) => setExpandedSection(expandedSection === id ? null : id);
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -163,7 +164,12 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
 
     setIsSaving(false);
     if (!dbError) {
-      alert(`Trainee created successfully.\n\nLogin details:\n• Username: ${formData.phone}\n• Password: ${clientPassword}\n\nShare these credentials with the trainee.`);
+      alert(
+        `Trainee created successfully.\n\n` +
+        `Portal:\n• ${traineePortalUrl}\n\n` +
+        `Login details:\n• Username: ${formData.phone}\n• Password: ${clientPassword}\n\n` +
+        `Share the portal link and these credentials with the trainee.`
+      );
       onSave();
       onBack();
     } else {
@@ -198,6 +204,13 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
                 <div className="flex items-center gap-2 mb-1">
                   <ShieldCheck className="w-4 h-4 text-[var(--app-accent)]" />
                   <p className="text-[10px] font-black text-[var(--app-accent)] uppercase tracking-widest">Trainee Account</p>
+                </div>
+
+                <div>
+                  <p className="text-[9px] text-neutral-600 mb-1 ml-1">Portal link</p>
+                  <div className="w-full bg-black/30 border border-white/5 rounded-xl p-3 text-neutral-400 text-xs break-all">
+                    {traineePortalUrl}
+                  </div>
                 </div>
 
                 <div>
