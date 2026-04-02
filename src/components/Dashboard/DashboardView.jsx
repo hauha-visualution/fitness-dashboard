@@ -32,6 +32,9 @@ const toLocalISOString = (d) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
+const formatDayMonth = (date) =>
+  `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
+
 const getWeekStart = (date) => {
   const d = new Date(date);
   const day = d.getDay();
@@ -130,7 +133,7 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
   const [sessionMap, setSessionMap] = useState({});
   const [loading, setLoading] = useState(true);
 
-  const currentWeekStart = useMemo(() => getWeekStart(today), [today]);
+  const currentWeekStart = useMemo(() => getWeekStart(selectedDate), [selectedDate]);
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, index) => addDays(currentWeekStart, index)),
     [currentWeekStart]
@@ -262,6 +265,7 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
   const selectedSessions = sessionMap[selectedKey] || [];
   const selectedDateLabel = `${DAY_LABELS[selectedDate.getDay()]} ${String(selectedDate.getDate()).padStart(2, '0')}/${String(selectedDate.getMonth() + 1).padStart(2, '0')}`;
   const sessionsCardTitle = isSameDate(selectedDate, today) ? "Today's Sessions" : `Sessions on ${selectedDateLabel}`;
+  const weekRangeLabel = `This week: ${formatDayMonth(weekDays[0])} - ${formatDayMonth(weekDays[6])}`;
   const calendarDays = useMemo(
     () => buildCalendarDays(displayedMonth, sessionMap, selectedDate, today),
     [displayedMonth, selectedDate, sessionMap, today]
@@ -274,7 +278,7 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
       return {
         label: CALENDAR_DAY_LABELS[(day.getDay() + 6) % 7],
         count: (sessionMap[iso] || []).filter((sessionItem) => sessionItem.status !== 'cancelled').length,
-        isSelectedWeekDay: isSameDate(day, today),
+        isSelectedWeekDay: isSameDate(day, selectedDate),
       };
     });
     const maxCount = Math.max(...counts.map((item) => item.count), 1);
@@ -283,7 +287,7 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
       ...item,
       width: `${Math.max((item.count / maxCount) * 100, item.count > 0 ? 12 : 0)}%`,
     }));
-  }, [sessionMap, today, weekDays]);
+  }, [selectedDate, sessionMap, weekDays]);
 
   const metricCards = [
     {
@@ -471,7 +475,10 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
         <div className="space-y-4">
           <div className="rounded-[22px] border app-glass-panel overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.05]">
-              <p className="text-[14px] font-black text-white">Sessions This Week</p>
+              <div>
+                <p className="text-[14px] font-black text-white">Sessions This Week</p>
+                <p className="text-[10px] font-semibold app-subtle-text mt-1">{weekRangeLabel}</p>
+              </div>
               <p className="text-[10px] font-black tracking-wide text-[rgba(200,245,63,0.72)]">
                 {stats.weeklyTotal} <span className="text-white/22">· vs {stats.previousWeeklyTotal}</span>
               </p>
