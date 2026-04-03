@@ -1,62 +1,47 @@
 import React, { useEffect, useState } from 'react';
-import { Dumbbell, User, Lock, ArrowLeft, AlertCircle, RefreshCw, UserCheck, Users, UserPlus } from 'lucide-react';
+import { Dumbbell, User, Lock, ArrowLeft, AlertCircle, RefreshCw, UserPlus } from 'lucide-react';
 import { supabase, toAuthEmail } from '../../supabaseClient';
 
 // Alias để dùng trong component này
 const toEmail = toAuthEmail;
 
-const AuthScreen = ({ onLogin, mode = null, onBack = null, onCoachAccess = null }) => {
-  const lockedRole = mode === 'coach' || mode === 'client';
-  const initialRole = mode === 'client' ? 'client' : 'coach';
-  const [role, setRole] = useState(initialRole); // 'coach' | 'client'
-  const [isRegister, setIsRegister] = useState(false); // toggle đăng ký coach mới
+const AuthScreen = ({ onLogin, mode = 'main', onBack = null, onCoachAccess = null }) => {
+  const isCoachMode = mode === 'coach';
+  const isMainMode = mode === 'main';
+  const [isRegister, setIsRegister] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState(''); // chỉ dùng khi đăng ký coach mới
+  const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!lockedRole) return;
-
-    setRole(initialRole);
     setUsername('');
     setPassword('');
     setFullName('');
     setError('');
     setIsRegister(false);
-  }, [initialRole, lockedRole]);
-
-  // Reset form khi đổi role
-  const handleRoleChange = (newRole) => {
-    setRole(newRole);
-    setUsername('');
-    setPassword('');
-    setFullName('');
-    setError('');
-    setIsRegister(false);
-  };
+  }, [mode]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    const email = toEmail(username);
+    const normalizedUsername = username.trim();
+    const email = toEmail(normalizedUsername);
 
     try {
-      if (role === 'coach') {
+      if (isCoachMode) {
         if (isRegister) {
-          // ==== ĐĂNG KÝ COACH MỚI ====
-          if (!username.trim()) throw new Error('Vui lòng nhập username.');
+          if (!normalizedUsername) throw new Error('Vui lòng nhập username.');
           if (password.length < 6) throw new Error('Mật khẩu phải ít nhất 6 ký tự.');
 
-          // 1. Tạo auth account
           const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email,
             password,
             options: {
-              data: { username: username.trim(), role: 'coach' },
+              data: { username: normalizedUsername, role: 'coach' },
             },
           });
 
@@ -67,55 +52,46 @@ const AuthScreen = ({ onLogin, mode = null, onBack = null, onCoachAccess = null 
             throw signUpError;
           }
 
-          // 2. Tạo record trong bảng coaches
           const { error: coachErr } = await supabase
             .from('coaches')
             .insert([{
               email: email,
-              full_name: fullName.trim() || username.trim(),
+              full_name: fullName.trim() || normalizedUsername,
             }]);
 
           if (coachErr) {
             console.warn('Coach record error:', coachErr.message);
-            // Không block — auth account đã tạo, record coaches sẽ được upsert khi vào CoachProfileView
           }
 
-          // 3. Đăng nhập luôn
           if (signUpData.session) {
-            onLogin(signUpData.session, 'coach');
+            onLogin(signUpData.session);
           } else {
-            // Supabase có thể yêu cầu confirm email — thử sign in lại
             const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
             if (loginErr) throw new Error('Tạo tài khoản thành công! Hãy đăng nhập lại.');
-            onLogin(loginData.session, 'coach');
+            onLogin(loginData.session);
           }
-
         } else {
-          // ==== ĐĂNG NHẬP COACH ====
           const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
           if (signInError) {
             if (signInError.message.includes('Invalid login')) throw new Error('Sai username hoặc mật khẩu. Thử lại nhé!');
             throw signInError;
           }
-          onLogin(data.session, 'coach');
+          onLogin(data.session);
         }
-
       } else {
-        // ==== ĐĂNG NHẬP HỌC VIÊN ====
+        if (!normalizedUsername) throw new Error('Please enter your username or phone number.');
         if (password.length < 6) throw new Error('Mật khẩu phải ít nhất 6 ký tự.');
 
-        // Thử sign in trước (đã có tài khoản)
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
         if (!signInError && signInData.session) {
-          onLogin(signInData.session, 'client');
+          onLogin(signInData.session);
           return;
         }
 
-        // Xử lý lỗi đăng nhập
         if (signInError) {
           if (signInError.message.toLowerCase().includes('invalid login credentials')) {
-            throw new Error('Sai SĐT hoặc mật khẩu. Liên hệ coach để được hỗ trợ.');
+            throw new Error('Sai username hoặc mật khẩu. Nếu bạn là học viên, hãy dùng thông tin coach đã chia sẻ.');
           }
           throw signInError;
         }
@@ -149,49 +125,19 @@ const AuthScreen = ({ onLogin, mode = null, onBack = null, onCoachAccess = null 
           </div>
           <h1 className="text-2xl font-medium text-white tracking-tight">Aesthetics Hub</h1>
           <p className="text-neutral-500 text-[10px] font-black uppercase tracking-widest mt-2">
-            {role === 'coach'
+            {isCoachMode
               ? (isRegister ? 'Coach Sign Up' : 'Coach Sign In')
-              : 'Trainee Portal Sign In'}
+              : 'Sign In'}
           </p>
         </div>
 
-        {/* Role Toggle: Coach / Trainee */}
-        {!lockedRole && (
-          <div className="app-glass-panel flex border p-1.5 rounded-[28px] mb-5 gap-1">
-            <button
-              type="button"
-              onClick={() => handleRoleChange('coach')}
-              className={`flex-1 py-3.5 rounded-[22px] flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
-                role === 'coach'
-                  ? 'app-cta-button shadow-lg'
-                  : 'text-neutral-600 hover:text-neutral-400'
-              }`}
-            >
-              <UserCheck className="w-3.5 h-3.5" />
-              Coach
-            </button>
-            <button
-              type="button"
-              onClick={() => handleRoleChange('client')}
-              className={`flex-1 py-3.5 rounded-[22px] flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
-                role === 'client'
-                  ? 'app-cta-button shadow-lg'
-                  : 'text-neutral-600 hover:text-neutral-400'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              Trainee
-            </button>
-          </div>
-        )}
-
         {/* Form đăng nhập */}
         <div className="app-glass-panel border rounded-[32px] p-6 shadow-2xl">
-          {role === 'client' && (
+          {isMainMode && (
             <div className="mb-4 rounded-[18px] border border-blue-500/20 bg-blue-500/10 px-4 py-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-blue-300">Trainee Portal</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-blue-300">Single Sign In</p>
               <p className="text-[11px] leading-relaxed text-blue-100/80 mt-1">
-                You do not need to create an account here. Use the phone number and password shared by your coach.
+                Enter your username or phone number. We will automatically send you to the right workspace after sign in.
               </p>
             </div>
           )}
@@ -199,7 +145,7 @@ const AuthScreen = ({ onLogin, mode = null, onBack = null, onCoachAccess = null 
           <form onSubmit={handleSubmit} className="space-y-4">
 
             {/* Tên hiển thị (chỉ khi đăng ký coach mới) */}
-            {role === 'coach' && isRegister && (
+            {isCoachMode && isRegister && (
               <div className="relative">
                 <UserPlus className="w-5 h-5 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
                 <input
@@ -216,7 +162,7 @@ const AuthScreen = ({ onLogin, mode = null, onBack = null, onCoachAccess = null 
               <User className="w-5 h-5 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder={role === 'coach' ? 'Coach username' : 'Phone number (e.g. 0901234567)'}
+                placeholder={isCoachMode ? 'Coach username' : 'Username or phone number'}
                 required
                 value={username}
                 onChange={(e) => { setUsername(e.target.value); setError(''); }}
@@ -227,7 +173,9 @@ const AuthScreen = ({ onLogin, mode = null, onBack = null, onCoachAccess = null 
               <Lock className="w-5 h-5 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
               <input
                 type="password"
-                placeholder={role === 'client' ? 'Password provided by coach' : (isRegister ? 'Create a password (at least 6 characters)' : 'Password')}
+                placeholder={isCoachMode
+                  ? (isRegister ? 'Create a password (at least 6 characters)' : 'Password')
+                  : 'Password'}
                 required
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(''); }}
@@ -235,9 +183,9 @@ const AuthScreen = ({ onLogin, mode = null, onBack = null, onCoachAccess = null 
               />
             </div>
 
-            {role === 'client' && !error && (
+            {isMainMode && !error && (
               <p className="text-neutral-600 text-[10px] leading-relaxed px-1">
-                Dùng số điện thoại và mật khẩu coach đã cung cấp cho bạn.
+                Coaches and trainees use the same sign in form. Your account type is detected automatically.
               </p>
             )}
 
@@ -256,7 +204,7 @@ const AuthScreen = ({ onLogin, mode = null, onBack = null, onCoachAccess = null 
               {isLoading
                 ? <RefreshCw className="w-4 h-4 animate-spin" />
                 : <>
-                    {role === 'coach'
+                    {isCoachMode
                       ? (isRegister ? 'Create a Coach account' : 'Sign In')
                       : 'Sign In'}
                     <ArrowLeft className="w-4 h-4 rotate-180" />
@@ -266,7 +214,7 @@ const AuthScreen = ({ onLogin, mode = null, onBack = null, onCoachAccess = null 
           </form>
 
           {/* Toggle đăng nhập / đăng ký cho coach */}
-          {role === 'coach' && (
+          {isCoachMode && (
             <div className="mt-4 text-center">
               <button
                 type="button"
@@ -280,7 +228,7 @@ const AuthScreen = ({ onLogin, mode = null, onBack = null, onCoachAccess = null 
             </div>
           )}
 
-          {role === 'client' && onCoachAccess && (
+          {isMainMode && onCoachAccess && (
             <div className="mt-4 text-center">
               <button
                 type="button"

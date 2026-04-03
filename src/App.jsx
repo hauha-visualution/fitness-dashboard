@@ -43,12 +43,13 @@ const getRouteContextFromPath = (pathname = '/') => {
   const normalizedPath = pathname.replace(/\/+$/, '') || '/';
 
   if (normalizedPath === '/coach' || normalizedPath === '/coach/login') return 'coach';
-  return 'client';
+  return 'main';
 };
 
 const getPathForContext = (context, isAuthenticated = false) => {
   if (context === 'coach') return isAuthenticated ? '/coach' : '/coach/login';
   if (context === 'client') return isAuthenticated ? '/portal' : '/';
+  if (context === 'main') return '/';
   return '/';
 };
 
@@ -56,7 +57,7 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [routeContext, setRouteContext] = useState(() => (
-    typeof window === 'undefined' ? 'client' : getRouteContextFromPath(window.location.pathname)
+    typeof window === 'undefined' ? 'main' : getRouteContextFromPath(window.location.pathname)
   ));
 
   // Role: 'coach' | 'client' | 'unknown' | null
@@ -192,7 +193,7 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    const logoutContext = userRole === 'client' ? 'client' : 'coach';
+    const logoutContext = userRole === 'coach' ? 'coach' : 'main';
     await supabase.auth.signOut();
     setSession(null);
     setCoachProfile(null);
@@ -300,11 +301,12 @@ export default function App() {
             <AuthScreen
               onLogin={handleLogin}
               mode="coach"
+              onBack={() => navigateToContext('main')}
             />
           ) : (
             <AuthScreen
               onLogin={handleLogin}
-              mode="client"
+              mode="main"
               onCoachAccess={() => navigateToContext('coach')}
             />
           )}
