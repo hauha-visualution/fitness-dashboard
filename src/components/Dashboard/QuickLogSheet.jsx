@@ -176,9 +176,9 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
 
     const { data, error } = await supabase
       .from('sessions')
-      .select('id, client_id, package_id, session_kind, session_number, scheduled_date, scheduled_time, status, workout_data')
+      .select('id, client_id, package_id, session_kind, session_number, scheduled_date, scheduled_time, status, workout_data, feeling, notes')
       .eq('client_id', clientId)
-      .in('status', ['scheduled', 'in_progress'])
+      .in('status', ['scheduled', 'in_progress', 'completed'])
       .order('scheduled_date', { ascending: true })
       .order('scheduled_time', { ascending: true });
 
@@ -242,6 +242,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
   const selectedSessionRecord = isManualSessionMode ? manuallySelectedSession : (selectedSession || directSelectedSession || initialSession);
   const selectedSessionPackageId = selectedSessionRecord?.package_id ?? selectedSessionRecord?.packageId ?? null;
   const selectedSessionKind = selectedSessionRecord?.session_kind ?? selectedSessionRecord?.sessionKind ?? 'fixed';
+  const isReviewMode = selectedSessionRecord?.status === 'completed';
   const visibleClientSessions = showAllClientSessions ? clientSessions : clientSessions.slice(0, 8);
   const activeClientId = selectedSessionRecord?.client_id ?? selectedClientId ?? normalizedInitialSelection?.clientId ?? null;
   const sortedTemplates = [...templates].sort((a, b) => {
@@ -287,7 +288,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
 
       const { data, error } = await supabase
         .from('sessions')
-        .select('id, client_id, package_id, session_kind, session_number, scheduled_date, scheduled_time, status, workout_data')
+        .select('id, client_id, package_id, session_kind, session_number, scheduled_date, scheduled_time, status, workout_data, feeling, notes')
         .eq('id', selectedSessionId)
         .maybeSingle();
 
@@ -322,6 +323,15 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
         return;
       }
 
+      if (selectedSessionRecord?.status === 'completed') {
+        if (!isCancelled) {
+          setExercises([createExerciseDraft('exercise-0')]);
+          setSelectedTemplateId(null);
+          setPreviousWorkoutSource(null);
+        }
+        return;
+      }
+
       if (selectedSessionRecord?.id) {
         const previousSession = await fetchPreviousWorkoutData(selectedSessionRecord);
         if (!isCancelled && previousSession?.workout_data?.length) {
@@ -349,6 +359,11 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
       isCancelled = true;
     };
   }, [fetchPreviousWorkoutData, selectedSessionRecord]);
+
+  useEffect(() => {
+    setFeeling(selectedSessionRecord?.feeling ?? null);
+    setNotes(selectedSessionRecord?.notes ?? '');
+  }, [selectedSessionRecord]);
 
   const updateExercise = (id, field, value) => {
     setExercises(prev => prev.map(ex => ex.id === id ? { ...ex, [field]: value } : ex));
@@ -526,13 +541,19 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
       <div className="absolute bottom-0 w-full bg-[var(--app-bg-dialog)] border-t border-white/10 rounded-t-[32px] flex flex-col p-6 pb-10 gap-5 animate-slide-up max-h-[90vh] overflow-y-auto hide-scrollbar">
         
         {/* Header */}
-        <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center">
            <div>
               <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Aesthetics Hub</p>
-              <h2 className="text-xl font-bold text-white">Start Workout</h2>
+              <h2 className="text-xl font-bold text-white">{isReviewMode ? 'Workout Log' : 'Start Workout'}</h2>
            </div>
            <button onClick={onClose} className="app-ghost-button p-2 border rounded-full"><X className="w-5 h-5 text-neutral-400" /></button>
         </div>
+
+        {isReviewMode && (
+          <div className="rounded-[16px] border border-[rgba(200,245,63,0.18)] bg-[rgba(200,245,63,0.08)] px-4 py-3 text-[11px] text-[rgba(235,255,190,0.88)]">
+            This session is already completed. You are viewing the saved workout log in read-only mode.
+          </div>
+        )}
 
         {/* [A] Chọn buổi tập */}
         <div className="space-y-2.5">
@@ -582,8 +603,8 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                  {loadingClientSessions ? (
                    <div className="text-sm text-neutral-500 py-2">Loading trainee sessions...</div>
                  ) : clientSessions.length === 0 ? (
-                   <div className="bg-white/[0.03] border border-white/[0.06] rounded-[14px] px-4 py-3 text-sm text-neutral-500">
-                     This trainee does not have any sessions in `scheduled` or `in_progress`.
+                  <div className="bg-white/[0.03] border border-white/[0.06] rounded-[14px] px-4 py-3 text-sm text-neutral-500">
+                     This trainee does not have any scheduled, draft, or completed sessions yet.
                    </div>
                  ) : (
                    <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
@@ -614,11 +635,15 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                                ? selectedSessionId === sessionOption.id
                                  ? 'bg-blue-500/15 text-blue-700'
                                  : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'
+                               : sessionOption.status === 'completed'
+                                 ? selectedSessionId === sessionOption.id
+                                   ? 'bg-[rgba(200,245,63,0.2)] text-black/65'
+                                   : 'bg-[rgba(200,245,63,0.08)] border border-[rgba(200,245,63,0.18)] text-[var(--app-accent)]'
                                : selectedSessionId === sessionOption.id
                                  ? 'bg-black/5 text-black/55'
                                  : 'bg-white/[0.04] border border-white/[0.08] text-neutral-500'
                            }`}>
-                             {sessionOption.status === 'in_progress' ? 'Draft' : 'Not Started'}
+                             {sessionOption.status === 'in_progress' ? 'Draft' : sessionOption.status === 'completed' ? 'Completed' : 'Not Started'}
                            </div>
                          </div>
                        </button>
@@ -656,26 +681,28 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
             <div className="flex items-center gap-2 p-2">
               <button
                 type="button"
-                onClick={() => setShowPackagePicker(prev => !prev)}
+                onClick={() => !isReviewMode && setShowPackagePicker(prev => !prev)}
                 className="flex-1 min-w-0 flex items-center gap-2 rounded-[14px] px-3 py-2.5 hover:bg-white/[0.03] transition-all"
               >
                 <Dumbbell className="w-4 h-4 text-neutral-500 shrink-0" />
                 <div className="min-w-0 text-left">
                   <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">Workout Templates</p>
                   <p className="text-sm font-semibold text-white truncate">
-                    {activeTemplate?.name || 'Choose a template'}
+                    {activeTemplate?.name || (isReviewMode ? 'Saved workout log' : 'Choose a template')}
                   </p>
                 </div>
                 {showPackagePicker ? <ChevronUp className="w-4 h-4 text-neutral-500 shrink-0" /> : <ChevronDown className="w-4 h-4 text-neutral-500 shrink-0" />}
               </button>
-              <button
-                type="button"
-                onClick={() => setShowCreateTemplate(true)}
-                className="shrink-0 w-10 h-10 rounded-[12px] border border-[var(--app-accent-soft)] bg-[linear-gradient(135deg,rgba(200,245,63,0.22),rgba(96,180,255,0.12))] text-[var(--app-accent)] shadow-[0_12px_24px_rgba(200,245,63,0.14)] flex items-center justify-center hover:brightness-110 active:scale-95 transition-all"
-                aria-label="Create template"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
+              {!isReviewMode && (
+                <button
+                  type="button"
+                  onClick={() => setShowCreateTemplate(true)}
+                  className="shrink-0 w-10 h-10 rounded-[12px] border border-[var(--app-accent-soft)] bg-[linear-gradient(135deg,rgba(200,245,63,0.22),rgba(96,180,255,0.12))] text-[var(--app-accent)] shadow-[0_12px_24px_rgba(200,245,63,0.14)] flex items-center justify-center hover:brightness-110 active:scale-95 transition-all"
+                  aria-label="Create template"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             {showPackagePicker && (
@@ -694,7 +721,8 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                       return (
                       <button 
                         key={t.id} 
-                        onClick={() => handleSelectTemplate(t.id)}
+                        onClick={() => !isReviewMode && handleSelectTemplate(t.id)}
+                        disabled={isReviewMode}
                         className={`w-full px-3 py-3 rounded-[14px] border text-left flex items-center justify-between gap-3 transition-all ${selectedTemplateId === t.id ? 'bg-blue-500/10 border-blue-500/30' : 'bg-black/20 border-white/[0.06] hover:bg-white/[0.04]'}`}
                       >
                         <div className="min-w-0">
@@ -730,28 +758,34 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
             {exercises.map((ex, idx) => (
               <div
                 key={ex.id}
-                draggable
-                onDragStart={(e) => handleDragStart(e, idx)}
-                onDragEnd={handleDragEnd}
-                onDragOver={(e) => handleDragOver(e, idx)}
+                draggable={!isReviewMode}
+                onDragStart={isReviewMode ? undefined : (e) => handleDragStart(e, idx)}
+                onDragEnd={isReviewMode ? undefined : handleDragEnd}
+                onDragOver={isReviewMode ? undefined : (e) => handleDragOver(e, idx)}
                 className={`rounded-[16px] border px-3 py-2.5 transition-all ${ex.is_completed ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-white/[0.03] border-white/[0.06]'}`}
               >
                 <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => toggleExerciseCompleted(ex.id)} className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-black transition-all ${ex.is_completed ? 'bg-emerald-500 border-emerald-500 text-black' : 'border-white/12 text-transparent hover:border-emerald-400/50'}`}>
+                  <button
+                    type="button"
+                    onClick={() => !isReviewMode && toggleExerciseCompleted(ex.id)}
+                    disabled={isReviewMode}
+                    className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-black transition-all disabled:opacity-90 ${ex.is_completed ? 'bg-emerald-500 border-emerald-500 text-black' : 'border-white/12 text-transparent hover:border-emerald-400/50'}`}
+                  >
                     ✓
                   </button>
-                  <GripVertical className="w-3.5 h-3.5 text-white/20 shrink-0" />
+                  <GripVertical className={`w-3.5 h-3.5 text-white/20 shrink-0 ${isReviewMode ? 'opacity-40' : ''}`} />
                   <input
                     type="text"
                     placeholder={`Exercise #${idx + 1}`}
                     value={ex.name}
                     onChange={e => updateExercise(ex.id, 'name', e.target.value)}
-                    className={`flex-1 min-w-0 bg-transparent text-sm font-semibold outline-none ${ex.is_completed ? 'text-emerald-100 line-through' : 'text-white'} placeholder:text-neutral-600`}
+                    readOnly={isReviewMode}
+                    className={`flex-1 min-w-0 bg-transparent text-sm font-semibold outline-none ${ex.is_completed ? 'text-emerald-100 line-through' : 'text-white'} placeholder:text-neutral-600 ${isReviewMode ? 'cursor-default' : ''}`}
                   />
                   <button
                     type="button"
-                    onClick={() => removeExercise(ex.id)}
-                    disabled={exercises.length === 1}
+                    onClick={() => !isReviewMode && removeExercise(ex.id)}
+                    disabled={isReviewMode || exercises.length === 1}
                     className="p-1.5 h-fit text-red-500/50 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all disabled:opacity-30 disabled:hover:bg-transparent"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -762,25 +796,25 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                   <div className="bg-white/[0.04] border border-white/[0.08] rounded-[10px] px-2 py-1.5">
                     <div className="text-[8px] font-black text-neutral-600 uppercase text-center">Sets</div>
                     <div className="mt-1 flex items-center justify-between gap-1">
-                      <button type="button" onClick={() => updateExercise(ex.id, 'sets', Math.max(1, ex.sets - 1))} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all">-</button>
+                      <button type="button" onClick={() => !isReviewMode && updateExercise(ex.id, 'sets', Math.max(1, ex.sets - 1))} disabled={isReviewMode} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all disabled:opacity-30">-</button>
                       <span className="min-w-[14px] text-center text-white text-[11px] font-semibold">{ex.sets}</span>
-                      <button type="button" onClick={() => updateExercise(ex.id, 'sets', ex.sets + 1)} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all">+</button>
+                      <button type="button" onClick={() => !isReviewMode && updateExercise(ex.id, 'sets', ex.sets + 1)} disabled={isReviewMode} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all disabled:opacity-30">+</button>
                     </div>
                   </div>
                   <div className="bg-white/[0.04] border border-white/[0.08] rounded-[10px] px-2 py-1.5">
                     <div className="text-[8px] font-black text-neutral-600 uppercase text-center">Reps</div>
                     <div className="mt-1 flex items-center justify-between gap-1">
-                      <button type="button" onClick={() => updateExercise(ex.id, 'reps', Math.max(1, ex.reps - 1))} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all">-</button>
+                      <button type="button" onClick={() => !isReviewMode && updateExercise(ex.id, 'reps', Math.max(1, ex.reps - 1))} disabled={isReviewMode} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all disabled:opacity-30">-</button>
                       <span className="min-w-[20px] text-center text-white text-[11px] font-semibold">{ex.reps}</span>
-                      <button type="button" onClick={() => updateExercise(ex.id, 'reps', ex.reps + 1)} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all">+</button>
+                      <button type="button" onClick={() => !isReviewMode && updateExercise(ex.id, 'reps', ex.reps + 1)} disabled={isReviewMode} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all disabled:opacity-30">+</button>
                     </div>
                   </div>
                   <div className="bg-white/[0.04] border border-white/[0.08] rounded-[10px] px-2 py-1.5">
                     <div className="text-[8px] font-black text-neutral-600 uppercase text-center">Weight</div>
                     <div className="mt-1 flex items-center justify-between gap-1">
-                      <button type="button" onClick={() => updateExercise(ex.id, 'weight', Math.max(0, ex.weight - 1))} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all">-</button>
+                      <button type="button" onClick={() => !isReviewMode && updateExercise(ex.id, 'weight', Math.max(0, ex.weight - 1))} disabled={isReviewMode} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all disabled:opacity-30">-</button>
                       <span className="min-w-[14px] text-center text-white text-[11px] font-semibold">{ex.weight}</span>
-                      <button type="button" onClick={() => updateExercise(ex.id, 'weight', ex.weight + 1)} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all">+</button>
+                      <button type="button" onClick={() => !isReviewMode && updateExercise(ex.id, 'weight', ex.weight + 1)} disabled={isReviewMode} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all disabled:opacity-30">+</button>
                     </div>
                   </div>
                 </div>
@@ -791,6 +825,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                     placeholder="Exercise note (optional)"
                     value={ex.note}
                     onChange={e => updateExercise(ex.id, 'note', e.target.value)}
+                    readOnly={isReviewMode}
                     className="w-full bg-black/30 border border-white/[0.05] rounded-[10px] py-1.5 px-3 text-neutral-300 text-[11px] outline-none focus:border-white/20 transition-all"
                   />
                 </div>
@@ -798,9 +833,11 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
             ))}
           </div>
 
-          <button onClick={addExercise} className="w-full py-3 border border-[rgba(96,180,255,0.3)] bg-[rgba(96,180,255,0.12)] rounded-[16px] text-[var(--app-blue)] text-sm font-bold flex items-center justify-center gap-2 hover:bg-[rgba(96,180,255,0.16)] active:scale-[0.99] transition-all shadow-[0_12px_28px_rgba(96,180,255,0.12)]">
-            <Plus className="w-4 h-4" /> Add Exercise
-          </button>
+          {!isReviewMode && (
+            <button onClick={addExercise} className="w-full py-3 border border-[rgba(96,180,255,0.3)] bg-[rgba(96,180,255,0.12)] rounded-[16px] text-[var(--app-blue)] text-sm font-bold flex items-center justify-center gap-2 hover:bg-[rgba(96,180,255,0.16)] active:scale-[0.99] transition-all shadow-[0_12px_28px_rgba(96,180,255,0.12)]">
+              <Plus className="w-4 h-4" /> Add Exercise
+            </button>
+          )}
 
           {showCreateTemplate && (
             <CreateTemplateModal
@@ -816,7 +853,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Trainee Condition</p>
            <div className="grid grid-cols-4 gap-2">
               {[ {id:'tired', label:'Tired', Icon:BatteryWarning, col:'red'}, {id:'ok', label:'Okay', Icon:Battery, col:'yellow'}, {id:'good', label:'Good', Icon:BatteryMedium, col:'emerald'}, {id:'fire', label:'On Fire', Icon:Flame, col:'purple'} ].map(f => (
-                 <button key={f.id} onClick={() => setFeeling(f.id)} className={`flex flex-col items-center justify-center py-3 border rounded-[14px] transition-all gap-1.5 ${feeling === f.id ? `bg-${f.col}-500/15 border-${f.col}-500/30 text-${f.col}-400` : 'bg-white/[0.03] border-white/[0.05] text-neutral-500 hover:bg-white/[0.05]'}`}>
+                 <button key={f.id} onClick={() => !isReviewMode && setFeeling(f.id)} disabled={isReviewMode} className={`flex flex-col items-center justify-center py-3 border rounded-[14px] transition-all gap-1.5 disabled:opacity-100 ${feeling === f.id ? `bg-${f.col}-500/15 border-${f.col}-500/30 text-${f.col}-400` : 'bg-white/[0.03] border-white/[0.05] text-neutral-500 hover:bg-white/[0.05]'}`}>
                     <f.Icon className="w-5 h-5" />
                     <span className="text-[10px] font-bold">{f.label}</span>
                  </button>
@@ -827,21 +864,29 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
         {/* [D] Ghi chú nhanh */}
         <div>
            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Extra Notes (Optional)</p>
-           <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Add a note..." className="w-full bg-white/[0.04] border border-white/[0.08] rounded-[14px] py-2.5 px-4 text-white text-sm outline-none focus:border-white/30 resize-none h-20" />
+           <textarea value={notes} onChange={e => setNotes(e.target.value)} readOnly={isReviewMode} placeholder="Add a note..." className="w-full bg-white/[0.04] border border-white/[0.08] rounded-[14px] py-2.5 px-4 text-white text-sm outline-none focus:border-white/30 resize-none h-20" />
         </div>
 
         {/* [E] 3 Buttons */}
-        <div className="flex gap-2 mt-2">
-           <button onClick={() => handleSave('in_progress')} disabled={saving || !selectedSessionId || !hasWorkoutData} className="app-ghost-button flex-1 py-3.5 border rounded-[18px] text-white font-bold text-sm text-center active:scale-95 transition-all disabled:opacity-50">
-             Save Draft
-           </button>
-           <button onClick={() => handleSave('completed')} disabled={saving || !selectedSessionId || !hasWorkoutData} className="app-cta-button flex-1 py-3.5 border text-black font-bold text-sm rounded-[18px] text-center active:scale-[0.98] transition-all disabled:opacity-50">
-             Complete
-           </button>
-        </div>
-        <button onClick={() => setShowCancelReason(true)} disabled={saving || !selectedSessionId} className="w-full py-3 text-red-400 text-sm font-bold text-center bg-red-500/10 border border-red-500/20 rounded-[18px] active:scale-95 transition-all disabled:opacity-50">
-           Cancel
-        </button>
+        {isReviewMode ? (
+          <div className="w-full py-3 text-center text-[11px] font-semibold text-white/45 border border-white/[0.06] bg-white/[0.03] rounded-[18px]">
+            Completed sessions are view-only.
+          </div>
+        ) : (
+          <>
+            <div className="flex gap-2 mt-2">
+               <button onClick={() => handleSave('in_progress')} disabled={saving || !selectedSessionId || !hasWorkoutData} className="app-ghost-button flex-1 py-3.5 border rounded-[18px] text-white font-bold text-sm text-center active:scale-95 transition-all disabled:opacity-50">
+                 Save Draft
+               </button>
+               <button onClick={() => handleSave('completed')} disabled={saving || !selectedSessionId || !hasWorkoutData} className="app-cta-button flex-1 py-3.5 border text-black font-bold text-sm rounded-[18px] text-center active:scale-[0.98] transition-all disabled:opacity-50">
+                 Complete
+               </button>
+            </div>
+            <button onClick={() => setShowCancelReason(true)} disabled={saving || !selectedSessionId} className="w-full py-3 text-red-400 text-sm font-bold text-center bg-red-500/10 border border-red-500/20 rounded-[18px] active:scale-95 transition-all disabled:opacity-50">
+               Cancel
+            </button>
+          </>
+        )}
 
       </div>
     </div>
