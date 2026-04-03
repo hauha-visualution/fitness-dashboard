@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Home, Package, Dumbbell, Utensils, CreditCard,
-  LogOut, ChevronRight, Zap, User, Calendar, Target,
-  TrendingUp, Clock, Bell, Activity
+  Package, Dumbbell, Utensils, CreditCard, LogOut, User,
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
-import ClientAvatar from '../shared/ClientAvatar';
 
 // Import các tab sẵn có (read-only cho client)
 import PackageTab from '../Client/Tabs/PackageTab';
@@ -15,130 +12,10 @@ import PaymentTab from '../Client/Tabs/PaymentTab';
 import ProfileTab from '../Client/Tabs/ProfileTab';
 
 // ============================================================
-// TAB: HOME - Tổng quan cho học viên
-// ============================================================
-const ClientHomeTab = ({ client, onLogout }) => {
-  const remaining = client?.package?.remaining ?? '--';
-  const total = client?.package?.total ?? '--';
-  const progressPct = total > 0 ? Math.round(((total - remaining) / total) * 100) : 0;
-
-  return (
-    <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-2 space-y-4">
-
-      {/* Header chào học viên */}
-      <div className="flex items-center justify-between pt-2 pb-1">
-        <div className="flex items-center gap-3">
-          <ClientAvatar
-            name={client?.name}
-            avatarUrl={client?.avatar_url || client?.avatar}
-            sizeClassName="w-12 h-12"
-            ringClassName="border border-[rgba(200,245,63,0.28)] bg-[linear-gradient(135deg,rgba(200,245,63,0.18),rgba(96,180,255,0.18))]"
-            textClassName="text-sm font-black app-accent-text"
-          />
-          <div>
-            <p className="text-[10px] font-black text-neutral-600 uppercase tracking-widest">Welcome 👋</p>
-            <h2 className="text-white font-medium text-lg leading-tight">{client?.name || 'Trainee'}</h2>
-          </div>
-        </div>
-        <button
-          onClick={onLogout}
-          className="app-ghost-button p-2.5 border rounded-full text-neutral-600 active:scale-90 transition-all"
-        >
-          <LogOut className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Goal badge */}
-      {client?.goal && (
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-500/10 border border-blue-500/20 rounded-[16px]">
-          <Target className="w-4 h-4 text-blue-400 shrink-0" />
-          <p className="text-blue-300 text-xs font-medium">{client.goal}</p>
-        </div>
-      )}
-
-      {/* Card gói tập */}
-        <div className="app-glass-panel rounded-[28px] border p-6 relative overflow-hidden">
-        <Zap className="absolute -right-3 -top-3 w-20 h-20 text-white/[0.04]" />
-        <p className="text-[9px] font-black text-neutral-500 uppercase tracking-widest mb-3">Current Package</p>
-        <div className="flex items-end justify-between mb-4">
-          <div>
-            <p className="text-3xl font-light text-white">{remaining}</p>
-            <p className="text-[9px] font-black text-neutral-600 uppercase mt-0.5">Sessions Left</p>
-          </div>
-          <div className="text-right">
-            <p className="text-lg font-light text-neutral-400">{total}</p>
-            <p className="text-[9px] font-black text-neutral-600 uppercase mt-0.5">Total Sessions</p>
-          </div>
-        </div>
-        {/* Progress bar */}
-        <div className="h-1 bg-white/10 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all"
-            style={{ width: `${progressPct}%` }}
-          />
-        </div>
-        <p className="text-[9px] text-neutral-600 mt-2">{progressPct}% đã hoàn thành</p>
-      </div>
-
-      {/* Quick stats */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white/[0.03] border border-white/[0.06] rounded-[20px] p-4">
-          <Activity className="w-5 h-5 text-emerald-400 mb-2" />
-          <p className="text-white font-medium text-lg">{client?.height || '--'}</p>
-          <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Chiều cao (cm)</p>
-        </div>
-        <div className="bg-white/[0.03] border border-white/[0.06] rounded-[20px] p-4">
-          <TrendingUp className="w-5 h-5 text-orange-400 mb-2" />
-          <p className="text-white font-medium text-lg">{client?.weight || '--'}</p>
-          <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Cân nặng (kg)</p>
-        </div>
-      </div>
-
-      {/* Thông tin cam kết */}
-      {client?.commitmentlevel && (
-        <div className="bg-white/[0.02] border border-white/[0.05] rounded-[20px] p-4 flex items-center gap-3">
-          <Bell className="w-5 h-5 text-yellow-400 shrink-0" />
-          <div>
-            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-0.5">Commitment</p>
-            <p className="text-white text-sm">{client.commitmentlevel}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Thời gian tập */}
-      {client?.trainingtime && (
-        <div className="bg-white/[0.02] border border-white/[0.05] rounded-[20px] p-4 flex items-center gap-3">
-          <Clock className="w-5 h-5 text-blue-400 shrink-0" />
-          <div>
-            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-0.5">Training Time</p>
-            <p className="text-white text-sm">{client.trainingtime}</p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ============================================================
-// TAB: SESSIONS - Lịch sử buổi tập
-// ============================================================
-const ClientSessionsTab = () => (
-  <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 space-y-4">
-    <p className="text-[10px] font-black text-neutral-600 uppercase tracking-widest">Lịch sử buổi tập</p>
-    <div className="text-center py-20 opacity-20">
-      <Dumbbell className="w-12 h-12 mx-auto mb-3 text-neutral-600" />
-      <p className="text-[10px] font-black uppercase tracking-widest text-neutral-600">
-        Chưa có lịch sử buổi tập
-      </p>
-    </div>
-  </div>
-);
-
-// ============================================================
 // MAIN: ClientPortalApp
 // ============================================================
 const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState('profile');
   const [client, setClient] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -188,7 +65,7 @@ const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
   }
 
   const tabs = [
-    { id: 'home',      icon: Home,      label: 'Home' },
+    { id: 'profile',   icon: User,      label: 'Profile' },
     { id: 'package',   icon: Package,   label: 'Gói tập' },
     { id: 'sessions',  icon: Dumbbell,  label: 'Sessions' },
     { id: 'nutrition', icon: Utensils,  label: 'Dinh dưỡng' },
@@ -197,7 +74,11 @@ const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'home':      return <ClientHomeTab client={client} onLogout={onLogout} />;
+      case 'profile':   return (
+        <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4">
+          <ProfileTab client={client} readOnly={true} />
+        </div>
+      );
       case 'package':   return (
         <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4">
           <PackageTab client={client} readOnly={true} />
@@ -218,15 +99,19 @@ const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
           <PaymentTab client={client} readOnly={true} />
         </div>
       );
-      default:          return <ClientHomeTab client={client} onLogout={onLogout} />;
+      default:          return (
+        <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4">
+          <ProfileTab client={client} readOnly={true} />
+        </div>
+      );
     }
   };
 
   return (
     <div className="app-screen-shell h-screen flex flex-col relative">
 
-      {/* Top bar (hiển thị khi không ở home) */}
-      {activeTab !== 'home' && (
+      {/* Top bar (hiển thị khi không ở profile) */}
+      {activeTab !== 'profile' && (
         <div className="shrink-0 px-5 pt-6 pb-3 flex items-center justify-between">
           <div>
             <h3 className="text-white font-medium">

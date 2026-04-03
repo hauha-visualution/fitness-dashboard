@@ -881,7 +881,7 @@ const InBodyProgressChart = ({ records, selectedMetricKey, activeIndex, onActive
   );
 };
 
-const ProfileTab = ({ client, onRegisterActions }) => {
+const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingInbody, setIsSavingInbody] = useState(false);
@@ -955,7 +955,7 @@ const ProfileTab = ({ client, onRegisterActions }) => {
   }, [fetchInBody, fetchProgressPhotos]);
 
   useEffect(() => {
-    if (!onRegisterActions) return undefined;
+    if (readOnly || !onRegisterActions) return undefined;
 
     onRegisterActions({
       openEdit: () => setIsEditMode(true),
@@ -966,7 +966,7 @@ const ProfileTab = ({ client, onRegisterActions }) => {
     });
 
     return () => onRegisterActions(null);
-  }, [onRegisterActions]);
+  }, [onRegisterActions, readOnly]);
 
   const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -1340,13 +1340,15 @@ const ProfileTab = ({ client, onRegisterActions }) => {
             <p className="app-label text-[9px] font-black uppercase tracking-widest">InBody Progress</p>
             <p className="mt-1 text-[11px] text-white/45">Track body composition trends over time.</p>
           </div>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-[16px] border border-white/[0.08] bg-white/[0.04] px-3.5 py-2.5 text-[10px] font-black uppercase tracking-wide text-white transition-all active:scale-95"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add InBody
-          </button>
+          {!readOnly && (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-[16px] border border-white/[0.08] bg-white/[0.04] px-3.5 py-2.5 text-[10px] font-black uppercase tracking-wide text-white transition-all active:scale-95"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add InBody
+            </button>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -1424,8 +1426,11 @@ const ProfileTab = ({ client, onRegisterActions }) => {
           {[
             { type: 'before', label: 'BEFORE', src: progressPhotos.before },
             { type: 'after', label: 'AFTER', src: progressPhotos.after },
-          ].map((photo) => (
-            <label key={photo.type} className="block cursor-pointer">
+          ].map((photo) => {
+            const Wrapper = readOnly ? 'div' : 'label';
+
+            return (
+            <Wrapper key={photo.type} className={`block ${readOnly ? '' : 'cursor-pointer'}`}>
               <div className="relative aspect-[4/5] overflow-hidden rounded-[16px] border border-white/[0.05] bg-white/[0.02] shadow-lg shadow-black/20 transition-all duration-300 hover:-translate-y-0.5 hover:border-white/10">
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/40 to-transparent" />
                 <span className="absolute left-3 top-3 z-10 text-[9px] font-black uppercase tracking-widest text-neutral-700">
@@ -1446,15 +1451,17 @@ const ProfileTab = ({ client, onRegisterActions }) => {
                   </div>
                 )}
               </div>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleProgressPhotoUpload(e, photo.type)}
-                className="hidden"
-                disabled={isUploadingProgress}
-              />
-            </label>
-          ))}
+              {!readOnly && (
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleProgressPhotoUpload(e, photo.type)}
+                  className="hidden"
+                  disabled={isUploadingProgress}
+                />
+              )}
+            </Wrapper>
+          )})}
         </div>
       </div>
 
@@ -1484,7 +1491,7 @@ const ProfileTab = ({ client, onRegisterActions }) => {
         </div>
       </div>
 
-      {isModalOpen && (
+      {!readOnly && isModalOpen && (
         <div className="fixed inset-0 z-[180] flex items-end justify-center bg-black/60 px-4 pb-10 backdrop-blur-sm">
           <div className="w-full max-w-[360px] rounded-[32px] border border-white/10 bg-[#1a1a1c] p-6 shadow-2xl animate-slide-up">
             <h3 className="mb-6 text-sm font-bold text-white">Add InBody Record</h3>
