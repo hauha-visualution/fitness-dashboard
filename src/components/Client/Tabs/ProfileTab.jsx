@@ -26,6 +26,8 @@ const TIME_FILTER_OPTIONS = [
   { id: '1m', label: '1 month', months: 1 },
   { id: '3m', label: '3 months', months: 3 },
   { id: '6m', label: '6 months', months: 6 },
+  { id: '9m', label: '9 months', months: 9 },
+  { id: '12m', label: '12 months', months: 12 },
   { id: 'all', label: 'All', months: null },
 ];
 
@@ -33,6 +35,7 @@ const INBODY_METRICS = [
   {
     key: 'weight',
     label: 'Weight',
+    cardLabel: 'Weight',
     unit: 'kg',
     color: '#60b4ff',
     goal: 'decrease',
@@ -42,6 +45,7 @@ const INBODY_METRICS = [
   {
     key: 'smm',
     label: 'SMM',
+    cardLabel: 'SMM',
     unit: 'kg',
     color: '#7bf1a8',
     goal: 'increase',
@@ -51,6 +55,7 @@ const INBODY_METRICS = [
   {
     key: 'pbf',
     label: 'PBF',
+    cardLabel: 'PBF',
     unit: '%',
     color: '#ffcb6b',
     goal: 'decrease',
@@ -60,6 +65,7 @@ const INBODY_METRICS = [
   {
     key: 'bodyFatMass',
     label: 'Body Fat Mass',
+    cardLabel: 'Fat Mass',
     unit: 'kg',
     color: '#ff9b71',
     goal: 'decrease',
@@ -69,6 +75,7 @@ const INBODY_METRICS = [
   {
     key: 'bmi',
     label: 'BMI',
+    cardLabel: 'BMI',
     unit: 'kg/m²',
     color: '#b39dff',
     goal: 'decrease',
@@ -78,6 +85,7 @@ const INBODY_METRICS = [
   {
     key: 'visceralFat',
     label: 'Visceral Fat',
+    cardLabel: 'Visceral',
     unit: 'level',
     color: '#ff6b6b',
     goal: 'decrease',
@@ -89,6 +97,7 @@ const INBODY_METRICS = [
 const ALL_METRIC = {
   key: 'all',
   label: 'All',
+  cardLabel: 'All',
   unit: 'metrics',
   color: '#c8f53f',
 };
@@ -242,7 +251,7 @@ const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helpe
     <button
       type="button"
       onClick={onClick}
-      className={`w-full min-h-[126px] rounded-[20px] border px-3.5 py-3 text-left transition-all active:scale-[0.98] ${
+      className={`w-full min-h-[120px] rounded-[20px] border px-3.5 py-3 text-left transition-all active:scale-[0.98] ${
         isActive
           ? 'bg-white/[0.05] shadow-lg'
           : 'bg-white/[0.02] hover:bg-white/[0.03]'
@@ -254,7 +263,7 @@ const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helpe
     >
       <div className="flex items-start justify-between gap-2.5">
         <div className="min-w-0">
-          <p className="text-[8px] font-black uppercase tracking-[0.24em] text-white/32">{metric.label}</p>
+          <p className="text-[8px] font-black uppercase tracking-[0.24em] text-white/32">{metric.cardLabel || metric.label}</p>
           <div className="mt-2 flex flex-wrap items-end gap-1">
             <p className="text-[20px] font-light leading-none text-white">{latestValue}</p>
             {metric.unit ? (
@@ -270,7 +279,7 @@ const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helpe
         ) : null}
       </div>
 
-      <div className={`mt-3 inline-flex max-w-full items-center rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-wide ${badgeClassName}`}>
+      <div className={`mt-3 inline-flex max-w-full items-center rounded-[14px] border px-2.5 py-1 text-[8px] font-black uppercase tracking-wide leading-tight whitespace-normal break-words ${badgeClassName}`}>
         {badgeText}
       </div>
     </button>
@@ -286,16 +295,20 @@ const InBodyProgressChart = ({ records, selectedMetricKey, activeIndex, onActive
   const chartBottom = padding.top + plotHeight;
   const selectedMetric = INBODY_METRICS.find((metric) => metric.key === selectedMetricKey) || null;
   const isAllView = selectedMetricKey === 'all';
+  const sortedRecords = useMemo(
+    () => [...records].sort((left, right) => new Date(left.measuredAt) - new Date(right.measuredAt)),
+    [records],
+  );
 
-  const xPositions = records.map((record, index) => {
-    if (records.length === 1) return padding.left + plotWidth / 2;
-    return padding.left + (plotWidth * index) / (records.length - 1);
+  const xPositions = sortedRecords.map((record, index) => {
+    if (sortedRecords.length === 1) return padding.left + plotWidth / 2;
+    return padding.left + (plotWidth * index) / (sortedRecords.length - 1);
   });
 
   const metricsForChart = isAllView ? INBODY_METRICS : [selectedMetric].filter(Boolean);
 
   const scales = metricsForChart.reduce((acc, metric) => {
-    const values = records
+    const values = sortedRecords
       .map((record) => record[metric.key])
       .filter((value) => value !== null && value !== undefined && !Number.isNaN(value));
 
@@ -334,7 +347,7 @@ const InBodyProgressChart = ({ records, selectedMetricKey, activeIndex, onActive
   };
 
   const series = metricsForChart.map((metric) => {
-    const points = records.map((record, index) => ({
+    const points = sortedRecords.map((record, index) => ({
       index,
       x: xPositions[index],
       y: getY(metric.key, record[metric.key]),
@@ -356,7 +369,7 @@ const InBodyProgressChart = ({ records, selectedMetricKey, activeIndex, onActive
         return Array.from({ length: 4 }, (_, index) => min + ((max - min) * index) / 3);
       })();
 
-  const selectedRecord = records[activeIndex] || null;
+  const selectedRecord = sortedRecords[activeIndex] || null;
 
   return (
     <div className="relative rounded-[24px] border border-white/[0.05] bg-white/[0.02] p-4 shadow-xl shadow-black/20 backdrop-blur-sm">
@@ -401,7 +414,7 @@ const InBodyProgressChart = ({ records, selectedMetricKey, activeIndex, onActive
 
                 const previousValue = (() => {
                   for (let index = activeIndex - 1; index >= 0; index -= 1) {
-                    const value = records[index][metric.key];
+                    const value = sortedRecords[index][metric.key];
                     if (value !== null && value !== undefined && !Number.isNaN(value)) return value;
                   }
                   return null;
@@ -488,9 +501,9 @@ const InBodyProgressChart = ({ records, selectedMetricKey, activeIndex, onActive
             </g>
           ))}
 
-          {records.map((record, index) => {
+          {sortedRecords.map((record, index) => {
             const prevX = index === 0 ? padding.left : (xPositions[index - 1] + xPositions[index]) / 2;
-            const nextX = index === records.length - 1 ? width - padding.right : (xPositions[index] + xPositions[index + 1]) / 2;
+            const nextX = index === sortedRecords.length - 1 ? width - padding.right : (xPositions[index] + xPositions[index + 1]) / 2;
 
             return (
               <rect
@@ -506,15 +519,15 @@ const InBodyProgressChart = ({ records, selectedMetricKey, activeIndex, onActive
             );
           })}
 
-          {records.map((record, index) => {
-            if (!(index === 0 || index === records.length - 1 || index === Math.floor(records.length / 2))) return null;
+          {sortedRecords.map((record, index) => {
+            if (!(index === 0 || index === sortedRecords.length - 1 || index === Math.floor(sortedRecords.length / 2))) return null;
 
             return (
               <text
                 key={`label-${record.measuredAt}`}
                 x={xPositions[index]}
                 y={height - 8}
-                textAnchor={index === 0 ? 'start' : index === records.length - 1 ? 'end' : 'middle'}
+                textAnchor={index === 0 ? 'start' : index === sortedRecords.length - 1 ? 'end' : 'middle'}
                 fill="rgba(255,255,255,0.28)"
                 fontSize="9"
                 fontWeight="700"
@@ -838,10 +851,10 @@ const ProfileTab = ({ client, onRegisterActions }) => {
     const overviewCard = {
       ...ALL_METRIC,
       latestValue: `${INBODY_METRICS.length}`,
-      helperText: 'overview',
+      helperText: 'all metrics',
       delta: null,
       badgeLabel: filteredChartRecords.length > 0
-        ? `${filteredChartRecords.length} scans${latestMeasurementDate ? ` · ${latestMeasurementDate}` : ''}`
+        ? `${filteredChartRecords.length} scans${latestMeasurementDate ? ` · latest ${latestMeasurementDate}` : ''}`
         : 'No scan data',
     };
 
@@ -1002,16 +1015,16 @@ const ProfileTab = ({ client, onRegisterActions }) => {
           ))}
         </div>
 
-        <div className="inline-flex rounded-[18px] border border-white/[0.06] bg-white/[0.02] p-1">
+        <div className="grid w-full grid-cols-3 gap-2 rounded-[20px] border border-white/[0.06] bg-white/[0.02] p-2 md:grid-cols-6">
           {TIME_FILTER_OPTIONS.map((option) => (
             <button
               key={option.id}
               type="button"
               onClick={() => setTimeFilter(option.id)}
-              className={`rounded-[14px] px-3 py-2 text-[10px] font-black uppercase tracking-wide transition-all ${
+              className={`rounded-[14px] px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wide transition-all ${
                 timeFilter === option.id
                   ? 'bg-white text-black shadow-lg'
-                  : 'text-white/35'
+                  : 'bg-white/[0.02] text-white/35'
               }`}
             >
               {option.label}
