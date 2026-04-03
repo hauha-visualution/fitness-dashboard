@@ -251,7 +251,7 @@ const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helpe
     <button
       type="button"
       onClick={onClick}
-      className={`w-full min-h-[120px] rounded-[20px] border px-3.5 py-3 text-left transition-all active:scale-[0.98] ${
+      className={`flex h-full min-h-[120px] w-full flex-col rounded-[20px] border px-3.5 py-3 text-left transition-all active:scale-[0.98] ${
         isActive
           ? 'bg-white/[0.05] shadow-lg'
           : 'bg-white/[0.02] hover:bg-white/[0.03]'
@@ -262,15 +262,7 @@ const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helpe
       }}
     >
       <div className="flex items-start justify-between gap-2.5">
-        <div className="min-w-0">
-          <p className="text-[8px] font-black uppercase tracking-[0.24em] text-white/32">{metric.cardLabel || metric.label}</p>
-          <div className="mt-2 flex flex-wrap items-end gap-1">
-            <p className="text-[20px] font-light leading-none text-white">{latestValue}</p>
-            {metric.unit ? (
-              <span className="pb-0.5 text-[9px] font-black uppercase tracking-wide text-white/35">{metric.unit}</span>
-            ) : null}
-          </div>
-        </div>
+        <p className="min-h-[10px] text-[8px] font-black uppercase tracking-[0.24em] text-white/32">{metric.cardLabel || metric.label}</p>
 
         {helperText ? (
           <div className="shrink-0 rounded-full border border-white/[0.06] bg-white/[0.04] px-2 py-1 text-[8px] font-black uppercase tracking-wide text-white/35">
@@ -279,7 +271,14 @@ const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helpe
         ) : null}
       </div>
 
-      <div className={`mt-3 inline-flex max-w-full items-center rounded-[14px] border px-2.5 py-1 text-[8px] font-black uppercase tracking-wide leading-tight whitespace-normal break-words ${badgeClassName}`}>
+      <div className="mt-3 min-h-[52px]">
+        <p className="text-[20px] font-light leading-none text-white">{latestValue}</p>
+        {metric.unit ? (
+          <p className="mt-2 text-[10px] font-black uppercase tracking-wide text-white/35">{metric.unit}</p>
+        ) : null}
+      </div>
+
+      <div className={`mt-auto inline-flex max-w-full items-center self-start rounded-[14px] border px-2.5 py-1 text-[8px] font-black uppercase tracking-wide leading-tight whitespace-normal break-words ${badgeClassName}`}>
         {badgeText}
       </div>
     </button>
