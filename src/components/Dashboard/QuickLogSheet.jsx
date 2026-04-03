@@ -76,11 +76,16 @@ const normalizeQuickLogSelection = (selection = null) => {
     scheduled_time: selection.scheduledTime ?? selection.scheduled_time ?? null,
     packageId: selection.packageId ?? selection.package_id ?? null,
     package_id: selection.packageId ?? selection.package_id ?? null,
+    workoutTemplateId: selection.workoutTemplateId ?? selection.workout_template_id ?? null,
+    workout_template_id: selection.workoutTemplateId ?? selection.workout_template_id ?? null,
     sessionKind: selection.sessionKind ?? selection.session_kind ?? 'fixed',
     session_kind: selection.sessionKind ?? selection.session_kind ?? 'fixed',
     manualMode: Boolean(selection.manualMode),
   };
 };
+
+const isMissingWorkoutTemplateColumnError = (error) =>
+  String(error?.message || '').toLowerCase().includes('workout_template_id');
 
 const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) => {
   const normalizedInitialSelection = normalizeQuickLogSelection(initialSelection);
@@ -116,6 +121,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [showPackagePicker, setShowPackagePicker] = useState(true);
   const [previousWorkoutSource, setPreviousWorkoutSource] = useState(null);
+  const [saveFeedback, setSaveFeedback] = useState('');
 
   const fetchTemplates = useCallback(async () => {
     const coachEmail = session?.user?.email;
@@ -176,7 +182,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
 
     const { data, error } = await supabase
       .from('sessions')
-      .select('id, client_id, package_id, session_kind, session_number, scheduled_date, scheduled_time, status, workout_data, feeling, notes')
+      .select('*')
       .eq('client_id', clientId)
       .in('status', ['scheduled', 'in_progress', 'completed'])
       .order('scheduled_date', { ascending: true })
@@ -212,15 +218,17 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
     return sortedSessions;
   }, []);
 
-  const fetchPreviousWorkoutData = useCallback(async (sessionRecord) => {
-    if (!sessionRecord?.client_id || !sessionRecord?.scheduled_date) {
+  const fetchLatestTemplateWorkoutData = useCallback(async (sessionRecord, templateId) => {
+    if (!sessionRecord?.client_id || !sessionRecord?.scheduled_date || !templateId) {
       return null;
     }
 
     const { data, error } = await supabase
       .from('sessions')
-      .select('id, session_number, scheduled_date, scheduled_time, workout_data')
+      .select('*')
       .eq('client_id', sessionRecord.client_id)
+      .eq('status', 'completed')
+      .eq('workout_template_id', templateId)
       .neq('id', sessionRecord.id)
       .or(`scheduled_date.lt.${sessionRecord.scheduled_date},and(scheduled_date.eq.${sessionRecord.scheduled_date},scheduled_time.lt.${sessionRecord.scheduled_time})`)
       .order('scheduled_date', { ascending: false })
@@ -229,7 +237,9 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
       .maybeSingle();
 
     if (error) {
-      console.error('Load previous workout data error:', error.message);
+      if (!isMissingWorkoutTemplateColumnError(error)) {
+        console.error('Load template workout history error:', error.message);
+      }
       return null;
     }
 
@@ -288,7 +298,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
 
       const { data, error } = await supabase
         .from('sessions')
-        .select('id, client_id, package_id, session_kind, session_number, scheduled_date, scheduled_time, status, workout_data, feeling, notes')
+        .select('*')
         .eq('id', selectedSessionId)
         .maybeSingle();
 
@@ -317,7 +327,6 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
       if (selectedSessionRecord?.workout_data?.length) {
         if (!isCancelled) {
           setExercises(mapWorkoutDataToDrafts(selectedSessionRecord.workout_data));
-          setSelectedTemplateId(null);
           setPreviousWorkoutSource(null);
         }
         return;
@@ -326,21 +335,31 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
       if (selectedSessionRecord?.status === 'completed') {
         if (!isCancelled) {
           setExercises([createExerciseDraft('exercise-0')]);
-          setSelectedTemplateId(null);
           setPreviousWorkoutSource(null);
         }
         return;
       }
 
-      if (selectedSessionRecord?.id) {
-        const previousSession = await fetchPreviousWorkoutData(selectedSessionRecord);
+      if (selectedSessionRecord?.id && selectedTemplateId) {
+        const previousSession = await fetchLatestTemplateWorkoutData(selectedSessionRecord, selectedTemplateId);
         if (!isCancelled && previousSession?.workout_data?.length) {
           setExercises(mapWorkoutDataToDrafts(previousSession.workout_data));
-          setSelectedTemplateId(null);
           setPreviousWorkoutSource({
+            type: 'template-history',
+            templateName: templates.find((template) => template.id === selectedTemplateId)?.name,
             sessionNumber: previousSession.session_number,
             scheduledDate: previousSession.scheduled_date,
             scheduledTime: previousSession.scheduled_time,
+          });
+          return;
+        }
+
+        const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
+        if (!isCancelled && selectedTemplate) {
+          setExercises(mapWorkoutDataToDrafts(selectedTemplate.template_exercises || []));
+          setPreviousWorkoutSource({
+            type: 'template-default',
+            templateName: selectedTemplate.name,
           });
           return;
         }
@@ -348,7 +367,6 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
 
       if (!isCancelled) {
         setExercises([createExerciseDraft('exercise-0')]);
-        setSelectedTemplateId(null);
         setPreviousWorkoutSource(null);
       }
     };
@@ -358,11 +376,13 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
     return () => {
       isCancelled = true;
     };
-  }, [fetchPreviousWorkoutData, selectedSessionRecord]);
+  }, [fetchLatestTemplateWorkoutData, selectedSessionRecord, selectedTemplateId, templates]);
 
   useEffect(() => {
+    setSelectedTemplateId(selectedSessionRecord?.workout_template_id ?? selectedSessionRecord?.workoutTemplateId ?? null);
     setFeeling(selectedSessionRecord?.feeling ?? null);
     setNotes(selectedSessionRecord?.notes ?? '');
+    setSaveFeedback('');
   }, [selectedSessionRecord]);
 
   const updateExercise = (id, field, value) => {
@@ -380,8 +400,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
   };
   const handleSelectTemplate = (templateId) => {
     setSelectedTemplateId(templateId);
-    const selectedTemplate = templates.find(template => template.id === templateId);
-    setExercises(mapWorkoutDataToDrafts(selectedTemplate?.template_exercises || []));
+    setPreviousWorkoutSource(null);
     setShowPackagePicker(false);
   };
 
@@ -433,6 +452,27 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
     }
   };
 
+  const syncSessionRecord = useCallback((updatedSession) => {
+    if (!updatedSession?.id) return;
+
+    setTodaySessions((prev) =>
+      prev.map((sessionItem) => (sessionItem.id === updatedSession.id ? { ...sessionItem, ...updatedSession } : sessionItem))
+    );
+    setClientSessions((prev) =>
+      prev.map((sessionItem) => (sessionItem.id === updatedSession.id ? { ...sessionItem, ...updatedSession } : sessionItem))
+    );
+
+    if (selectedSessionId === updatedSession.id) {
+      setDirectSelectedSession((prev) => ({ ...(prev || {}), ...updatedSession }));
+    }
+  }, [selectedSessionId]);
+
+  useEffect(() => {
+    if (!saveFeedback) return undefined;
+    const timeoutId = window.setTimeout(() => setSaveFeedback(''), 2200);
+    return () => window.clearTimeout(timeoutId);
+  }, [saveFeedback]);
+
   const handleSave = async (status) => {
     if (!selectedSessionId) return;
     
@@ -475,21 +515,45 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
             completed_at: status === 'completed' ? currTimeIso : null,
             cancelled_at: status === 'cancelled' ? currTimeIso : null,
             cancel_reason: status === 'cancelled' ? (cancelReason === 'Other reason' ? customReason : cancelReason) : null,
+            workout_template_id: selectedTemplateId ?? null,
             ...(finalWorkoutData ? { workout_data: finalWorkoutData } : {})
         };
 
-        const updateResult = await supabase
+        let updateResult = await supabase
           .from('sessions')
           .update(updates)
           .eq('id', selectedSessionId)
-          .select('id')
+          .select('*')
           .single();
 
+        if (updateResult.error && isMissingWorkoutTemplateColumnError(updateResult.error)) {
+          const { workout_template_id, ...legacyUpdates } = updates;
+          updateResult = await supabase
+            .from('sessions')
+            .update(legacyUpdates)
+            .eq('id', selectedSessionId)
+            .select('*')
+            .single();
+        }
+
         error = updateResult.error;
+        if (!error && updateResult.data) {
+          syncSessionRecord(updateResult.data);
+        }
       }
 
       if (error) {
         throw error;
+      }
+
+      if (status === 'in_progress') {
+        setSaveFeedback('Draft saved');
+        if (onSaved) onSaved();
+        if (selectedClientId) {
+          void fetchClientSessions(selectedClientId);
+        }
+        void fetchToday();
+        return;
       }
 
       onClose();
@@ -552,6 +616,12 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
         {isReviewMode && (
           <div className="rounded-[16px] border border-[rgba(200,245,63,0.18)] bg-[rgba(200,245,63,0.08)] px-4 py-3 text-[11px] text-[rgba(235,255,190,0.88)]">
             This session is already completed. You are viewing the saved workout log in read-only mode.
+          </div>
+        )}
+
+        {saveFeedback && (
+          <div className="rounded-[16px] border border-[rgba(96,180,255,0.16)] bg-[rgba(96,180,255,0.10)] px-4 py-3 text-[11px] font-semibold text-[rgba(180,225,255,0.92)]">
+            {saveFeedback}
           </div>
         )}
 
@@ -747,7 +817,9 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
 
           {previousWorkoutSource && (
             <div className="rounded-[14px] border border-blue-500/15 bg-blue-500/8 px-3 py-2 text-[11px] text-blue-300">
-              Loaded exercises from the previous session
+              {previousWorkoutSource.type === 'template-default'
+                ? `Loaded the default structure from ${previousWorkoutSource.templateName || 'the selected template'}.`
+                : `Loaded the latest completed ${previousWorkoutSource.templateName || 'template'} log`}
               {previousWorkoutSource.sessionNumber ? ` #${String(previousWorkoutSource.sessionNumber).padStart(2, '0')}` : ''}
               {previousWorkoutSource.scheduledDate ? ` · ${previousWorkoutSource.scheduledDate}` : ''}
               {previousWorkoutSource.scheduledTime ? ` · ${previousWorkoutSource.scheduledTime.slice(0, 5)}` : ''}

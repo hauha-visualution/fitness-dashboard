@@ -242,6 +242,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                                   scheduledDate: sess.scheduled_date,
                                   scheduledTime: sess.scheduled_time,
                                   packageId: sess.package_id,
+                                  workoutTemplateId: sess.workout_template_id,
                                   sessionKind: sess.session_kind,
                                   manualMode: false,
                                 })}
@@ -278,6 +279,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                             scheduledDate: sess.scheduled_date,
                             scheduledTime: sess.scheduled_time,
                             packageId: sess.package_id,
+                            workoutTemplateId: sess.workout_template_id,
                             sessionKind: sess.session_kind,
                             manualMode: false,
                           })}
