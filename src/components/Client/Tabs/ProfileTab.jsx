@@ -148,6 +148,11 @@ const formatMetricDelta = (value, decimals = 1) => {
   return `${sign}${Number(value).toFixed(decimals)}`;
 };
 
+const formatDeltaMagnitude = (value, decimals = 1) => {
+  if (value === null || value === undefined || Number.isNaN(value)) return null;
+  return Number(Math.abs(value)).toFixed(decimals);
+};
+
 const formatChartDate = (value) => new Intl.DateTimeFormat('en-GB', {
   day: '2-digit',
   month: '2-digit',
@@ -178,13 +183,29 @@ const normalizeGender = (value) => String(value || '').trim().toLowerCase();
 const getStageTone = (stage) => {
   switch (stage) {
     case 'low':
-      return 'border-sky-400/20 bg-sky-400/10 text-sky-200';
+      return {
+        badgeClassName: 'border-sky-400/20 bg-sky-400/10 text-sky-200',
+        borderColor: 'rgba(56, 189, 248, 0.20)',
+        shadowColor: 'rgba(56, 189, 248, 0.08)',
+      };
     case 'medium':
-      return 'border-lime-400/20 bg-lime-400/10 text-lime-200';
+      return {
+        badgeClassName: 'border-lime-400/20 bg-lime-400/10 text-lime-200',
+        borderColor: 'rgba(163, 230, 53, 0.20)',
+        shadowColor: 'rgba(163, 230, 53, 0.08)',
+      };
     case 'high':
-      return 'border-fuchsia-400/20 bg-fuchsia-400/10 text-fuchsia-200';
+      return {
+        badgeClassName: 'border-amber-400/20 bg-amber-400/10 text-amber-200',
+        borderColor: 'rgba(251, 191, 36, 0.20)',
+        shadowColor: 'rgba(251, 191, 36, 0.08)',
+      };
     default:
-      return 'border-white/[0.08] bg-white/[0.04] text-white/40';
+      return {
+        badgeClassName: 'border-white/[0.08] bg-white/[0.04] text-white/40',
+        borderColor: 'rgba(255,255,255,0.06)',
+        shadowColor: 'transparent',
+      };
   }
 };
 
@@ -328,9 +349,27 @@ const buildAreaPath = (segment, bottomY) => {
   return `${linePath} L ${last.x} ${bottomY} L ${first.x} ${bottomY} Z`;
 };
 
+const DeltaTriangle = ({ delta }) => {
+  if (delta === null || delta === undefined || Number.isNaN(delta) || delta === 0) {
+    return <span className="text-[9px] leading-none">•</span>;
+  }
+
+  const isUp = delta > 0;
+
+  return (
+    <svg
+      viewBox="0 0 10 10"
+      className={`h-2.5 w-2.5 shrink-0 ${isUp ? '' : 'rotate-180'}`}
+      aria-hidden="true"
+    >
+      <path d="M5 1 L9 8 H1 Z" fill="currentColor" />
+    </svg>
+  );
+};
+
 const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helperText, badgeLabel, stage }) => {
   const tone = getMetricGoalTone(metric, delta);
-  const badgeText = badgeLabel ?? (delta !== null ? `${formatMetricDelta(delta, metric.decimals)} ${metric.unit}` : 'No previous data');
+  const badgeText = badgeLabel ?? (delta !== null ? formatDeltaMagnitude(delta, metric.decimals) : 'No previous data');
   const badgeClassName = badgeLabel
     ? 'border-white/[0.08] bg-white/[0.04] text-white/45'
     : delta !== null
@@ -348,15 +387,19 @@ const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helpe
           : 'bg-white/[0.02] hover:bg-white/[0.03]'
       }`}
       style={{
-        borderColor: isActive ? `${metric.color}55` : 'rgba(255,255,255,0.06)',
-        boxShadow: isActive ? `0 0 0 1px ${metric.color}22, 0 16px 30px rgba(0,0,0,0.22)` : undefined,
+        borderColor: isActive ? `${metric.color}55` : stage ? stageTone.borderColor : 'rgba(255,255,255,0.06)',
+        boxShadow: isActive
+          ? `0 0 0 1px ${metric.color}22, 0 16px 30px rgba(0,0,0,0.22)`
+          : stage
+            ? `0 10px 24px ${stageTone.shadowColor}`
+            : undefined,
       }}
     >
       <div className="flex items-start justify-between gap-2.5">
         <p className="min-h-[10px] text-[8px] font-black uppercase tracking-[0.24em] text-white/32">{metric.cardLabel || metric.label}</p>
 
         {stage ? (
-          <div className={`shrink-0 rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-wide ${stageTone}`}>
+          <div className={`shrink-0 rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-wide ${stageTone.badgeClassName}`}>
             {stage}
           </div>
         ) : helperText ? (
@@ -367,14 +410,21 @@ const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helpe
       </div>
 
       <div className="mt-3 min-h-[52px]">
-        <p className="text-[20px] font-light leading-none text-white">{latestValue}</p>
-        {metric.unit ? (
-          <p className="mt-2 text-[10px] font-black uppercase tracking-wide text-white/35">{metric.unit}</p>
-        ) : null}
+        <div className="flex items-end gap-1.5">
+          <p className="text-[20px] font-light leading-none text-white">{latestValue}</p>
+          {metric.unit ? (
+            <span className="pb-0.5 text-[10px] font-black uppercase tracking-wide text-white/35">{metric.unit}</span>
+          ) : null}
+        </div>
       </div>
 
       <div className={`mt-auto inline-flex max-w-full items-center self-start rounded-[14px] border px-2.5 py-1 text-[8px] font-black uppercase tracking-wide leading-tight whitespace-normal break-words ${badgeClassName}`}>
-        {badgeText}
+        {badgeLabel ? badgeText : (
+          <span className="inline-flex items-center gap-1">
+            <DeltaTriangle delta={delta} />
+            <span>{badgeText}</span>
+          </span>
+        )}
       </div>
     </button>
   );
