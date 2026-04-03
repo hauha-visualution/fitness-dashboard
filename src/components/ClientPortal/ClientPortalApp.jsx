@@ -10,6 +10,7 @@ import SessionsTab from '../Client/Tabs/SessionsTab';
 import NutritionTab from '../Client/Tabs/NutritionTab';
 import PaymentTab from '../Client/Tabs/PaymentTab';
 import ProfileTab from '../Client/Tabs/ProfileTab';
+import QuickLogSheet from '../Dashboard/QuickLogSheet';
 
 const ClientPortalNavigation = ({ tabs, activeTab, onSelectTab, desktop = false }) => (
   <div
@@ -45,6 +46,7 @@ const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
   const [activeTab, setActiveTab] = useState('profile');
   const [client, setClient] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [quickLogSelection, setQuickLogSelection] = useState(null);
 
   const formatClient = (raw) => {
     if (!raw) return null;
@@ -102,32 +104,32 @@ const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
   const renderContent = () => {
     switch (activeTab) {
       case 'profile':   return (
-        <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
+        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
           <ProfileTab client={client} readOnly={true} />
         </div>
       );
       case 'package':   return (
-        <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
+        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
           <PackageTab client={client} readOnly={true} />
         </div>
       );
       case 'sessions':  return (
-        <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
-          <SessionsTab clientId={client?.id} readOnly={true} />
+        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
+          <SessionsTab clientId={client?.id} client={client} readOnly={true} onOpenQuickLog={setQuickLogSelection} />
         </div>
       );
       case 'nutrition': return (
-        <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
+        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
           <NutritionTab client={client} readOnly={true} />
         </div>
       );
       case 'payment':   return (
-        <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
+        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
           <PaymentTab client={client} readOnly={true} />
         </div>
       );
       default:          return (
-        <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
+        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
           <ProfileTab client={client} readOnly={true} />
         </div>
       );
@@ -156,7 +158,7 @@ const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
       )}
 
       <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-5 lg:p-5">
-        <div className="min-h-0 flex-1">
+        <div className="min-h-0 flex-1 overflow-hidden">
           {renderContent()}
         </div>
 
@@ -173,6 +175,15 @@ const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
           onSelectTab={setActiveTab}
         />
       </div>
+
+      {quickLogSelection ? (
+        <QuickLogSheet
+          session={null}
+          initialSelection={quickLogSelection}
+          onClose={() => setQuickLogSelection(null)}
+          onSaved={() => {}}
+        />
+      ) : null}
     </div>
   );
 };

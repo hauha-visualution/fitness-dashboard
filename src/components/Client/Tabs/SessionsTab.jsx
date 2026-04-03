@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { Dumbbell, CheckCircle2, Clock, ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
+import { getServiceTypeLabel, parseServiceBooking, parseServiceMeta } from '../../../utils/serviceUtils';
 
 // ─── Helpers ─────────────────────────────────────────────────
 const DAY_VI = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -29,14 +30,27 @@ const isPast = (dateStr) => {
   return dateStr < localDateStr(new Date());
 };
 
+const formatBookingWindow = (sessionItem) => {
+  const booking = parseServiceBooking(sessionItem.notes);
+  const start = sessionItem.scheduled_time?.slice(0, 5) || '--:--';
+  const end = booking.endTime || '';
+  const location = booking.location || '';
+
+  return {
+    timeLabel: end ? `${start} - ${end}` : start,
+    locationLabel: location,
+  };
+};
+
 // ─── SessionsTab ─────────────────────────────────────────────
 const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refreshKey = 0 }) => {
   const [packages, setPackages] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [expandedPkg, setExpandedPkg] = useState('active'); // default expand active
+  const [expandedPkg, setExpandedPkg] = useState(null);
   const [showExtraModal, setShowExtraModal] = useState(false);
   const [extraPackage, setExtraPackage] = useState(null);
+  const [extraServiceType, setExtraServiceType] = useState('training');
   const [extraDate, setExtraDate] = useState('');
   const [extraTime, setExtraTime] = useState('');
   const [extraNote, setExtraNote] = useState('');
@@ -47,7 +61,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
     setLoading(true);
 
     const [{ data: pkgs }, { data: sess }] = await Promise.all([
-      supabase.from('packages').select('id, package_number, total_sessions, status').eq('client_id', clientId).order('package_number'),
+      supabase.from('packages').select('id, package_number, total_sessions, status, note').eq('client_id', clientId).order('package_number'),
       supabase.from('sessions').select('*').eq('client_id', clientId).order('scheduled_date').order('scheduled_time'),
     ]);
 
@@ -63,20 +77,21 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
     return () => window.clearTimeout(timeoutId);
   }, [fetchData, refreshKey]);
 
-  const openExtraModal = (pkg, pkgSessions) => {
+  const openExtraModal = (pkg, pkgSessions, serviceType = 'training') => {
     const activeSessions = pkgSessions
       .filter(sessionItem => ['scheduled', 'in_progress'].includes(sessionItem.status))
       .sort((a, b) => a.session_number - b.session_number || a.scheduled_date.localeCompare(b.scheduled_date) || a.scheduled_time.localeCompare(b.scheduled_time));
 
-    if (activeSessions.length === 0) {
+    if (serviceType === 'training' && activeSessions.length === 0) {
       alert('There are no active sessions left in this package to insert an extra one.');
       return;
     }
 
     const firstActiveSession = activeSessions[0];
     setExtraPackage(pkg);
-    setExtraDate(firstActiveSession.scheduled_date);
-    setExtraTime(firstActiveSession.scheduled_time?.slice(0, 5) || '07:00');
+    setExtraServiceType(serviceType);
+    setExtraDate(firstActiveSession?.scheduled_date || localDateStr(new Date()));
+    setExtraTime(firstActiveSession?.scheduled_time?.slice(0, 5) || '07:00');
     setExtraNote('');
     setShowExtraModal(true);
   };
@@ -85,15 +100,43 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
     if (!extraPackage || !extraDate || !extraTime) return;
 
     setAddingExtra(true);
-    const { error } = await supabase.rpc('insert_extra_package_session', {
-      p_package_id: extraPackage.id,
-      p_scheduled_date: extraDate,
-      p_scheduled_time: extraTime,
-      p_notes: extraNote,
-    });
+
+    let error = null;
+
+    if (extraServiceType === 'sketching') {
+      const packageSessions = sessions.filter((sessionItem) => sessionItem.package_id === extraPackage.id);
+      const activeNonCancelledCount = packageSessions.filter((sessionItem) => sessionItem.status !== 'cancelled').length;
+
+      if (activeNonCancelledCount >= extraPackage.total_sessions) {
+        alert('All included sessions have already been scheduled for this service.');
+        setAddingExtra(false);
+        return;
+      }
+
+      const nextSessionNumber = packageSessions.reduce((max, sessionItem) => Math.max(max, sessionItem.session_number || 0), 0) + 1;
+      const response = await supabase.from('sessions').insert([{
+        client_id: clientId,
+        package_id: extraPackage.id,
+        session_number: nextSessionNumber,
+        scheduled_date: extraDate,
+        scheduled_time: extraTime,
+        status: 'scheduled',
+        notes: extraNote.trim() || null,
+        session_kind: 'manual',
+      }]);
+      error = response.error;
+    } else {
+      const response = await supabase.rpc('insert_extra_package_session', {
+        p_package_id: extraPackage.id,
+        p_scheduled_date: extraDate,
+        p_scheduled_time: extraTime,
+        p_notes: extraNote,
+      });
+      error = response.error;
+    }
 
     if (error) {
-      alert(`Unable to add extra session: ${error.message}`);
+      alert(`Unable to add ${extraServiceType === 'sketching' ? 'session' : 'extra session'}: ${error.message}`);
       setAddingExtra(false);
       return;
     }
@@ -110,23 +153,26 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
     </div>
   );
 
-  if (sessions.length === 0) return (
+  if (packages.length === 0) return (
     <div className="text-center py-20 space-y-3 animate-slide-up">
       <Dumbbell className="w-12 h-12 mx-auto text-neutral-800" />
-      <p className="text-neutral-600 text-xs font-black uppercase tracking-widest">No Sessions Yet</p>
+      <p className="text-neutral-600 text-xs font-black uppercase tracking-widest">No Services Yet</p>
     </div>
   );
 
   return (
-    <div className="space-y-3 animate-slide-up">
+    <div className="space-y-4 animate-slide-up lg:space-y-5">
 
       {packages.map(pkg => {
         const pkgSessions = sessions.filter(s => s.package_id === pkg.id);
-        if (!pkgSessions.length) return null;
+        const pkgMetaRaw = parseServiceMeta(pkg.note);
+        const serviceType = pkgMetaRaw.serviceType || 'training';
+        const serviceLabel = getServiceTypeLabel(serviceType);
 
         const completedCount = pkgSessions.filter(s => s.status === 'completed').length;
         const isActive = pkg.status === 'active';
-        const isExpanded = expandedPkg === pkg.id || (expandedPkg === 'active' && isActive);
+        const isExpanded = expandedPkg === pkg.id;
+        const remainingCount = Math.max((pkg.total_sessions || 0) - pkgSessions.filter((s) => s.status !== 'cancelled').length, 0);
 
         // Find next relevant session
         const nextSession = pkgSessions.find(s => s.status === 'in_progress' && (s.session_kind ?? 'fixed') === 'fixed')
@@ -145,27 +191,35 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
           });
 
         return (
-          <div key={pkg.id} className={`rounded-[24px] overflow-hidden border ${isActive ? 'border-white/10 bg-white/[0.02]' : 'border-white/[0.05] bg-white/[0.01]'}`}>
+          <div key={pkg.id} className={`overflow-hidden rounded-[22px] border lg:rounded-[24px] ${isActive ? 'border-white/10 bg-white/[0.02]' : 'border-white/[0.05] bg-white/[0.01]'}`}>
 
             {/* Package header */}
             <button
               onClick={() => setExpandedPkg(isExpanded ? null : pkg.id)}
-              className="w-full flex items-center justify-between px-5 py-4"
+              className="w-full flex items-center justify-between gap-3 px-4 py-3.5"
             >
-              <div className="flex items-center gap-3">
-                <span className={`text-[10px] font-black uppercase tracking-widest ${isActive ? 'text-blue-400' : 'text-neutral-600'}`}>
-                  Package #{String(pkg.package_number).padStart(2, '0')}
-                </span>
-                <span className="text-xs text-neutral-600">{completedCount}/{pkg.total_sessions} sessions</span>
-                {isActive && nextSession && (
-                  <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+              <div className="min-w-0 flex-1 text-left">
+                <p className={`text-[12px] font-black uppercase tracking-wide ${isActive ? 'text-blue-400' : 'text-neutral-500'}`}>
+                  {serviceLabel}
+                </p>
+                <div className="mt-1 flex items-center gap-2 text-[11px] text-neutral-500">
+                  <span className="shrink-0">{completedCount}/{pkg.total_sessions} used</span>
+                  {serviceType === 'sketching' ? (
+                    <>
+                      <span className="text-neutral-700">•</span>
+                      <span className="truncate">{remainingCount} left to book</span>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {isActive && nextSession ? (
+                  <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[9px] font-black text-emerald-300">
                     Active
                   </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {/* Mini progress */}
-                <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden">
+                ) : null}
+                <div className="w-12 h-1 bg-white/10 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full ${isActive ? 'bg-blue-500' : 'bg-neutral-700'}`}
                     style={{ width: `${pkg.total_sessions > 0 ? (completedCount / pkg.total_sessions) * 100 : 0}%` }}
@@ -177,7 +231,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
 
             {/* Sessions list */}
             {isExpanded && (
-              <div className="px-4 pb-4 space-y-1.5">
+              <div className="space-y-1.5 px-4 pb-4 lg:px-5 lg:pb-5">
 
                 {/* Upcoming sessions */}
                 {upcomingSessions.length > 0 && (
@@ -187,13 +241,13 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                         <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">
                           Upcoming · {upcomingSessions.length} sessions
                         </p>
-                        {!readOnly && nextSession && (
+                        {!readOnly && ((serviceType === 'training' && nextSession) || serviceType === 'sketching') && (
                           <button
-                            onClick={() => openExtraModal(pkg, pkgSessions)}
+                            onClick={() => openExtraModal(pkg, pkgSessions, serviceType)}
                             className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-[10px] font-black uppercase transition-all active:scale-90 bg-white/[0.05] border border-white/[0.08] text-white"
                           >
                             <Plus className="w-3 h-3" />
-                            Add Extra Session
+                            {serviceType === 'sketching' ? 'Schedule' : 'Add Extra Session'}
                           </button>
                         )}
                       </div>
@@ -201,13 +255,13 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                     {upcomingSessions.map(sess => {
                       const { dayLabel, short } = formatSessionDate(sess.scheduled_date);
                       const today = isToday(sess.scheduled_date);
-                      const past = isPast(sess.scheduled_date);
                       const isInProgress = sess.status === 'in_progress';
+                      const bookingMeta = formatBookingWindow(sess);
 
                       return (
                         <div
                           key={sess.id}
-                          className={`flex items-center gap-3 rounded-[16px] px-4 py-3 transition-all ${
+                          className={`flex items-center gap-3 rounded-[16px] px-4 py-3 transition-all lg:gap-4 lg:px-5 lg:py-3.5 ${
                             isInProgress ? 'bg-blue-500/12 border border-blue-500/25' : today ? 'bg-blue-500/15 border border-blue-500/20' : 'bg-white/[0.02]'
                           }`}
                         >
@@ -228,7 +282,10 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                               {today && <span className="text-[9px] font-black text-blue-400 ml-1">TODAY</span>}
                               {isInProgress && <span className="text-[9px] font-black text-blue-400 ml-1">LIVE</span>}
                             </p>
-                            <p className="text-[10px] text-neutral-600">{sess.scheduled_time?.slice(0, 5)}</p>
+                            <p className="text-[10px] text-neutral-600">{bookingMeta.timeLabel}</p>
+                            {bookingMeta.locationLabel ? (
+                              <p className="text-[10px] text-neutral-700">{bookingMeta.locationLabel}</p>
+                            ) : null}
                           </div>
 
                           {/* Mark done button (coach only) */}
@@ -259,6 +316,22 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                   </>
                 )}
 
+                {isActive && serviceType === 'sketching' && upcomingSessions.length === 0 && doneSessions.length === 0 && (
+                  <div className="rounded-[16px] border border-white/[0.06] bg-white/[0.02] px-4 py-4 text-center">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-neutral-600">No bookings yet</p>
+                    <p className="mt-2 text-[11px] text-neutral-500">Set the first booking when needed.</p>
+                    {!readOnly && remainingCount > 0 && (
+                      <button
+                        onClick={() => openExtraModal(pkg, pkgSessions, serviceType)}
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-[12px] border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase text-white"
+                      >
+                        <Plus className="h-3 w-3" />
+                        Schedule
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* Completed sessions */}
                 {doneSessions.length > 0 && (
                   <>
@@ -267,7 +340,8 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                     </p>
                     {doneSessions.map(sess => {
                       const { dayLabel, short } = formatSessionDate(sess.scheduled_date);
-                      const canReviewLog = !readOnly && typeof onOpenQuickLog === 'function';
+                      const canReviewLog = typeof onOpenQuickLog === 'function';
+                      const bookingMeta = formatBookingWindow(sess);
                       return (
                         <button
                           key={sess.id}
@@ -284,7 +358,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                             manualMode: false,
                           })}
                           disabled={!canReviewLog}
-                          className={`w-full flex items-center gap-3 rounded-[16px] px-4 py-3 border transition-all text-left ${
+                          className={`w-full flex items-center gap-3 rounded-[16px] px-4 py-3 border text-left transition-all lg:gap-4 lg:px-5 lg:py-3.5 ${
                             canReviewLog
                               ? 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05] active:scale-[0.995]'
                               : 'bg-white/[0.01] border-transparent opacity-50'
@@ -296,11 +370,14 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                           <span className="text-[10px] font-black text-neutral-700 w-6 text-center">{dayLabel}</span>
                           <div className="flex-1">
                             <p className="text-xs text-neutral-500">{short}</p>
-                            <p className="text-[10px] text-neutral-700">{sess.scheduled_time?.slice(0, 5)}</p>
+                            <p className="text-[10px] text-neutral-700">{bookingMeta.timeLabel}</p>
+                            {bookingMeta.locationLabel ? (
+                              <p className="text-[10px] text-neutral-700">{bookingMeta.locationLabel}</p>
+                            ) : null}
                           </div>
                           {canReviewLog ? (
                             <span className="text-[9px] font-black uppercase tracking-wide text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
-                              View Log
+                              View
                             </span>
                           ) : (
                             <CheckCircle2 className="w-4 h-4 text-emerald-700" />
@@ -318,15 +395,19 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                     </p>
                     {cancelledSessions.map(sess => {
                       const { dayLabel, short } = formatSessionDate(sess.scheduled_date);
+                      const bookingMeta = formatBookingWindow(sess);
                       return (
-                        <div key={sess.id} className="flex items-center gap-3 rounded-[16px] px-4 py-3 bg-red-500/[0.05] border border-red-500/[0.12]">
+                        <div key={sess.id} className="flex items-center gap-3 rounded-[16px] border border-red-500/[0.12] bg-red-500/[0.05] px-4 py-3 lg:gap-4 lg:px-5 lg:py-3.5">
                           <span className="text-[10px] font-black text-red-300/80 w-6 text-center">
                             {String(sess.session_number).padStart(2, '0')}
                           </span>
                           <span className="text-[10px] font-black text-red-300/80 w-6 text-center">{dayLabel}</span>
                           <div className="flex-1 min-w-0">
                             <p className="text-xs text-red-200/90 line-through">{short}</p>
-                            <p className="text-[10px] text-red-200/50">{sess.scheduled_time?.slice(0, 5)}</p>
+                            <p className="text-[10px] text-red-200/50">{bookingMeta.timeLabel}</p>
+                            {bookingMeta.locationLabel ? (
+                              <p className="text-[10px] text-red-200/50">{bookingMeta.locationLabel}</p>
+                            ) : null}
                             {sess.cancel_reason && (
                               <p className="text-[10px] text-red-200/60 truncate mt-1">{sess.cancel_reason}</p>
                             )}
@@ -346,10 +427,12 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
       })}
       {showExtraModal && ReactDOM.createPortal(
         <div className="fixed inset-0 z-[220] flex items-end justify-center px-4 bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-[420px] bg-[#111113] border border-white/10 rounded-t-[28px] p-5 pb-8 animate-slide-up">
+          <div className="w-full max-w-[560px] rounded-t-[28px] border border-white/10 bg-[#111113] p-5 pb-8 animate-slide-up lg:rounded-[28px]">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Extra Session</p>
+                <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">
+                  {extraServiceType === 'sketching' ? 'Schedule Booking' : 'Extra Session'}
+                </p>
                 <h3 className="text-white font-semibold text-lg">
                   Package #{String(extraPackage?.package_number || '').padStart(2, '0')}
                 </h3>
@@ -362,7 +445,9 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
             <div className="space-y-4">
               <div className="bg-white/[0.03] border border-white/[0.06] rounded-[14px] px-4 py-3">
                 <p className="text-[10px] text-neutral-400 leading-relaxed">
-                  Choose the date and time for a session outside the fixed schedule. The system will place it after the nearest previous session and shift the following ones forward.
+                  {extraServiceType === 'sketching'
+                    ? 'Choose the date and time for this sketching booking. Each booking is added manually when needed.'
+                    : 'Choose the date and time for a session outside the fixed schedule. The system will place it after the nearest previous session and shift the following ones forward.'}
                 </p>
               </div>
               <div>
@@ -407,7 +492,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                 disabled={addingExtra || !extraDate || !extraTime}
                 className="flex-1 py-3.5 rounded-[16px] bg-white text-black font-bold text-sm disabled:opacity-50"
               >
-                {addingExtra ? 'Adding...' : 'Add Session'}
+                {addingExtra ? 'Adding...' : extraServiceType === 'sketching' ? 'Schedule' : 'Add Session'}
               </button>
             </div>
           </div>
