@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Dumbbell, User, Lock, ArrowLeft, AlertCircle, RefreshCw, UserPlus, Mail, Phone } from 'lucide-react';
+import { Dumbbell, User, Lock, ArrowLeft, AlertCircle, RefreshCw, UserPlus } from 'lucide-react';
 import { supabase, toAuthEmail } from '../../supabaseClient';
 
 // Alias để dùng trong component này
 const toEmail = toAuthEmail;
-const coachRequestWebhookUrl = import.meta.env.VITE_COACH_REQUEST_WEBHOOK_URL;
 
 const AuthScreen = ({ onLogin, mode = 'main', onBack = null }) => {
   const isCoachSignupMode = mode === 'coach-signup';
@@ -14,21 +13,12 @@ const AuthScreen = ({ onLogin, mode = 'main', onBack = null }) => {
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showCoachRequest, setShowCoachRequest] = useState(false);
-  const [coachRequest, setCoachRequest] = useState({ fullName: '', phone: '', email: '' });
-  const [coachRequestError, setCoachRequestError] = useState('');
-  const [coachRequestSuccess, setCoachRequestSuccess] = useState('');
-  const [isSubmittingCoachRequest, setIsSubmittingCoachRequest] = useState(false);
 
   useEffect(() => {
     setUsername('');
     setPassword('');
     setFullName('');
     setError('');
-    setShowCoachRequest(false);
-    setCoachRequest({ fullName: '', phone: '', email: '' });
-    setCoachRequestError('');
-    setCoachRequestSuccess('');
   }, [mode]);
 
   const handleSubmit = async (e) => {
@@ -99,78 +89,6 @@ const AuthScreen = ({ onLogin, mode = 'main', onBack = null }) => {
       setError(err.message || 'Có lỗi xảy ra, thử lại nhé!');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleCoachRequestSubmit = async (e) => {
-    e.preventDefault();
-    setCoachRequestError('');
-    setCoachRequestSuccess('');
-
-    const payload = {
-      full_name: coachRequest.fullName.trim(),
-      phone: coachRequest.phone.trim(),
-      email: coachRequest.email.trim().toLowerCase(),
-      source: 'main_login',
-      requested_at: new Date().toISOString(),
-    };
-
-    if (!payload.full_name || !payload.phone || !payload.email) {
-      setCoachRequestError('Please fill in your name, phone number, and email.');
-      return;
-    }
-
-    setIsSubmittingCoachRequest(true);
-
-    let supabaseSaved = false;
-    let webhookSent = false;
-    let lastError = '';
-
-    try {
-      const { error: insertError } = await supabase
-        .from('coach_access_requests')
-        .insert([
-          {
-            full_name: payload.full_name,
-            phone: payload.phone,
-            email: payload.email,
-            source: payload.source,
-          },
-        ]);
-
-      if (!insertError) {
-        supabaseSaved = true;
-      } else {
-        lastError = insertError.message;
-      }
-
-      if (coachRequestWebhookUrl) {
-        const response = await fetch(coachRequestWebhookUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
-
-        if (response.ok) {
-          webhookSent = true;
-        } else {
-          lastError = `Webhook error ${response.status}`;
-        }
-      }
-
-      if (!supabaseSaved && !webhookSent) {
-        throw new Error(lastError || 'Unable to submit your request right now.');
-      }
-
-      setCoachRequestSuccess("Thanks. We'll review your request and contact you shortly.");
-      setCoachRequest({ fullName: '', phone: '', email: '' });
-      setShowCoachRequest(false);
-    } catch (requestError) {
-      setCoachRequestError(requestError.message || 'Unable to submit your request right now.');
-    } finally {
-      setIsSubmittingCoachRequest(false);
     }
   };
 
@@ -275,97 +193,6 @@ const AuthScreen = ({ onLogin, mode = 'main', onBack = null }) => {
             </button>
           </form>
 
-          {isMainMode && (
-            <div className="mt-4 space-y-3">
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCoachRequest((prev) => !prev);
-                    setCoachRequestError('');
-                    setCoachRequestSuccess('');
-                  }}
-                  className="text-[10px] font-medium text-neutral-500 hover:text-white transition-colors"
-                >
-                  Are you a coach and need an account to manage your trainees?
-                </button>
-              </div>
-
-              {coachRequestSuccess && (
-                <div className="rounded-[16px] border border-emerald-500/20 bg-emerald-500/10 p-4">
-                  <p className="text-[11px] leading-relaxed text-emerald-300">{coachRequestSuccess}</p>
-                </div>
-              )}
-
-              {showCoachRequest && (
-                <div className="rounded-[20px] border border-white/[0.08] bg-black/30 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-white/42">Coach account request</p>
-                  <p className="mt-1 text-[11px] leading-relaxed text-white/45">
-                    Leave your details and we&apos;ll contact you with the next steps.
-                  </p>
-
-                  <form onSubmit={handleCoachRequestSubmit} className="mt-4 space-y-3">
-                    <div className="relative">
-                      <UserPlus className="w-4 h-4 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        placeholder="Full name"
-                        value={coachRequest.fullName}
-                        onChange={(e) => {
-                          setCoachRequest((prev) => ({ ...prev, fullName: e.target.value }));
-                          setCoachRequestError('');
-                        }}
-                        className="w-full bg-black/50 border border-white/10 rounded-[18px] py-3.5 pl-11 pr-4 text-white text-sm outline-none focus:border-white/30 transition-colors"
-                      />
-                    </div>
-
-                    <div className="relative">
-                      <Phone className="w-4 h-4 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        placeholder="Phone number"
-                        value={coachRequest.phone}
-                        onChange={(e) => {
-                          setCoachRequest((prev) => ({ ...prev, phone: e.target.value }));
-                          setCoachRequestError('');
-                        }}
-                        className="w-full bg-black/50 border border-white/10 rounded-[18px] py-3.5 pl-11 pr-4 text-white text-sm outline-none focus:border-white/30 transition-colors"
-                      />
-                    </div>
-
-                    <div className="relative">
-                      <Mail className="w-4 h-4 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="email"
-                        placeholder="Email"
-                        value={coachRequest.email}
-                        onChange={(e) => {
-                          setCoachRequest((prev) => ({ ...prev, email: e.target.value }));
-                          setCoachRequestError('');
-                        }}
-                        className="w-full bg-black/50 border border-white/10 rounded-[18px] py-3.5 pl-11 pr-4 text-white text-sm outline-none focus:border-white/30 transition-colors"
-                      />
-                    </div>
-
-                    {coachRequestError && (
-                      <div className="flex items-start gap-3 bg-red-500/10 border border-red-500/20 rounded-[14px] p-3">
-                        <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                        <p className="text-red-400 text-[11px] leading-relaxed">{coachRequestError}</p>
-                      </div>
-                    )}
-
-                    <button
-                      type="submit"
-                      disabled={isSubmittingCoachRequest}
-                      className="w-full rounded-[18px] border border-white/[0.08] bg-white/[0.04] py-3.5 text-[10px] font-black uppercase tracking-wide text-white transition-all active:scale-[0.98] disabled:opacity-60"
-                    >
-                      {isSubmittingCoachRequest ? 'Sending...' : 'Request coach account'}
-                    </button>
-                  </form>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </div>
