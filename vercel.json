@@ -2,6 +2,7 @@
   "rewrites": [
     { "source": "/coach", "destination": "/index.html" },
     { "source": "/coach/login", "destination": "/index.html" },
+    { "source": "/coach/signup", "destination": "/index.html" },
     { "source": "/portal", "destination": "/index.html" },
     { "source": "/portal/login", "destination": "/index.html" }
   ]
