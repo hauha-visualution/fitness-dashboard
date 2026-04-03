@@ -173,6 +173,96 @@ const parseNullableNumber = (value) => {
   return Number.isNaN(parsed) ? null : parsed;
 };
 
+const normalizeGender = (value) => String(value || '').trim().toLowerCase();
+
+const getStageTone = (stage) => {
+  switch (stage) {
+    case 'low':
+      return 'border-sky-400/20 bg-sky-400/10 text-sky-200';
+    case 'medium':
+      return 'border-lime-400/20 bg-lime-400/10 text-lime-200';
+    case 'high':
+      return 'border-fuchsia-400/20 bg-fuchsia-400/10 text-fuchsia-200';
+    default:
+      return 'border-white/[0.08] bg-white/[0.04] text-white/40';
+  }
+};
+
+const getSmmStage = (value, gender, heightCm) => {
+  const normalizedGender = normalizeGender(gender);
+
+  if (normalizedGender.startsWith('f')) {
+    if (heightCm !== null && heightCm !== undefined) {
+      if (heightCm < 155) return value < 20 ? 'low' : value <= 25 ? 'medium' : 'high';
+      if (heightCm < 165) return value < 21.5 ? 'low' : value <= 27 ? 'medium' : 'high';
+      return value < 23 ? 'low' : value <= 29 ? 'medium' : 'high';
+    }
+
+    return value < 21 ? 'low' : value <= 27 ? 'medium' : 'high';
+  }
+
+  if (heightCm !== null && heightCm !== undefined) {
+    if (heightCm < 160) return value < 28 ? 'low' : value <= 34 ? 'medium' : 'high';
+    if (heightCm < 170) return value < 30 ? 'low' : value <= 36 ? 'medium' : 'high';
+    if (heightCm < 180) return value < 32 ? 'low' : value <= 39 ? 'medium' : 'high';
+    return value < 34 ? 'low' : value <= 42 ? 'medium' : 'high';
+  }
+
+  return value < 30 ? 'low' : value <= 37 ? 'medium' : 'high';
+};
+
+const getPbfStage = (value, gender) => {
+  const normalizedGender = normalizeGender(gender);
+  if (normalizedGender.startsWith('f')) {
+    if (value < 18) return 'low';
+    if (value <= 28) return 'medium';
+    return 'high';
+  }
+
+  if (value < 10) return 'low';
+  if (value <= 20) return 'medium';
+  return 'high';
+};
+
+const getMetricStage = (metric, latestValue, context) => {
+  if (latestValue === null || latestValue === undefined || Number.isNaN(latestValue)) {
+    return null;
+  }
+
+  const heightCm = context.heightCm;
+  const weight = context.weight;
+  const pbf = context.pbf;
+
+  switch (metric.key) {
+    case 'weight': {
+      const bmi = heightCm ? latestValue / ((heightCm / 100) ** 2) : null;
+      if (bmi === null || Number.isNaN(bmi)) return null;
+      if (bmi < 18.5) return 'low';
+      if (bmi <= 24.9) return 'medium';
+      return 'high';
+    }
+    case 'smm':
+      return getSmmStage(latestValue, context.gender, heightCm);
+    case 'pbf':
+      return getPbfStage(latestValue, context.gender);
+    case 'bodyFatMass': {
+      const pbfEquivalent = pbf ?? (weight ? (latestValue / weight) * 100 : null);
+      if (pbfEquivalent === null || Number.isNaN(pbfEquivalent)) return null;
+      return getPbfStage(pbfEquivalent, context.gender);
+    }
+    case 'bmi':
+      if (latestValue < 18.5) return 'low';
+      if (latestValue <= 24.9) return 'medium';
+      return 'high';
+    case 'visceralFat':
+      if (latestValue <= 9) return 'low';
+      if (latestValue <= 14) return 'medium';
+      return 'high';
+    default:
+      return null;
+  }
+};
+
 const getMetricGoalTone = (metric, delta) => {
   if (delta === null || delta === undefined || Number.isNaN(delta) || delta === 0) {
     return {
@@ -238,7 +328,7 @@ const buildAreaPath = (segment, bottomY) => {
   return `${linePath} L ${last.x} ${bottomY} L ${first.x} ${bottomY} Z`;
 };
 
-const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helperText, badgeLabel }) => {
+const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helperText, badgeLabel, stage }) => {
   const tone = getMetricGoalTone(metric, delta);
   const badgeText = badgeLabel ?? (delta !== null ? `${formatMetricDelta(delta, metric.decimals)} ${metric.unit}` : 'No previous data');
   const badgeClassName = badgeLabel
@@ -246,6 +336,7 @@ const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helpe
     : delta !== null
       ? tone.badgeClassName
       : 'border-white/[0.06] bg-white/[0.03] text-white/28';
+  const stageTone = getStageTone(stage);
 
   return (
     <button
@@ -264,7 +355,11 @@ const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helpe
       <div className="flex items-start justify-between gap-2.5">
         <p className="min-h-[10px] text-[8px] font-black uppercase tracking-[0.24em] text-white/32">{metric.cardLabel || metric.label}</p>
 
-        {helperText ? (
+        {stage ? (
+          <div className={`shrink-0 rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-wide ${stageTone}`}>
+            {stage}
+          </div>
+        ) : helperText ? (
           <div className="shrink-0 rounded-full border border-white/[0.06] bg-white/[0.04] px-2 py-1 text-[8px] font-black uppercase tracking-wide text-white/35">
             {helperText}
           </div>
@@ -847,6 +942,7 @@ const ProfileTab = ({ client, onRegisterActions }) => {
     const latestMeasurementDate = filteredChartRecords.length > 0
       ? formatShortDate(filteredChartRecords[filteredChartRecords.length - 1].measuredAt)
       : null;
+    const latestRecord = filteredChartRecords[filteredChartRecords.length - 1] ?? null;
     const overviewCard = {
       ...ALL_METRIC,
       latestValue: `${INBODY_METRICS.length}`,
@@ -859,15 +955,25 @@ const ProfileTab = ({ client, onRegisterActions }) => {
 
     const metricSummaries = INBODY_METRICS.map((metric) => {
       const { latest, previous } = getLastTwoValues(filteredChartRecords, metric.key);
+      const stage = latestRecord
+        ? getMetricStage(metric, latest, {
+            gender: client.gender,
+            heightCm: client.height ? parseFloat(client.height) : null,
+            weight: latestRecord.weight,
+            pbf: latestRecord.pbf,
+          })
+        : null;
+
       return {
         ...metric,
         latestValue: formatMetricValue(latest, metric.decimals),
         delta: latest !== null && previous !== null ? latest - previous : null,
+        stage,
       };
     });
 
     return [overviewCard, ...metricSummaries];
-  }, [filteredChartRecords]);
+  }, [client.gender, client.height, filteredChartRecords]);
 
   const personalInfoCells = [
     { label: 'DATE OF BIRTH', value: client.dob || '--' },
@@ -1008,6 +1114,7 @@ const ProfileTab = ({ client, onRegisterActions }) => {
               delta={metric.delta}
               helperText={metric.helperText}
               badgeLabel={metric.badgeLabel}
+              stage={metric.stage}
               isActive={selectedMetricKey === metric.key}
               onClick={() => setSelectedMetricKey(metric.key)}
             />
