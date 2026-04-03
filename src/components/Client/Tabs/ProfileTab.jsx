@@ -89,7 +89,7 @@ const INBODY_METRICS = [
 const ALL_METRIC = {
   key: 'all',
   label: 'All',
-  unit: '',
+  unit: 'metrics',
   color: '#c8f53f',
 };
 
@@ -114,6 +114,20 @@ const formatAxisDate = (value) => new Intl.DateTimeFormat('en-GB', {
   day: '2-digit',
   month: '2-digit',
 }).format(new Date(value));
+
+const formatShortDate = (value) => {
+  if (!value) return null;
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+  }).format(new Date(value));
+};
+
+const parseNullableNumber = (value) => {
+  if (value === '' || value === null || value === undefined) return null;
+  const parsed = Number.parseFloat(value);
+  return Number.isNaN(parsed) ? null : parsed;
+};
 
 const getMetricGoalTone = (metric, delta) => {
   if (delta === null || delta === undefined || Number.isNaN(delta) || delta === 0) {
@@ -180,14 +194,20 @@ const buildAreaPath = (segment, bottomY) => {
   return `${linePath} L ${last.x} ${bottomY} L ${first.x} ${bottomY} Z`;
 };
 
-const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helperText }) => {
+const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helperText, badgeLabel }) => {
   const tone = getMetricGoalTone(metric, delta);
+  const badgeText = badgeLabel ?? (delta !== null ? `${formatMetricDelta(delta, metric.decimals)} ${metric.unit}` : 'No previous data');
+  const badgeClassName = badgeLabel
+    ? 'border-white/[0.08] bg-white/[0.04] text-white/45'
+    : delta !== null
+      ? tone.badgeClassName
+      : 'border-white/[0.06] bg-white/[0.03] text-white/28';
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`min-w-[144px] rounded-[22px] border p-4 text-left transition-all active:scale-[0.98] ${
+      className={`w-full min-h-[126px] rounded-[20px] border px-3.5 py-3 text-left transition-all active:scale-[0.98] ${
         isActive
           ? 'bg-white/[0.05] shadow-lg'
           : 'bg-white/[0.02] hover:bg-white/[0.03]'
@@ -197,33 +217,27 @@ const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helpe
         boxShadow: isActive ? `0 0 0 1px ${metric.color}22, 0 16px 30px rgba(0,0,0,0.22)` : undefined,
       }}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-2.5">
         <div className="min-w-0">
-          <p className="text-[9px] font-black uppercase tracking-widest text-white/32">{metric.label}</p>
-          <div className="mt-2 flex items-end gap-1.5">
-            <p className="text-[24px] font-light leading-none text-white">{latestValue}</p>
+          <p className="text-[8px] font-black uppercase tracking-[0.24em] text-white/32">{metric.label}</p>
+          <div className="mt-2 flex flex-wrap items-end gap-1">
+            <p className="text-[20px] font-light leading-none text-white">{latestValue}</p>
             {metric.unit ? (
-              <span className="pb-0.5 text-[10px] font-black uppercase tracking-wide text-white/35">{metric.unit}</span>
+              <span className="pb-0.5 text-[9px] font-black uppercase tracking-wide text-white/35">{metric.unit}</span>
             ) : null}
           </div>
         </div>
 
         {helperText ? (
-          <div className="shrink-0 rounded-full border border-white/[0.06] bg-white/[0.04] px-2 py-1 text-[9px] font-black uppercase tracking-wide text-white/35">
+          <div className="shrink-0 rounded-full border border-white/[0.06] bg-white/[0.04] px-2 py-1 text-[8px] font-black uppercase tracking-wide text-white/35">
             {helperText}
           </div>
         ) : null}
       </div>
 
-      {delta !== null ? (
-        <div className={`mt-4 inline-flex items-center rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-wide ${tone.badgeClassName}`}>
-          {formatMetricDelta(delta, metric.decimals)} {metric.unit}
-        </div>
-      ) : (
-        <div className="mt-4 inline-flex items-center rounded-full border border-white/[0.06] bg-white/[0.03] px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-white/28">
-          No previous data
-        </div>
-      )}
+      <div className={`mt-3 inline-flex max-w-full items-center rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-wide ${badgeClassName}`}>
+        {badgeText}
+      </div>
     </button>
   );
 };
@@ -497,7 +511,15 @@ const ProfileTab = ({ client, onRegisterActions }) => {
   const [inbodyRecords, setInbodyRecords] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [progressPhotos, setProgressPhotos] = useState({ before: null, after: null });
-  const [newInbodyRecord, setNewInbodyRecord] = useState({ weight: '', muscle_mass: '', body_fat: '', visceral_fat: '', recorded_at: '' });
+  const [newInbodyRecord, setNewInbodyRecord] = useState({
+    weight: '',
+    muscle_mass: '',
+    body_fat: '',
+    body_fat_mass: '',
+    bmi: '',
+    visceral_fat: '',
+    recorded_at: '',
+  });
   const [uploadError, setUploadError] = useState('');
   const [isUploadingProgress, setIsUploadingProgress] = useState(false);
   const [selectedMetricKey, setSelectedMetricKey] = useState('all');
@@ -642,21 +664,73 @@ const ProfileTab = ({ client, onRegisterActions }) => {
 
     setIsSavingInbody(true);
 
-    const { error } = await supabase.from('inbody_records').insert([
+    const weight = parseNullableNumber(newInbodyRecord.weight);
+    const smm = parseNullableNumber(newInbodyRecord.muscle_mass);
+    const pbf = parseNullableNumber(newInbodyRecord.body_fat);
+    const visceralFat = parseNullableNumber(newInbodyRecord.visceral_fat);
+    const measuredAt = newInbodyRecord.recorded_at ? new Date(newInbodyRecord.recorded_at).toISOString() : new Date().toISOString();
+    const fallbackHeightCm = client.height ? parseFloat(client.height) : null;
+    const derivedBmi = weight && fallbackHeightCm ? weight / ((fallbackHeightCm / 100) ** 2) : null;
+    const derivedBodyFatMass = weight !== null && pbf !== null ? (weight * pbf) / 100 : null;
+    const bmi = parseNullableNumber(newInbodyRecord.bmi) ?? derivedBmi;
+    const bodyFatMass = parseNullableNumber(newInbodyRecord.body_fat_mass) ?? derivedBodyFatMass;
+
+    const insertVariants = [
       {
         client_id: client.id,
-        weight: parseFloat(newInbodyRecord.weight),
-        muscle_mass: newInbodyRecord.muscle_mass ? parseFloat(newInbodyRecord.muscle_mass) : null,
-        body_fat: newInbodyRecord.body_fat ? parseFloat(newInbodyRecord.body_fat) : null,
-        visceral_fat: newInbodyRecord.visceral_fat ? parseFloat(newInbodyRecord.visceral_fat) : null,
-        recorded_at: newInbodyRecord.recorded_at ? new Date(newInbodyRecord.recorded_at).toISOString() : new Date().toISOString(),
+        weight,
+        weight_kg: weight,
+        muscle_mass: smm,
+        smm_kg: smm,
+        body_fat: pbf,
+        pbf_pct: pbf,
+        body_fat_mass: bodyFatMass,
+        body_fat_mass_kg: bodyFatMass,
+        bmi,
+        visceral_fat: visceralFat,
+        visceral_fat_level: visceralFat,
+        recorded_at: measuredAt,
+        measured_at: measuredAt,
       },
-    ]);
+      {
+        client_id: client.id,
+        weight,
+        muscle_mass: smm,
+        body_fat: pbf,
+        body_fat_mass: bodyFatMass,
+        bmi,
+        visceral_fat: visceralFat,
+        recorded_at: measuredAt,
+      },
+      {
+        client_id: client.id,
+        weight,
+        muscle_mass: smm,
+        body_fat: pbf,
+        visceral_fat: visceralFat,
+        recorded_at: measuredAt,
+      },
+    ];
+
+    let error = null;
+    for (const payload of insertVariants) {
+      const response = await supabase.from('inbody_records').insert([payload]);
+      error = response.error;
+      if (!error) break;
+    }
 
     if (!error) {
       await fetchInBody();
       setIsModalOpen(false);
-      setNewInbodyRecord({ weight: '', muscle_mass: '', body_fat: '', visceral_fat: '', recorded_at: '' });
+      setNewInbodyRecord({
+        weight: '',
+        muscle_mass: '',
+        body_fat: '',
+        body_fat_mass: '',
+        bmi: '',
+        visceral_fat: '',
+        recorded_at: '',
+      });
     } else {
       alert('Error: ' + error.message);
     }
@@ -667,7 +741,7 @@ const ProfileTab = ({ client, onRegisterActions }) => {
   const chartRecords = useMemo(() => {
     const fallbackHeightCm = client.height ? parseFloat(client.height) : null;
 
-    return inbodyRecords.map((record) => {
+    return [...inbodyRecords].map((record) => {
       const weight = record.weight ?? record.weight_kg ?? null;
       const smm = record.muscle_mass ?? record.smm ?? record.smm_kg ?? null;
       const pbf = record.body_fat ?? record.pbf ?? record.pbf_pct ?? null;
@@ -687,7 +761,8 @@ const ProfileTab = ({ client, onRegisterActions }) => {
         bmi,
         visceralFat,
       };
-    }).filter((record) => record.measuredAt);
+    }).filter((record) => record.measuredAt)
+      .sort((left, right) => new Date(left.measuredAt) - new Date(right.measuredAt));
   }, [client.height, inbodyRecords]);
 
   const filteredChartRecords = useMemo(() => {
@@ -707,11 +782,17 @@ const ProfileTab = ({ client, onRegisterActions }) => {
   }, [filteredChartRecords, selectedMetricKey, timeFilter]);
 
   const metricCards = useMemo(() => {
+    const latestMeasurementDate = filteredChartRecords.length > 0
+      ? formatShortDate(filteredChartRecords[filteredChartRecords.length - 1].measuredAt)
+      : null;
     const overviewCard = {
       ...ALL_METRIC,
-      latestValue: filteredChartRecords.length > 0 ? `${filteredChartRecords.length}` : '--',
-      helperText: 'scans',
+      latestValue: `${INBODY_METRICS.length}`,
+      helperText: 'overview',
       delta: null,
+      badgeLabel: filteredChartRecords.length > 0
+        ? `${filteredChartRecords.length} scans${latestMeasurementDate ? ` · ${latestMeasurementDate}` : ''}`
+        : 'No scan data',
     };
 
     const metricSummaries = INBODY_METRICS.map((metric) => {
@@ -856,20 +937,19 @@ const ProfileTab = ({ client, onRegisterActions }) => {
           </button>
         </div>
 
-        <div className="-mx-4 overflow-x-auto px-4 hide-scrollbar">
-          <div className="flex gap-3 pb-1">
-            {metricCards.map((metric) => (
-              <InBodyMetricCard
-                key={metric.key}
-                metric={metric}
-                latestValue={metric.latestValue}
-                delta={metric.delta}
-                helperText={metric.helperText}
-                isActive={selectedMetricKey === metric.key}
-                onClick={() => setSelectedMetricKey(metric.key)}
-              />
-            ))}
-          </div>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+          {metricCards.map((metric) => (
+            <InBodyMetricCard
+              key={metric.key}
+              metric={metric}
+              latestValue={metric.latestValue}
+              delta={metric.delta}
+              helperText={metric.helperText}
+              badgeLabel={metric.badgeLabel}
+              isActive={selectedMetricKey === metric.key}
+              onClick={() => setSelectedMetricKey(metric.key)}
+            />
+          ))}
         </div>
 
         <div className="inline-flex rounded-[18px] border border-white/[0.06] bg-white/[0.02] p-1">
@@ -988,6 +1068,8 @@ const ProfileTab = ({ client, onRegisterActions }) => {
                 { label: 'Weight (kg)', key: 'weight' },
                 { label: 'SMM (kg)', key: 'muscle_mass' },
                 { label: 'PBF (%)', key: 'body_fat' },
+                { label: 'Body Fat Mass (kg)', key: 'body_fat_mass' },
+                { label: 'BMI (kg/m²)', key: 'bmi' },
                 { label: 'Visceral Fat Level', key: 'visceral_fat' },
               ].map((field) => (
                 <input
