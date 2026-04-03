@@ -189,25 +189,25 @@ const getStageTone = (stage) => {
       return {
         badgeClassName: 'border-amber-400/20 bg-amber-400/10 text-amber-200',
         textClassName: 'text-amber-200',
-        borderColor: 'rgba(245, 158, 11, 0.22)',
-        shadowColor: 'rgba(245, 158, 11, 0.08)',
-        barColors: ['rgba(245, 158, 11, 0.38)', 'rgba(245, 158, 11, 0.62)', 'rgba(245, 158, 11, 0.9)'],
+        borderColor: 'rgba(245, 158, 11, 0.12)',
+        shadowColor: 'rgba(245, 158, 11, 0.025)',
+        barColors: ['rgba(245, 158, 11, 0.52)', 'rgba(245, 158, 11, 0.62)', 'rgba(245, 158, 11, 0.76)'],
       };
     case 'normal':
       return {
         badgeClassName: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200',
         textClassName: 'text-emerald-200',
-        borderColor: 'rgba(16, 185, 129, 0.22)',
-        shadowColor: 'rgba(16, 185, 129, 0.08)',
-        barColors: ['rgba(16, 185, 129, 0.38)', 'rgba(16, 185, 129, 0.62)', 'rgba(16, 185, 129, 0.9)'],
+        borderColor: 'rgba(16, 185, 129, 0.12)',
+        shadowColor: 'rgba(16, 185, 129, 0.025)',
+        barColors: ['rgba(16, 185, 129, 0.52)', 'rgba(16, 185, 129, 0.62)', 'rgba(16, 185, 129, 0.76)'],
       };
     case 'over':
       return {
         badgeClassName: 'border-rose-400/20 bg-rose-400/10 text-rose-200',
         textClassName: 'text-rose-200',
-        borderColor: 'rgba(244, 63, 94, 0.22)',
-        shadowColor: 'rgba(244, 63, 94, 0.08)',
-        barColors: ['rgba(244, 63, 94, 0.38)', 'rgba(244, 63, 94, 0.62)', 'rgba(244, 63, 94, 0.9)'],
+        borderColor: 'rgba(244, 63, 94, 0.12)',
+        shadowColor: 'rgba(244, 63, 94, 0.025)',
+        barColors: ['rgba(244, 63, 94, 0.52)', 'rgba(244, 63, 94, 0.62)', 'rgba(244, 63, 94, 0.76)'],
       };
     default:
       return {
@@ -371,12 +371,12 @@ const buildGaugeSegments = (filledCount, palette) => Array.from({ length: 9 }, (
 
 const getMetricGaugeSegments = (metric, latestValue, context) => {
   if (latestValue === null || latestValue === undefined || Number.isNaN(latestValue)) {
-    return buildGaugeSegments(0, ['rgba(245, 158, 11, 0.9)', 'rgba(16, 185, 129, 0.9)', 'rgba(244, 63, 94, 0.9)']);
+    return buildGaugeSegments(0, ['rgba(245, 158, 11, 0.76)', 'rgba(16, 185, 129, 0.76)', 'rgba(244, 63, 94, 0.76)']);
   }
 
   const config = getMetricRangeConfig(metric, latestValue, context);
   if (!config) {
-    return buildGaugeSegments(0, ['rgba(245, 158, 11, 0.9)', 'rgba(16, 185, 129, 0.9)', 'rgba(244, 63, 94, 0.9)']);
+    return buildGaugeSegments(0, ['rgba(245, 158, 11, 0.76)', 'rgba(16, 185, 129, 0.76)', 'rgba(244, 63, 94, 0.76)']);
   }
 
   const { value, underMax, normalMax, maxCap } = config;
@@ -393,16 +393,16 @@ const getMetricGaugeSegments = (metric, latestValue, context) => {
     filledCount = 6 + Math.max(1, Math.ceil(progress * 3));
   }
 
-  return buildGaugeSegments(filledCount, ['rgba(245, 158, 11, 0.92)', 'rgba(16, 185, 129, 0.92)', 'rgba(244, 63, 94, 0.92)']);
+  return buildGaugeSegments(filledCount, ['rgba(245, 158, 11, 0.76)', 'rgba(16, 185, 129, 0.76)', 'rgba(244, 63, 94, 0.76)']);
 };
 
 const getScoreGaugeSegments = (score) => {
   if (score === null || score === undefined || Number.isNaN(score)) {
-    return buildGaugeSegments(0, ['rgba(59, 130, 246, 0.9)', 'rgba(16, 185, 129, 0.9)', 'rgba(16, 185, 129, 0.95)']);
+    return buildGaugeSegments(0, ['rgba(59, 130, 246, 0.68)', 'rgba(16, 185, 129, 0.72)', 'rgba(16, 185, 129, 0.76)']);
   }
 
   const filledCount = Math.max(1, Math.ceil((clamp(score, 0, 100) / 100) * 9));
-  return buildGaugeSegments(filledCount, ['rgba(59, 130, 246, 0.82)', 'rgba(34, 197, 94, 0.88)', 'rgba(16, 185, 129, 0.95)']);
+  return buildGaugeSegments(filledCount, ['rgba(59, 130, 246, 0.62)', 'rgba(34, 197, 94, 0.7)', 'rgba(16, 185, 129, 0.76)']);
 };
 
 const getMetricGoalTone = (metric, delta) => {
@@ -498,7 +498,7 @@ const StageBars = ({ segments }) => {
             className="w-1.5 rounded-full"
             style={{
               height,
-              backgroundColor: segments[index]?.filled ? segments[index].color : 'rgba(255,255,255,0.2)',
+              backgroundColor: segments[index]?.filled ? segments[index].color : 'rgba(255,255,255,0.12)',
             }}
           />
         ))}
@@ -531,7 +531,7 @@ const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, badge
         boxShadow: isActive
           ? `0 0 0 1px ${metric.color}22, 0 16px 30px rgba(0,0,0,0.22)`
           : stage
-            ? `0 10px 24px ${stageTone.shadowColor}`
+            ? `0 8px 18px ${stageTone.shadowColor}`
             : undefined,
       }}
     >
