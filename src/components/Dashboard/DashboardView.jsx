@@ -445,7 +445,7 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
                 const isCompleted = sessionItem.status === 'completed';
                 const isCancelled = sessionItem.status === 'cancelled';
                 const isInProgress = sessionItem.status === 'in_progress';
-                const canOpenQuickLog = !isCompleted && !isCancelled;
+                const canOpenQuickLog = !isCancelled;
                 const palette = getSessionPalette(sessionItem);
 
                 return (
@@ -496,7 +496,7 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
 
                     {isCompleted && (
                       <div className="px-3 py-1.5 rounded-full border border-[rgba(200,245,63,0.2)] bg-[rgba(200,245,63,0.12)] text-[10px] font-black uppercase tracking-wide app-accent-text">
-                        Done
+                        View Log
                       </div>
                     )}
                     {isInProgress && (

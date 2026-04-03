@@ -266,8 +266,28 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                     </p>
                     {doneSessions.map(sess => {
                       const { dayLabel, short } = formatSessionDate(sess.scheduled_date);
+                      const canReviewLog = !readOnly && typeof onOpenQuickLog === 'function';
                       return (
-                        <div key={sess.id} className="flex items-center gap-3 rounded-[16px] px-4 py-3 bg-white/[0.01] opacity-50">
+                        <button
+                          key={sess.id}
+                          type="button"
+                          onClick={() => canReviewLog && onOpenQuickLog({
+                            sessionId: sess.id,
+                            clientId,
+                            clientName: client?.name,
+                            scheduledDate: sess.scheduled_date,
+                            scheduledTime: sess.scheduled_time,
+                            packageId: sess.package_id,
+                            sessionKind: sess.session_kind,
+                            manualMode: false,
+                          })}
+                          disabled={!canReviewLog}
+                          className={`w-full flex items-center gap-3 rounded-[16px] px-4 py-3 border transition-all text-left ${
+                            canReviewLog
+                              ? 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05] active:scale-[0.995]'
+                              : 'bg-white/[0.01] border-transparent opacity-50'
+                          }`}
+                        >
                           <span className="text-[10px] font-black text-neutral-700 w-6 text-center">
                             {String(sess.session_number).padStart(2, '0')}
                           </span>
@@ -276,8 +296,14 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                             <p className="text-xs text-neutral-500">{short}</p>
                             <p className="text-[10px] text-neutral-700">{sess.scheduled_time?.slice(0, 5)}</p>
                           </div>
-                          <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                        </div>
+                          {canReviewLog ? (
+                            <span className="text-[9px] font-black uppercase tracking-wide text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+                              View Log
+                            </span>
+                          ) : (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                          )}
+                        </button>
                       );
                     })}
                   </>
