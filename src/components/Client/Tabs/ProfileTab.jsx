@@ -107,6 +107,7 @@ const DEMO_INBODY_RECORDS_BY_PHONE = {
     {
       id: 'demo-cam-2025-04-16',
       measured_at: '2025-04-16T08:16:00+07:00',
+      inbody_score: 76,
       weight_kg: 81.9,
       smm_kg: 34.7,
       pbf_pct: 25.3,
@@ -117,6 +118,7 @@ const DEMO_INBODY_RECORDS_BY_PHONE = {
     {
       id: 'demo-cam-2026-01-30',
       measured_at: '2026-01-30T08:32:00+07:00',
+      inbody_score: 76,
       weight_kg: 79.3,
       smm_kg: 34.2,
       pbf_pct: 24.1,
@@ -127,6 +129,7 @@ const DEMO_INBODY_RECORDS_BY_PHONE = {
     {
       id: 'demo-cam-2026-02-27',
       measured_at: '2026-02-27T08:25:00+07:00',
+      inbody_score: 76,
       weight_kg: 80.6,
       smm_kg: 34.6,
       pbf_pct: 24.7,
@@ -292,6 +295,116 @@ const getMetricStage = (metric, latestValue, context) => {
   }
 };
 
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+const getMetricRangeConfig = (metric, latestValue, context) => {
+  const heightCm = context.heightCm;
+  const weight = context.weight;
+  const normalizedGender = normalizeGender(context.gender);
+
+  switch (metric.key) {
+    case 'weight': {
+      if (!heightCm) return null;
+      const underMax = 18.5;
+      const normalMax = 24.9;
+      const maxCap = 34.9;
+      return {
+        value: latestValue / ((heightCm / 100) ** 2),
+        underMax,
+        normalMax,
+        maxCap,
+      };
+    }
+    case 'smm': {
+      if (normalizedGender.startsWith('f')) {
+        if (heightCm !== null && heightCm !== undefined) {
+          if (heightCm < 155) return { value: latestValue, underMax: 20, normalMax: 25, maxCap: 31 };
+          if (heightCm < 165) return { value: latestValue, underMax: 21.5, normalMax: 27, maxCap: 33 };
+          return { value: latestValue, underMax: 23, normalMax: 29, maxCap: 35 };
+        }
+
+        return { value: latestValue, underMax: 21, normalMax: 27, maxCap: 33 };
+      }
+
+      if (heightCm !== null && heightCm !== undefined) {
+        if (heightCm < 160) return { value: latestValue, underMax: 28, normalMax: 34, maxCap: 40 };
+        if (heightCm < 170) return { value: latestValue, underMax: 30, normalMax: 36, maxCap: 42 };
+        if (heightCm < 180) return { value: latestValue, underMax: 32, normalMax: 39, maxCap: 46 };
+        return { value: latestValue, underMax: 34, normalMax: 42, maxCap: 48 };
+      }
+
+      return { value: latestValue, underMax: 30, normalMax: 37, maxCap: 44 };
+    }
+    case 'pbf': {
+      if (normalizedGender.startsWith('f')) {
+        return { value: latestValue, underMax: 18, normalMax: 28, maxCap: 38 };
+      }
+
+      return { value: latestValue, underMax: 10, normalMax: 20, maxCap: 30 };
+    }
+    case 'bodyFatMass': {
+      const pbfEquivalent = context.pbf ?? (weight ? (latestValue / weight) * 100 : null);
+      if (pbfEquivalent === null || Number.isNaN(pbfEquivalent)) return null;
+
+      if (normalizedGender.startsWith('f')) {
+        return { value: pbfEquivalent, underMax: 18, normalMax: 28, maxCap: 38 };
+      }
+
+      return { value: pbfEquivalent, underMax: 10, normalMax: 20, maxCap: 30 };
+    }
+    case 'bmi':
+      return { value: latestValue, underMax: 18.5, normalMax: 24.9, maxCap: 34.9 };
+    case 'visceralFat':
+      return { value: latestValue, underMax: 5, normalMax: 9, maxCap: 18 };
+    default:
+      return null;
+  }
+};
+
+const buildGaugeSegments = (filledCount, palette) => Array.from({ length: 9 }, (_, index) => {
+  const group = Math.min(2, Math.floor(index / 3));
+  return {
+    filled: index < filledCount,
+    color: palette[group],
+  };
+});
+
+const getMetricGaugeSegments = (metric, latestValue, context) => {
+  if (latestValue === null || latestValue === undefined || Number.isNaN(latestValue)) {
+    return buildGaugeSegments(0, ['rgba(245, 158, 11, 0.9)', 'rgba(16, 185, 129, 0.9)', 'rgba(244, 63, 94, 0.9)']);
+  }
+
+  const config = getMetricRangeConfig(metric, latestValue, context);
+  if (!config) {
+    return buildGaugeSegments(0, ['rgba(245, 158, 11, 0.9)', 'rgba(16, 185, 129, 0.9)', 'rgba(244, 63, 94, 0.9)']);
+  }
+
+  const { value, underMax, normalMax, maxCap } = config;
+  let filledCount = 0;
+
+  if (value <= underMax) {
+    const progress = clamp(value / underMax, 0, 1);
+    filledCount = Math.max(1, Math.ceil(progress * 3));
+  } else if (value <= normalMax) {
+    const progress = clamp((value - underMax) / (normalMax - underMax || 1), 0, 1);
+    filledCount = 3 + Math.max(1, Math.ceil(progress * 3));
+  } else {
+    const progress = clamp((value - normalMax) / (maxCap - normalMax || 1), 0, 1);
+    filledCount = 6 + Math.max(1, Math.ceil(progress * 3));
+  }
+
+  return buildGaugeSegments(filledCount, ['rgba(245, 158, 11, 0.92)', 'rgba(16, 185, 129, 0.92)', 'rgba(244, 63, 94, 0.92)']);
+};
+
+const getScoreGaugeSegments = (score) => {
+  if (score === null || score === undefined || Number.isNaN(score)) {
+    return buildGaugeSegments(0, ['rgba(59, 130, 246, 0.9)', 'rgba(16, 185, 129, 0.9)', 'rgba(16, 185, 129, 0.95)']);
+  }
+
+  const filledCount = Math.max(1, Math.ceil((clamp(score, 0, 100) / 100) * 9));
+  return buildGaugeSegments(filledCount, ['rgba(59, 130, 246, 0.82)', 'rgba(34, 197, 94, 0.88)', 'rgba(16, 185, 129, 0.95)']);
+};
+
 const getMetricGoalTone = (metric, delta) => {
   if (delta === null || delta === undefined || Number.isNaN(delta) || delta === 0) {
     return {
@@ -375,42 +488,34 @@ const DeltaTriangle = ({ delta }) => {
   );
 };
 
-const StageBars = ({ stage, label = null }) => {
-  const stageTone = getStageTone(stage);
-
+const StageBars = ({ segments }) => {
   return (
-    <div className="mt-3 flex min-h-[22px] items-end gap-2">
+    <div className="mt-3 flex min-h-[22px] items-end gap-1">
       <div className="flex items-end gap-1">
-        {[10, 14, 18].map((height, index) => (
+        {[8, 10, 12, 14, 16, 18, 20, 22, 24].map((height, index) => (
           <span
-            key={`${stage}-${height}-${index}`}
+            key={`${height}-${index}`}
             className="w-1.5 rounded-full"
             style={{
               height,
-              backgroundColor: stageTone.barColors[index],
+              backgroundColor: segments[index]?.filled ? segments[index].color : 'rgba(255,255,255,0.2)',
             }}
           />
         ))}
       </div>
-      {label ? (
-        <span className={`text-[9px] font-black uppercase tracking-wide ${stageTone.textClassName}`}>
-          {label}
-        </span>
-      ) : null}
     </div>
   );
 };
 
-const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helperText, badgeLabel, stage }) => {
+const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, badgeLabel, stage, gaugeSegments }) => {
   const tone = getMetricGoalTone(metric, delta);
   const badgeText = badgeLabel ?? (delta !== null ? formatDeltaMagnitude(delta, metric.decimals) : 'No previous data');
   const badgeClassName = badgeLabel
     ? 'border-white/[0.08] bg-white/[0.04] text-white/45'
-    : delta !== null
+      : delta !== null
       ? tone.badgeClassName
       : 'border-white/[0.06] bg-white/[0.03] text-white/28';
   const stageTone = getStageTone(stage);
-  const stageLabel = stage ? (stage === 'under' ? 'Under' : stage === 'normal' ? 'Normal' : 'Over') : null;
 
   return (
     <button
@@ -443,11 +548,7 @@ const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helpe
         </div>
       </div>
 
-      {stage ? (
-        <StageBars stage={stage} label={stageLabel} />
-      ) : (
-        <StageBars stage={null} label={helperText} />
-      )}
+      <StageBars segments={gaugeSegments} />
 
       <div className={`mt-auto inline-flex max-w-full items-center self-start rounded-[14px] border px-2.5 py-1 text-[8px] font-black uppercase tracking-wide leading-tight whitespace-normal break-words ${badgeClassName}`}>
         {badgeLabel ? badgeText : (
@@ -984,6 +1085,7 @@ const ProfileTab = ({ client, onRegisterActions }) => {
       const smm = record.muscle_mass ?? record.smm ?? record.smm_kg ?? null;
       const pbf = record.body_fat ?? record.pbf ?? record.pbf_pct ?? null;
       const visceralFat = record.visceral_fat ?? record.visceral_fat_level ?? null;
+      const inbodyScore = record.inbody_score ?? record.inbodyScore ?? null;
       const bmi = record.bmi ?? (weight && fallbackHeightCm ? weight / ((fallbackHeightCm / 100) ** 2) : null);
       const bodyFatMass = record.body_fat_mass
         ?? record.body_fat_mass_kg
@@ -998,6 +1100,7 @@ const ProfileTab = ({ client, onRegisterActions }) => {
         bodyFatMass,
         bmi,
         visceralFat,
+        inbodyScore,
       };
     }).filter((record) => record.measuredAt)
       .sort((left, right) => new Date(left.measuredAt) - new Date(right.measuredAt));
@@ -1024,11 +1127,14 @@ const ProfileTab = ({ client, onRegisterActions }) => {
       ? formatShortDate(filteredChartRecords[filteredChartRecords.length - 1].measuredAt)
       : null;
     const latestRecord = filteredChartRecords[filteredChartRecords.length - 1] ?? null;
+    const latestScore = latestRecord?.inbodyScore ?? null;
     const overviewCard = {
       ...ALL_METRIC,
-      latestValue: `${INBODY_METRICS.length}`,
-      helperText: 'summary',
+      latestValue: latestScore !== null ? formatMetricValue(latestScore, 0) : '--',
+      unit: '/100',
       delta: null,
+      stage: null,
+      gaugeSegments: getScoreGaugeSegments(latestScore),
       badgeLabel: filteredChartRecords.length > 0
         ? `${filteredChartRecords.length} scans${latestMeasurementDate ? ` · ${latestMeasurementDate}` : ''}`
         : 'No scan data',
@@ -1044,12 +1150,21 @@ const ProfileTab = ({ client, onRegisterActions }) => {
             pbf: latestRecord.pbf,
           })
         : null;
+      const gaugeSegments = latestRecord
+        ? getMetricGaugeSegments(metric, latest, {
+            gender: client.gender,
+            heightCm: client.height ? parseFloat(client.height) : null,
+            weight: latestRecord.weight,
+            pbf: latestRecord.pbf,
+          })
+        : buildGaugeSegments(0, ['rgba(245, 158, 11, 0.92)', 'rgba(16, 185, 129, 0.92)', 'rgba(244, 63, 94, 0.92)']);
 
       return {
         ...metric,
         latestValue: formatMetricValue(latest, metric.decimals),
         delta: latest !== null && previous !== null ? latest - previous : null,
         stage,
+        gaugeSegments,
       };
     });
 
@@ -1193,9 +1308,9 @@ const ProfileTab = ({ client, onRegisterActions }) => {
               metric={metric}
               latestValue={metric.latestValue}
               delta={metric.delta}
-              helperText={metric.helperText}
               badgeLabel={metric.badgeLabel}
               stage={metric.stage}
+              gaugeSegments={metric.gaugeSegments}
               isActive={selectedMetricKey === metric.key}
               onClick={() => setSelectedMetricKey(metric.key)}
             />
