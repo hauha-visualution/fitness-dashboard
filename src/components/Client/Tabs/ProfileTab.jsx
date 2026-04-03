@@ -196,22 +196,22 @@ const ZONE_STYLES = {
   under: {
     track: 'rgba(96,180,255,0.28)',
     needle: '#60b4ff',
-    pillClassName: 'border-[rgba(96,180,255,0.20)] bg-[rgba(96,180,255,0.12)] text-[#60b4ff]',
+    pillClassName: 'text-[#60b4ff]',
   },
   normal: {
     track: 'rgba(200,245,63,0.32)',
     needle: '#c8f53f',
-    pillClassName: 'border-[rgba(200,245,63,0.20)] bg-[rgba(200,245,63,0.12)] text-[#c8f53f]',
+    pillClassName: 'text-[#c8f53f]',
   },
   over: {
     track: 'rgba(255,160,80,0.28)',
     needle: '#ffaa55',
-    pillClassName: 'border-[rgba(255,160,80,0.20)] bg-[rgba(255,160,80,0.12)] text-[#ffaa55]',
+    pillClassName: 'text-[#ffaa55]',
   },
   high: {
     track: 'rgba(255,107,107,0.28)',
     needle: '#ff6b6b',
-    pillClassName: 'border-[rgba(255,107,107,0.20)] bg-[rgba(255,107,107,0.12)] text-[#ff6b6b]',
+    pillClassName: 'text-[#ff6b6b]',
   },
 };
 
@@ -336,7 +336,7 @@ const getNeedlePercent = (standard, value) => {
 
 const getDeltaTone = (metricKey, delta) => {
   if (delta === null || delta === undefined || Number.isNaN(delta) || delta === 0) {
-    return 'border-white/[0.08] bg-white/[0.06] text-white/35';
+    return 'text-white/35';
   }
 
   const isScore = metricKey === 'score';
@@ -344,14 +344,14 @@ const getDeltaTone = (metricKey, delta) => {
   const isDecreaseMetric = ['weight', 'pbf', 'bodyFatMass', 'bmi', 'visceralFat'].includes(metricKey);
 
   if ((isScore || isSmm) && delta > 0) {
-    return 'border-[rgba(200,245,63,0.18)] bg-[rgba(200,245,63,0.12)] text-[#c8f53f]';
+    return 'text-[#c8f53f]';
   }
 
   if (isDecreaseMetric && delta < 0) {
-    return 'border-[rgba(96,180,255,0.18)] bg-[rgba(96,180,255,0.12)] text-[#60b4ff]';
+    return 'text-[#60b4ff]';
   }
 
-  return 'border-[rgba(255,160,80,0.18)] bg-[rgba(255,160,80,0.12)] text-[#ffaa55]';
+  return 'text-[#ffaa55]';
 };
 
 const DeltaArrowIcon = ({ delta, className = '' }) => {
@@ -370,7 +370,7 @@ const ZonePill = ({ zone }) => {
   const tone = ZONE_STYLES[zone.zoneKey] || ZONE_STYLES.normal;
 
   return (
-    <span className={`inline-flex items-center rounded-[20px] border px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.07em] ${tone.pillClassName}`}>
+    <span className={`inline-flex min-w-0 items-center text-[7px] font-black uppercase tracking-[0.06em] ${tone.pillClassName}`}>
       {zone.label}
     </span>
   );
@@ -381,7 +381,7 @@ const DeltaBadge = ({ metricKey, delta }) => {
   const isZero = delta === null || delta === undefined || Number.isNaN(delta) || delta === 0;
 
   return (
-    <span className={`inline-flex items-center gap-1 rounded-[20px] border px-1.5 py-0.5 text-[8px] font-black ${tone}`}>
+    <span className={`inline-flex min-w-0 items-center gap-1 text-[7px] font-black ${tone}`}>
       {!isZero ? <DeltaArrowIcon delta={delta} /> : null}
       <span>{isZero ? '0.0' : formatDeltaMagnitude(delta, metricKey === 'visceralFat' || metricKey === 'score' ? 0 : 1)}</span>
     </span>
@@ -398,8 +398,8 @@ const RangeChart = ({ standard, value, decimals = 1 }) => {
   const scaleValues = [standard.min, ...standard.thresholds, standard.max];
 
   return (
-    <div className="mt-2.5 flex flex-col gap-[4px]">
-      <div className="relative flex h-[6px] overflow-visible rounded-[3px]">
+    <div className="mt-1.5 flex flex-col gap-[4px]">
+      <div className="relative flex h-[3px] overflow-visible rounded-[2px]">
         {segments.map((segment, index) => {
           const tone = ZONE_STYLES[segment.zoneKey] || ZONE_STYLES.normal;
 
@@ -413,7 +413,7 @@ const RangeChart = ({ standard, value, decimals = 1 }) => {
         })}
 
         <span
-          className="absolute top-[-3px] h-[12px] w-[2px] rounded-[1px]"
+          className="absolute top-[-2.5px] h-[8px] w-[2px] rounded-[1px]"
           style={{
             left: `${needlePercent}%`,
             transform: 'translateX(-50%)',
@@ -467,7 +467,7 @@ const BodyScoreCard = ({ card, isActive, onClick }) => {
     <button
       type="button"
       onClick={onClick}
-      className="flex h-full w-full flex-col rounded-[14px] border px-3 py-[11px] pb-[10px] text-left transition-all"
+      className="flex h-full w-full flex-col rounded-[14px] border px-3 py-[10px] pb-[8px] text-left transition-all"
       style={{
         background: isActive ? 'rgba(200,245,63,0.05)' : 'rgba(255,255,255,0.04)',
         borderColor: isActive ? 'rgba(200,245,63,0.22)' : 'rgba(255,255,255,0.07)',
@@ -475,19 +475,15 @@ const BodyScoreCard = ({ card, isActive, onClick }) => {
     >
       <p className="text-[10px] font-black uppercase tracking-widest text-[rgba(200,245,63,0.5)]">Your Body Score</p>
 
-      <div className="mt-2 flex items-start gap-[14px]">
+      <div className="mt-1.5 grid grid-cols-[80px_minmax(0,1fr)] items-center gap-2">
         <BodyScoreRing score={card.score} />
-        <div className="min-w-0 flex-1 pt-1">
-          <div className="flex flex-wrap items-center gap-1.5">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 whitespace-nowrap">
             <ZonePill zone={card.zone} />
             <DeltaBadge metricKey="score" delta={card.delta} />
           </div>
-          <p className="mt-2 text-[8px] font-bold text-white/35">{card.scanInfo}</p>
+          <p className="mt-1 text-[8px] font-bold text-white/35">{card.scanInfo}</p>
         </div>
-      </div>
-
-      <div className="mt-3">
-        <RangeChart standard={card.standard} value={card.score} decimals={0} />
       </div>
     </button>
   );
@@ -514,7 +510,7 @@ const InBodyMetricCard = ({ card, isActive, onClick }) => {
     <button
       type="button"
       onClick={onClick}
-      className="w-full rounded-[14px] border px-3 py-[11px] pb-[10px] text-left transition-all"
+      className="w-full rounded-[14px] border px-3 py-[10px] pb-[8px] text-left transition-all"
       style={{
         background: 'rgba(255,255,255,0.04)',
         borderColor: isActive ? `${card.color}55` : tone ? tone.track.replace('0.28', '0.20').replace('0.32', '0.20') : 'rgba(255,255,255,0.07)',
@@ -522,17 +518,15 @@ const InBodyMetricCard = ({ card, isActive, onClick }) => {
     >
       <p className="text-[8px] font-black uppercase tracking-[0.13em] text-white/30">{card.cardLabel}</p>
 
-      <div className="mt-2 flex items-end gap-1 leading-none">
+      <div className="mt-1.5 flex items-end gap-1 leading-none">
         <p className="text-[26px] font-light leading-[0.9] text-white">{card.latestValue}</p>
         <MetricUnit unit={card.unit} />
       </div>
 
       <RangeChart standard={card.standard} value={card.numericValue} decimals={card.decimals} />
 
-      <div className="mt-[6px]">
+      <div className="mt-[5px] flex items-center justify-between gap-2 whitespace-nowrap">
         <ZonePill zone={card.zone} />
-      </div>
-      <div className="mt-1">
         <DeltaBadge metricKey={card.key} delta={card.delta} />
       </div>
     </button>
