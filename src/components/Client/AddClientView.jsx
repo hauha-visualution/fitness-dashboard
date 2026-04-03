@@ -55,7 +55,7 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
   const [expandedSection, setExpandedSection] = useState('basic');
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const traineePortalUrl = typeof window !== 'undefined' ? `${window.location.origin}/portal/login` : '/portal/login';
+  const traineePortalUrl = typeof window !== 'undefined' ? window.location.origin : '/';
 
   const toggleSection = (id) => setExpandedSection(expandedSection === id ? null : id);
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
