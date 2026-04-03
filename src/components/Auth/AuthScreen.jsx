@@ -5,7 +5,7 @@ import { supabase, toAuthEmail } from '../../supabaseClient';
 // Alias để dùng trong component này
 const toEmail = toAuthEmail;
 
-const AuthScreen = ({ onLogin, mode = null, onBack = null }) => {
+const AuthScreen = ({ onLogin, mode = null, onBack = null, onCoachAccess = null }) => {
   const lockedRole = mode === 'coach' || mode === 'client';
   const initialRole = mode === 'client' ? 'client' : 'coach';
   const [role, setRole] = useState(initialRole); // 'coach' | 'client'
@@ -276,6 +276,18 @@ const AuthScreen = ({ onLogin, mode = null, onBack = null }) => {
                 {isRegister
                   ? '← Đã có tài khoản? Đăng nhập'
                   : 'New coach here? Create an account'}
+              </button>
+            </div>
+          )}
+
+          {role === 'client' && onCoachAccess && (
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={onCoachAccess}
+                className="text-[10px] font-medium text-neutral-600 hover:text-white/80 transition-colors"
+              >
+                Coach access
               </button>
             </div>
           )}
