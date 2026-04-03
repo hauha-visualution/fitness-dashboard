@@ -903,6 +903,7 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
   const [selectedMetricKey, setSelectedMetricKey] = useState('all');
   const [timeFilter, setTimeFilter] = useState('all');
   const [activeChartIndex, setActiveChartIndex] = useState(null);
+  const [avatarUrl, setAvatarUrl] = useState(client.avatar_url || client.avatar || '');
   const [editData, setEditData] = useState({
     name: client.name || '',
     phone: client.phone || '',
@@ -919,6 +920,11 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
   });
 
   const progressSectionRef = useRef(null);
+  const avatarInputRef = useRef(null);
+
+  useEffect(() => {
+    setAvatarUrl(client.avatar_url || client.avatar || '');
+  }, [client.avatar, client.avatar_url]);
 
   const fetchInBody = useCallback(async () => {
     const { data } = await supabase
@@ -980,10 +986,13 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
       if (avatarError) throw avatarError;
 
       const { data } = supabase.storage.from('client-avatars').getPublicUrl(fileName);
-      await supabase.from('clients').update({ avatar_url: data.publicUrl }).eq('id', client.id);
+      const versionedAvatarUrl = `${data.publicUrl}${data.publicUrl.includes('?') ? '&' : '?'}v=${Date.now()}`;
+      const { error: updateError } = await supabase.from('clients').update({ avatar_url: versionedAvatarUrl }).eq('id', client.id);
 
+      if (updateError) throw updateError;
+
+      setAvatarUrl(versionedAvatarUrl);
       alert('Avatar updated successfully.');
-      window.location.reload();
     } catch (err) {
       alert('Avatar upload failed: ' + err.message);
     } finally {
@@ -1249,7 +1258,7 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
                 ) : (
                   <ClientAvatar
                     name={editData.name || client.name}
-                    avatarUrl={client.avatar_url || client.avatar}
+                    avatarUrl={avatarUrl}
                     sizeClassName="h-24 w-24"
                     showInnerRing={true}
                     className="absolute inset-0"
@@ -1320,18 +1329,48 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
       <div className="pointer-events-none absolute right-2 top-48 h-28 w-28 rounded-full bg-emerald-500/[0.08] blur-3xl" />
 
       <div className="relative text-center">
-        <ClientAvatar
-          name={client.name}
-          avatarUrl={client.avatar_url || client.avatar}
-          sizeClassName="mx-auto h-24 w-24"
-          showInnerRing={true}
-          ringClassName="border border-white/10 bg-blue-500/15 shadow-xl shadow-blue-500/10"
-        />
+        <div className="relative mx-auto w-fit">
+          <ClientAvatar
+            name={client.name}
+            avatarUrl={avatarUrl}
+            sizeClassName="mx-auto h-24 w-24"
+            showInnerRing={true}
+            ringClassName="border border-white/10 bg-blue-500/15 shadow-xl shadow-blue-500/10"
+          />
+          {readOnly && (
+            <>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarUpload}
+                className="hidden"
+                disabled={isUploadingAvatar}
+              />
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={isUploadingAvatar}
+                className="absolute bottom-0 right-0 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-black/55 text-white shadow-lg shadow-black/30 transition-all active:scale-95 disabled:opacity-60"
+                aria-label="Change avatar"
+              >
+                {isUploadingAvatar ? (
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Camera className="h-3.5 w-3.5" />
+                )}
+              </button>
+            </>
+          )}
+        </div>
         <p className="mt-4 text-sm font-bold text-white">{client.name}</p>
         <p className="mt-1 text-[10px] font-medium text-neutral-600">{client.phone || 'No phone number yet'}</p>
         <div className="mt-3 inline-flex items-center rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1.5 shadow-lg shadow-blue-500/10">
           <span className="text-[9px] font-black uppercase tracking-widest text-blue-300">{client.goal || 'NO GOAL YET'}</span>
         </div>
+        {readOnly ? (
+          <p className="mt-2 text-[10px] text-white/38">{isUploadingAvatar ? 'Uploading avatar...' : 'Tap the camera icon to update your avatar.'}</p>
+        ) : null}
       </div>
 
       <div className="space-y-3">
