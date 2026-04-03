@@ -980,8 +980,9 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
 
     setIsUploadingAvatar(true);
     try {
-      const fileName = `client-${client.id}-avatar`;
-      const { error: avatarError } = await supabase.storage.from('client-avatars').upload(fileName, file, { upsert: true });
+      const extension = file.name?.split('.').pop()?.toLowerCase() || 'jpg';
+      const fileName = `client-${client.id}-avatar-${Date.now()}.${extension}`;
+      const { error: avatarError } = await supabase.storage.from('client-avatars').upload(fileName, file, { upsert: false });
 
       if (avatarError) throw avatarError;
 
