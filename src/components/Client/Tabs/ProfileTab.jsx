@@ -183,226 +183,356 @@ const parseNullableNumber = (value) => {
 
 const normalizeGender = (value) => String(value || '').trim().toLowerCase();
 
-const getStageTone = (stage) => {
-  switch (stage) {
-    case 'under':
-      return {
-        badgeClassName: 'border-amber-400/20 bg-amber-400/10 text-amber-200',
-        textClassName: 'text-amber-200',
-        borderColor: 'rgba(245, 158, 11, 0.12)',
-        shadowColor: 'rgba(245, 158, 11, 0.025)',
-        barColors: ['rgba(245, 158, 11, 0.52)', 'rgba(245, 158, 11, 0.62)', 'rgba(245, 158, 11, 0.76)'],
-      };
-    case 'normal':
-      return {
-        badgeClassName: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200',
-        textClassName: 'text-emerald-200',
-        borderColor: 'rgba(16, 185, 129, 0.12)',
-        shadowColor: 'rgba(16, 185, 129, 0.025)',
-        barColors: ['rgba(16, 185, 129, 0.52)', 'rgba(16, 185, 129, 0.62)', 'rgba(16, 185, 129, 0.76)'],
-      };
-    case 'over':
-      return {
-        badgeClassName: 'border-rose-400/20 bg-rose-400/10 text-rose-200',
-        textClassName: 'text-rose-200',
-        borderColor: 'rgba(244, 63, 94, 0.12)',
-        shadowColor: 'rgba(244, 63, 94, 0.025)',
-        barColors: ['rgba(244, 63, 94, 0.52)', 'rgba(244, 63, 94, 0.62)', 'rgba(244, 63, 94, 0.76)'],
-      };
-    default:
-      return {
-        badgeClassName: 'border-white/[0.08] bg-white/[0.04] text-white/40',
-        textClassName: 'text-white/35',
-        borderColor: 'rgba(255,255,255,0.06)',
-        shadowColor: 'transparent',
-        barColors: ['rgba(255,255,255,0.16)', 'rgba(255,255,255,0.24)', 'rgba(255,255,255,0.32)'],
-      };
-  }
-};
-
-const getSmmStage = (value, gender, heightCm) => {
-  const normalizedGender = normalizeGender(gender);
-
-  if (normalizedGender.startsWith('f')) {
-    if (heightCm !== null && heightCm !== undefined) {
-      if (heightCm < 155) return value < 20 ? 'under' : value <= 25 ? 'normal' : 'over';
-      if (heightCm < 165) return value < 21.5 ? 'under' : value <= 27 ? 'normal' : 'over';
-      return value < 23 ? 'under' : value <= 29 ? 'normal' : 'over';
-    }
-
-    return value < 21 ? 'under' : value <= 27 ? 'normal' : 'over';
-  }
-
-  if (heightCm !== null && heightCm !== undefined) {
-    if (heightCm < 160) return value < 28 ? 'under' : value <= 34 ? 'normal' : 'over';
-    if (heightCm < 170) return value < 30 ? 'under' : value <= 36 ? 'normal' : 'over';
-    if (heightCm < 180) return value < 32 ? 'under' : value <= 39 ? 'normal' : 'over';
-    return value < 34 ? 'under' : value <= 42 ? 'normal' : 'over';
-  }
-
-  return value < 30 ? 'under' : value <= 37 ? 'normal' : 'over';
-};
-
-const getPbfStage = (value, gender) => {
-  const normalizedGender = normalizeGender(gender);
-  if (normalizedGender.startsWith('f')) {
-    if (value < 18) return 'under';
-    if (value <= 28) return 'normal';
-    return 'over';
-  }
-
-  if (value < 10) return 'under';
-  if (value <= 20) return 'normal';
-  return 'over';
-};
-
-const getMetricStage = (metric, latestValue, context) => {
-  if (latestValue === null || latestValue === undefined || Number.isNaN(latestValue)) {
-    return null;
-  }
-
-  const heightCm = context.heightCm;
-  const weight = context.weight;
-  const pbf = context.pbf;
-
-  switch (metric.key) {
-    case 'weight': {
-      const bmi = heightCm ? latestValue / ((heightCm / 100) ** 2) : null;
-      if (bmi === null || Number.isNaN(bmi)) return null;
-      if (bmi < 18.5) return 'under';
-      if (bmi <= 24.9) return 'normal';
-      return 'over';
-    }
-    case 'smm':
-      return getSmmStage(latestValue, context.gender, heightCm);
-    case 'pbf':
-      return getPbfStage(latestValue, context.gender);
-    case 'bodyFatMass': {
-      const pbfEquivalent = pbf ?? (weight ? (latestValue / weight) * 100 : null);
-      if (pbfEquivalent === null || Number.isNaN(pbfEquivalent)) return null;
-      return getPbfStage(pbfEquivalent, context.gender);
-    }
-    case 'bmi':
-      if (latestValue < 18.5) return 'under';
-      if (latestValue <= 24.9) return 'normal';
-      return 'over';
-    case 'visceralFat':
-      if (latestValue <= 9) return 'normal';
-      if (latestValue <= 14) return 'over';
-      return 'over';
-    default:
-      return null;
-  }
-};
-
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
-const getMetricRangeConfig = (metric, latestValue, context) => {
-  const heightCm = context.heightCm;
-  const weight = context.weight;
-  const normalizedGender = normalizeGender(context.gender);
+const trimZero = (value) => {
+  if (value === null || value === undefined || Number.isNaN(value)) return '--';
+  const rounded = Number(value);
+  if (Number.isInteger(rounded)) return `${rounded}`;
+  return rounded.toFixed(1).replace(/\.0$/, '');
+};
 
-  switch (metric.key) {
-    case 'weight': {
-      if (!heightCm) return null;
-      const underMax = 18.5;
-      const normalMax = 24.9;
-      const maxCap = 34.9;
+const ZONE_STYLES = {
+  under: {
+    track: 'rgba(96,180,255,0.28)',
+    needle: '#60b4ff',
+    pillClassName: 'border-[rgba(96,180,255,0.20)] bg-[rgba(96,180,255,0.12)] text-[#60b4ff]',
+  },
+  normal: {
+    track: 'rgba(200,245,63,0.32)',
+    needle: '#c8f53f',
+    pillClassName: 'border-[rgba(200,245,63,0.20)] bg-[rgba(200,245,63,0.12)] text-[#c8f53f]',
+  },
+  over: {
+    track: 'rgba(255,160,80,0.28)',
+    needle: '#ffaa55',
+    pillClassName: 'border-[rgba(255,160,80,0.20)] bg-[rgba(255,160,80,0.12)] text-[#ffaa55]',
+  },
+  high: {
+    track: 'rgba(255,107,107,0.28)',
+    needle: '#ff6b6b',
+    pillClassName: 'border-[rgba(255,107,107,0.20)] bg-[rgba(255,107,107,0.12)] text-[#ff6b6b]',
+  },
+};
+
+const getMetricStandard = (metricKey, gender) => {
+  const isFemale = normalizeGender(gender).startsWith('f');
+
+  switch (metricKey) {
+    case 'score':
       return {
-        value: latestValue / ((heightCm / 100) ** 2),
-        underMax,
-        normalMax,
-        maxCap,
+        min: 0,
+        max: 100,
+        thresholds: [25, 50, 75],
+        labels: ['Kém', 'TB', 'Tốt', 'Rất tốt'],
+        zoneKeys: ['high', 'over', 'normal', 'normal'],
       };
-    }
-    case 'smm': {
-      if (normalizedGender.startsWith('f')) {
-        if (heightCm !== null && heightCm !== undefined) {
-          if (heightCm < 155) return { value: latestValue, underMax: 20, normalMax: 25, maxCap: 31 };
-          if (heightCm < 165) return { value: latestValue, underMax: 21.5, normalMax: 27, maxCap: 33 };
-          return { value: latestValue, underMax: 23, normalMax: 29, maxCap: 35 };
-        }
-
-        return { value: latestValue, underMax: 21, normalMax: 27, maxCap: 33 };
-      }
-
-      if (heightCm !== null && heightCm !== undefined) {
-        if (heightCm < 160) return { value: latestValue, underMax: 28, normalMax: 34, maxCap: 40 };
-        if (heightCm < 170) return { value: latestValue, underMax: 30, normalMax: 36, maxCap: 42 };
-        if (heightCm < 180) return { value: latestValue, underMax: 32, normalMax: 39, maxCap: 46 };
-        return { value: latestValue, underMax: 34, normalMax: 42, maxCap: 48 };
-      }
-
-      return { value: latestValue, underMax: 30, normalMax: 37, maxCap: 44 };
-    }
-    case 'pbf': {
-      if (normalizedGender.startsWith('f')) {
-        return { value: latestValue, underMax: 18, normalMax: 28, maxCap: 38 };
-      }
-
-      return { value: latestValue, underMax: 10, normalMax: 20, maxCap: 30 };
-    }
-    case 'bodyFatMass': {
-      const pbfEquivalent = context.pbf ?? (weight ? (latestValue / weight) * 100 : null);
-      if (pbfEquivalent === null || Number.isNaN(pbfEquivalent)) return null;
-
-      if (normalizedGender.startsWith('f')) {
-        return { value: pbfEquivalent, underMax: 18, normalMax: 28, maxCap: 38 };
-      }
-
-      return { value: pbfEquivalent, underMax: 10, normalMax: 20, maxCap: 30 };
-    }
+    case 'weight':
+      return {
+        min: 50,
+        max: 110,
+        thresholds: [65, 80, 95],
+        labels: ['Under', 'Normal', 'Over', 'Obese'],
+        zoneKeys: ['under', 'normal', 'over', 'high'],
+      };
+    case 'smm':
+      return {
+        min: 20,
+        max: 50,
+        thresholds: [29, 37, 43],
+        labels: ['Under', 'Normal', 'High', 'Peak'],
+        zoneKeys: ['under', 'normal', 'normal', 'normal'],
+      };
+    case 'pbf':
+      return isFemale
+        ? {
+            min: 0,
+            max: 50,
+            thresholds: [21, 33, 39],
+            labels: ['Under', 'Normal', 'Over', 'High'],
+            zoneKeys: ['under', 'normal', 'over', 'high'],
+          }
+        : {
+            min: 0,
+            max: 40,
+            thresholds: [8, 20, 25],
+            labels: ['Under', 'Normal', 'Over', 'High'],
+            zoneKeys: ['under', 'normal', 'over', 'high'],
+          };
+    case 'bodyFatMass':
+      return isFemale
+        ? {
+            min: 5,
+            max: 40,
+            thresholds: [14, 24, 32],
+            labels: ['Under', 'Normal', 'Over', 'High'],
+            zoneKeys: ['under', 'normal', 'over', 'high'],
+          }
+        : {
+            min: 5,
+            max: 35,
+            thresholds: [10, 18, 25],
+            labels: ['Under', 'Normal', 'Over', 'High'],
+            zoneKeys: ['under', 'normal', 'over', 'high'],
+          };
     case 'bmi':
-      return { value: latestValue, underMax: 18.5, normalMax: 24.9, maxCap: 34.9 };
+      return {
+        min: 15,
+        max: 40,
+        thresholds: [18.5, 24.9, 30],
+        labels: ['Under', 'Normal', 'Over', 'Obese'],
+        zoneKeys: ['under', 'normal', 'over', 'high'],
+      };
     case 'visceralFat':
-      return { value: latestValue, underMax: 5, normalMax: 9, maxCap: 18 };
+      return {
+        min: 1,
+        max: 20,
+        thresholds: [4, 9, 14],
+        labels: ['Low', 'Normal', 'High', 'Very high'],
+        zoneKeys: ['under', 'normal', 'over', 'high'],
+      };
     default:
       return null;
   }
 };
 
-const buildGaugeSegments = (filledCount, palette) => Array.from({ length: 9 }, (_, index) => {
-  const group = Math.min(2, Math.floor(index / 3));
+const getRangeZone = (standard, value) => {
+  if (!standard || value === null || value === undefined || Number.isNaN(value)) return null;
+
+  const [a, b, c] = standard.thresholds;
+  let index = 0;
+
+  if (value < a) index = 0;
+  else if (value < b) index = 1;
+  else if (value < c) index = 2;
+  else index = 3;
+
   return {
-    filled: index < filledCount,
-    color: palette[group],
+    index,
+    label: standard.labels[index],
+    zoneKey: standard.zoneKeys[index],
   };
-});
-
-const getMetricGaugeSegments = (metric, latestValue, context) => {
-  if (latestValue === null || latestValue === undefined || Number.isNaN(latestValue)) {
-    return buildGaugeSegments(0, ['rgba(245, 158, 11, 0.76)', 'rgba(16, 185, 129, 0.76)', 'rgba(244, 63, 94, 0.76)']);
-  }
-
-  const config = getMetricRangeConfig(metric, latestValue, context);
-  if (!config) {
-    return buildGaugeSegments(0, ['rgba(245, 158, 11, 0.76)', 'rgba(16, 185, 129, 0.76)', 'rgba(244, 63, 94, 0.76)']);
-  }
-
-  const { value, underMax, normalMax, maxCap } = config;
-  let filledCount = 0;
-
-  if (value <= underMax) {
-    const progress = clamp(value / underMax, 0, 1);
-    filledCount = Math.max(1, Math.ceil(progress * 3));
-  } else if (value <= normalMax) {
-    const progress = clamp((value - underMax) / (normalMax - underMax || 1), 0, 1);
-    filledCount = 3 + Math.max(1, Math.ceil(progress * 3));
-  } else {
-    const progress = clamp((value - normalMax) / (maxCap - normalMax || 1), 0, 1);
-    filledCount = 6 + Math.max(1, Math.ceil(progress * 3));
-  }
-
-  return buildGaugeSegments(filledCount, ['rgba(245, 158, 11, 0.76)', 'rgba(16, 185, 129, 0.76)', 'rgba(244, 63, 94, 0.76)']);
 };
 
-const getScoreGaugeSegments = (score) => {
-  if (score === null || score === undefined || Number.isNaN(score)) {
-    return buildGaugeSegments(0, ['rgba(59, 130, 246, 0.68)', 'rgba(16, 185, 129, 0.72)', 'rgba(16, 185, 129, 0.76)']);
+const getRangeSegments = (standard) => {
+  if (!standard) return [];
+  const edges = [standard.min, ...standard.thresholds, standard.max];
+  return Array.from({ length: 4 }, (_, index) => {
+    const start = edges[index];
+    const end = edges[index + 1];
+    const width = ((end - start) / (standard.max - standard.min)) * 100;
+    return {
+      width,
+      label: standard.labels[index],
+      zoneKey: standard.zoneKeys[index],
+    };
+  });
+};
+
+const getNeedlePercent = (standard, value) => {
+  if (!standard || value === null || value === undefined || Number.isNaN(value)) return 2;
+  return clamp(((value - standard.min) / (standard.max - standard.min)) * 100, 2, 98);
+};
+
+const getDeltaTone = (metricKey, delta) => {
+  if (delta === null || delta === undefined || Number.isNaN(delta) || delta === 0) {
+    return 'border-white/[0.08] bg-white/[0.06] text-white/35';
   }
 
-  const filledCount = Math.max(1, Math.ceil((clamp(score, 0, 100) / 100) * 9));
-  return buildGaugeSegments(filledCount, ['rgba(59, 130, 246, 0.62)', 'rgba(34, 197, 94, 0.7)', 'rgba(16, 185, 129, 0.76)']);
+  const isScore = metricKey === 'score';
+  const isSmm = metricKey === 'smm';
+  const isDecreaseMetric = ['weight', 'pbf', 'bodyFatMass', 'bmi', 'visceralFat'].includes(metricKey);
+
+  if ((isScore || isSmm) && delta > 0) {
+    return 'border-[rgba(200,245,63,0.18)] bg-[rgba(200,245,63,0.12)] text-[#c8f53f]';
+  }
+
+  if (isDecreaseMetric && delta < 0) {
+    return 'border-[rgba(96,180,255,0.18)] bg-[rgba(96,180,255,0.12)] text-[#60b4ff]';
+  }
+
+  return 'border-[rgba(255,160,80,0.18)] bg-[rgba(255,160,80,0.12)] text-[#ffaa55]';
+};
+
+const DeltaArrowIcon = ({ delta, className = '' }) => {
+  if (delta === null || delta === undefined || Number.isNaN(delta) || delta === 0) return null;
+  const isUp = delta > 0;
+
+  return (
+    <svg viewBox="0 0 8 8" className={`h-2 w-2 ${isUp ? '' : 'rotate-180'} ${className}`} aria-hidden="true">
+      <path d="M4 1 L7 6 H1 Z" fill="currentColor" />
+    </svg>
+  );
+};
+
+const ZonePill = ({ zone }) => {
+  if (!zone) return null;
+  const tone = ZONE_STYLES[zone.zoneKey] || ZONE_STYLES.normal;
+
+  return (
+    <span className={`inline-flex items-center rounded-[20px] border px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.07em] ${tone.pillClassName}`}>
+      {zone.label}
+    </span>
+  );
+};
+
+const DeltaBadge = ({ metricKey, delta }) => {
+  const tone = getDeltaTone(metricKey, delta);
+  const isZero = delta === null || delta === undefined || Number.isNaN(delta) || delta === 0;
+
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-[20px] border px-1.5 py-0.5 text-[8px] font-black ${tone}`}>
+      {!isZero ? <DeltaArrowIcon delta={delta} /> : null}
+      <span>{isZero ? '0.0' : formatDeltaMagnitude(delta, metricKey === 'visceralFat' || metricKey === 'score' ? 0 : 1)}</span>
+    </span>
+  );
+};
+
+const RangeChart = ({ standard, value, decimals = 1 }) => {
+  if (!standard) return null;
+
+  const segments = getRangeSegments(standard);
+  const zone = getRangeZone(standard, value);
+  const needlePercent = getNeedlePercent(standard, value);
+  const needleColor = zone ? (ZONE_STYLES[zone.zoneKey] || ZONE_STYLES.normal).needle : 'rgba(255,255,255,0.32)';
+  const scaleValues = [standard.min, ...standard.thresholds, standard.max];
+
+  return (
+    <div className="mt-2.5 flex flex-col gap-[3px]">
+      <div className="flex items-center">
+        {segments.map((segment) => (
+          <span
+            key={`${segment.label}-${segment.width}`}
+            className="text-center text-[7px] font-black uppercase tracking-[0.06em] text-white/25"
+            style={{ width: `${segment.width}%` }}
+          >
+            {segment.label}
+          </span>
+        ))}
+      </div>
+
+      <div className="relative flex h-[6px] overflow-visible rounded-[3px]">
+        {segments.map((segment, index) => {
+          const tone = ZONE_STYLES[segment.zoneKey] || ZONE_STYLES.normal;
+
+          return (
+            <span
+              key={`${segment.zoneKey}-${index}`}
+              style={{ width: `${segment.width}%`, backgroundColor: tone.track }}
+              className={`${index === 0 ? 'rounded-l-[3px]' : ''} ${index === segments.length - 1 ? 'rounded-r-[3px]' : ''}`}
+            />
+          );
+        })}
+
+        <span
+          className="absolute top-[-3px] h-[12px] w-[2px] rounded-[1px]"
+          style={{
+            left: `${needlePercent}%`,
+            transform: 'translateX(-50%)',
+            backgroundColor: needleColor,
+            boxShadow: `0 0 5px ${needleColor}90`,
+          }}
+        />
+      </div>
+
+      <div className="flex items-center justify-between text-[7px] font-bold text-white/20">
+        {scaleValues.map((scaleValue) => (
+          <span key={`${scaleValue}`}>{trimZero(scaleValue)}</span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const BodyScoreRing = ({ score }) => {
+  const safeScore = clamp(score ?? 0, 0, 100);
+  const radius = 30;
+  const circumference = 2 * Math.PI * radius;
+  const dash = (safeScore / 100) * circumference;
+
+  return (
+    <svg viewBox="0 0 80 80" className="h-20 w-20 shrink-0">
+      <circle cx="40" cy="40" r={radius} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="7" />
+      <circle
+        cx="40"
+        cy="40"
+        r={radius}
+        fill="none"
+        stroke="#c8f53f"
+        strokeWidth="7"
+        strokeLinecap="round"
+        strokeDasharray={`${dash} ${circumference - dash}`}
+        transform="rotate(-90 40 40)"
+      />
+      <text x="40" y="38" textAnchor="middle" fill="#c8f53f" fontSize="18" fontWeight="300">
+        {score !== null && score !== undefined && !Number.isNaN(score) ? Math.round(score) : '--'}
+      </text>
+      <text x="40" y="51" textAnchor="middle" fill="rgba(255,255,255,0.30)" fontSize="8" fontWeight="700">
+        /100
+      </text>
+    </svg>
+  );
+};
+
+const BodyScoreCard = ({ card, isActive, onClick }) => {
+  const tone = card.zone ? (ZONE_STYLES[card.zone.zoneKey] || ZONE_STYLES.normal) : ZONE_STYLES.normal;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex h-full w-full items-start gap-[14px] rounded-[14px] border px-3 py-[11px] pb-[10px] text-left transition-all"
+      style={{
+        background: isActive ? 'rgba(200,245,63,0.05)' : 'rgba(255,255,255,0.04)',
+        borderColor: isActive ? 'rgba(200,245,63,0.22)' : 'rgba(255,255,255,0.07)',
+      }}
+    >
+      <BodyScoreRing score={card.score} />
+
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-black uppercase tracking-widest text-[rgba(200,245,63,0.5)]">Tổng điểm cơ thể</p>
+        <RangeChart standard={card.standard} value={card.score} decimals={0} />
+        <div className="mt-[6px] flex items-center gap-1.5">
+          <ZonePill zone={card.zone} />
+          <DeltaBadge metricKey="score" delta={card.delta} />
+        </div>
+        <p className="mt-[6px] text-[8px] font-bold text-white/35">{card.scanInfo}</p>
+      </div>
+    </button>
+  );
+};
+
+const InBodyMetricCard = ({ card, isActive, onClick }) => {
+  const tone = card.zone ? (ZONE_STYLES[card.zone.zoneKey] || ZONE_STYLES.normal) : null;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full rounded-[14px] border px-3 py-[11px] pb-[10px] text-left transition-all"
+      style={{
+        background: 'rgba(255,255,255,0.04)',
+        borderColor: isActive ? `${card.color}55` : tone ? tone.track.replace('0.28', '0.20').replace('0.32', '0.20') : 'rgba(255,255,255,0.07)',
+      }}
+    >
+      <p className="text-[8px] font-black uppercase tracking-[0.13em] text-white/30">{card.cardLabel}</p>
+
+      <div className="mt-2 flex items-end gap-1 leading-none">
+        <p className="text-[26px] font-light leading-[0.9] text-white">{card.latestValue}</p>
+        <span className="text-[9px] font-bold uppercase leading-[0.9] text-white/30">{card.unit}</span>
+      </div>
+
+      <RangeChart standard={card.standard} value={card.numericValue} decimals={card.decimals} />
+
+      <div className="mt-[6px]">
+        <ZonePill zone={card.zone} />
+      </div>
+
+      <div className="mt-1">
+        <DeltaBadge metricKey={card.key} delta={card.delta} />
+      </div>
+    </button>
+  );
 };
 
 const getMetricGoalTone = (metric, delta) => {
@@ -485,80 +615,6 @@ const DeltaTriangle = ({ delta }) => {
     >
       <path d="M5 1 L9 8 H1 Z" fill="currentColor" />
     </svg>
-  );
-};
-
-const StageBars = ({ segments }) => {
-  return (
-    <div className="mt-3 flex min-h-[22px] items-end gap-1">
-      <div className="flex items-end gap-1">
-        {[8, 10, 12, 14, 16, 18, 20, 22, 24].map((height, index) => (
-          <span
-            key={`${height}-${index}`}
-            className="w-1.5 rounded-full"
-            style={{
-              height,
-              backgroundColor: segments[index]?.filled ? segments[index].color : 'rgba(255,255,255,0.12)',
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, badgeLabel, stage, gaugeSegments }) => {
-  const tone = getMetricGoalTone(metric, delta);
-  const badgeText = badgeLabel ?? (delta !== null ? formatDeltaMagnitude(delta, metric.decimals) : 'No previous data');
-  const badgeClassName = badgeLabel
-    ? 'border-white/[0.08] bg-white/[0.04] text-white/45'
-      : delta !== null
-      ? tone.badgeClassName
-      : 'border-white/[0.06] bg-white/[0.03] text-white/28';
-  const stageTone = getStageTone(stage);
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex h-full min-h-[120px] w-full flex-col rounded-[20px] border px-3.5 py-3 text-left transition-all active:scale-[0.98] ${
-        isActive
-          ? 'bg-white/[0.05] shadow-lg'
-          : 'bg-white/[0.02] hover:bg-white/[0.03]'
-      }`}
-      style={{
-        borderColor: isActive ? `${metric.color}55` : stage ? stageTone.borderColor : 'rgba(255,255,255,0.06)',
-        boxShadow: isActive
-          ? `0 0 0 1px ${metric.color}22, 0 16px 30px rgba(0,0,0,0.22)`
-          : stage
-            ? `0 8px 18px ${stageTone.shadowColor}`
-            : undefined,
-      }}
-    >
-      <div className="flex items-start justify-between gap-2.5">
-        <p className="min-h-[10px] text-[8px] font-black uppercase tracking-[0.24em] text-white/32">{metric.cardLabel || metric.label}</p>
-      </div>
-
-      <div className="mt-3 min-h-[52px]">
-        <div className="flex items-end gap-1 leading-none">
-          <p className="text-[20px] font-light leading-[0.88] text-white">{latestValue}</p>
-          {metric.unit ? (
-            <span className="text-[10px] font-black uppercase leading-[0.88] tracking-wide text-white/35">{metric.unit}</span>
-          ) : null}
-        </div>
-      </div>
-
-      <StageBars segments={gaugeSegments} />
-
-      <div className={`mt-auto inline-flex max-w-full items-center self-start rounded-[14px] border px-2.5 py-1 text-[8px] font-black uppercase tracking-wide leading-tight whitespace-normal break-words ${badgeClassName}`}>
-        {badgeLabel ? badgeText : (
-          <span className="inline-flex items-center gap-1">
-            <DeltaTriangle delta={delta} />
-            <span>{badgeText}</span>
-          </span>
-        )}
-      </div>
-    </button>
   );
 };
 
@@ -1122,54 +1178,48 @@ const ProfileTab = ({ client, onRegisterActions }) => {
     setActiveChartIndex(filteredChartRecords.length > 0 ? filteredChartRecords.length - 1 : null);
   }, [filteredChartRecords, selectedMetricKey, timeFilter]);
 
-  const metricCards = useMemo(() => {
+  const inbodyCardData = useMemo(() => {
     const latestMeasurementDate = filteredChartRecords.length > 0
       ? formatShortDate(filteredChartRecords[filteredChartRecords.length - 1].measuredAt)
       : null;
     const latestRecord = filteredChartRecords[filteredChartRecords.length - 1] ?? null;
     const latestScore = latestRecord?.inbodyScore ?? null;
-    const overviewCard = {
-      ...ALL_METRIC,
-      latestValue: latestScore !== null ? formatMetricValue(latestScore, 0) : '--',
-      unit: '/100',
-      delta: null,
-      stage: null,
-      gaugeSegments: getScoreGaugeSegments(latestScore),
-      badgeLabel: filteredChartRecords.length > 0
-        ? `${filteredChartRecords.length} scans${latestMeasurementDate ? ` · ${latestMeasurementDate}` : ''}`
-        : 'No scan data',
+    const { latest: scoreLatest, previous: scorePrevious } = getLastTwoValues(filteredChartRecords, 'inbodyScore');
+    const bodyScoreCard = {
+      key: 'all',
+      score: scoreLatest,
+      delta: scoreLatest !== null && scorePrevious !== null ? scoreLatest - scorePrevious : 0,
+      standard: getMetricStandard('score', client.gender),
+      zone: getRangeZone(getMetricStandard('score', client.gender), scoreLatest),
+      scanInfo: filteredChartRecords.length > 0
+        ? `${filteredChartRecords.length} scans · ${latestMeasurementDate || '--/--'}`
+        : 'No scans yet',
     };
 
     const metricSummaries = INBODY_METRICS.map((metric) => {
       const { latest, previous } = getLastTwoValues(filteredChartRecords, metric.key);
-      const stage = latestRecord
-        ? getMetricStage(metric, latest, {
-            gender: client.gender,
-            heightCm: client.height ? parseFloat(client.height) : null,
-            weight: latestRecord.weight,
-            pbf: latestRecord.pbf,
-          })
-        : null;
-      const gaugeSegments = latestRecord
-        ? getMetricGaugeSegments(metric, latest, {
-            gender: client.gender,
-            heightCm: client.height ? parseFloat(client.height) : null,
-            weight: latestRecord.weight,
-            pbf: latestRecord.pbf,
-          })
-        : buildGaugeSegments(0, ['rgba(245, 158, 11, 0.92)', 'rgba(16, 185, 129, 0.92)', 'rgba(244, 63, 94, 0.92)']);
+      const standard = getMetricStandard(metric.key, client.gender);
 
       return {
         ...metric,
+        numericValue: latest,
         latestValue: formatMetricValue(latest, metric.decimals),
         delta: latest !== null && previous !== null ? latest - previous : null,
-        stage,
-        gaugeSegments,
+        standard,
+        zone: getRangeZone(standard, latest),
       };
     });
 
-    return [overviewCard, ...metricSummaries];
+    return {
+      bodyScoreCard,
+      metrics: metricSummaries,
+    };
   }, [client.gender, client.height, filteredChartRecords]);
+
+  const metricCardMap = useMemo(
+    () => Object.fromEntries(inbodyCardData.metrics.map((metric) => [metric.key, metric])),
+    [inbodyCardData.metrics],
+  );
 
   const personalInfoCells = [
     { label: 'DATE OF BIRTH', value: client.dob || '--' },
@@ -1301,20 +1351,33 @@ const ProfileTab = ({ client, onRegisterActions }) => {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
-          {metricCards.map((metric) => (
-            <InBodyMetricCard
-              key={metric.key}
-              metric={metric}
-              latestValue={metric.latestValue}
-              delta={metric.delta}
-              badgeLabel={metric.badgeLabel}
-              stage={metric.stage}
-              gaugeSegments={metric.gaugeSegments}
-              isActive={selectedMetricKey === metric.key}
-              onClick={() => setSelectedMetricKey(metric.key)}
+        <div className="space-y-2">
+          <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2">
+            <BodyScoreCard
+              card={inbodyCardData.bodyScoreCard}
+              isActive={selectedMetricKey === 'all'}
+              onClick={() => setSelectedMetricKey('all')}
             />
-          ))}
+            {['weight', 'smm'].map((key) => (
+              <InBodyMetricCard
+                key={key}
+                card={metricCardMap[key]}
+                isActive={selectedMetricKey === key}
+                onClick={() => setSelectedMetricKey(key)}
+              />
+            ))}
+          </div>
+
+          <div className="grid grid-cols-4 gap-2">
+            {['pbf', 'bodyFatMass', 'bmi', 'visceralFat'].map((key) => (
+              <InBodyMetricCard
+                key={key}
+                card={metricCardMap[key]}
+                isActive={selectedMetricKey === key}
+                onClick={() => setSelectedMetricKey(key)}
+              />
+            ))}
+          </div>
         </div>
 
         <div className="grid w-full grid-cols-3 gap-2 rounded-[20px] border border-white/[0.06] bg-white/[0.02] p-2 md:grid-cols-6">
