@@ -126,6 +126,7 @@ const buildQuickLogSelection = (sessionItem) => ({
   scheduledDate: sessionItem.scheduled_date,
   scheduledTime: sessionItem.scheduled_time,
   packageId: sessionItem.package_id,
+  workoutTemplateId: sessionItem.workout_template_id,
   sessionKind: sessionItem.session_kind,
   manualMode: false,
 });
