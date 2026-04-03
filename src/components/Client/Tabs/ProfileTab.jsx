@@ -93,6 +93,41 @@ const ALL_METRIC = {
   color: '#c8f53f',
 };
 
+const DEMO_INBODY_RECORDS_BY_PHONE = {
+  '0909113799': [
+    {
+      id: 'demo-cam-2025-04-16',
+      measured_at: '2025-04-16T08:16:00+07:00',
+      weight_kg: 81.9,
+      smm_kg: 34.7,
+      pbf_pct: 25.3,
+      body_fat_mass_kg: 20.7,
+      bmi: 27.7,
+      visceral_fat_level: 9,
+    },
+    {
+      id: 'demo-cam-2026-01-30',
+      measured_at: '2026-01-30T08:32:00+07:00',
+      weight_kg: 79.3,
+      smm_kg: 34.2,
+      pbf_pct: 24.1,
+      body_fat_mass_kg: 19.1,
+      bmi: 26.8,
+      visceral_fat_level: 9,
+    },
+    {
+      id: 'demo-cam-2026-02-27',
+      measured_at: '2026-02-27T08:25:00+07:00',
+      weight_kg: 80.6,
+      smm_kg: 34.6,
+      pbf_pct: 24.7,
+      body_fat_mass_kg: 19.9,
+      bmi: 27.2,
+      visceral_fat_level: 9,
+    },
+  ],
+};
+
 const formatMetricValue = (value, decimals = 1) => {
   if (value === null || value === undefined || Number.isNaN(value)) return '--';
   return Number(value).toFixed(decimals);
@@ -740,8 +775,23 @@ const ProfileTab = ({ client, onRegisterActions }) => {
 
   const chartRecords = useMemo(() => {
     const fallbackHeightCm = client.height ? parseFloat(client.height) : null;
+    const phoneKey = String(client.phone || '').replace(/\D/g, '');
+    const demoRecords = DEMO_INBODY_RECORDS_BY_PHONE[phoneKey] || [];
+    const mergedRecords = [...inbodyRecords];
 
-    return [...inbodyRecords].map((record) => {
+    demoRecords.forEach((demoRecord) => {
+      const demoTimestamp = demoRecord.measured_at;
+      const hasSameMeasurement = mergedRecords.some((record) => {
+        const recordedAt = record.recorded_at ?? record.measured_at;
+        return recordedAt && new Date(recordedAt).toISOString() === new Date(demoTimestamp).toISOString();
+      });
+
+      if (!hasSameMeasurement) {
+        mergedRecords.push(demoRecord);
+      }
+    });
+
+    return mergedRecords.map((record) => {
       const weight = record.weight ?? record.weight_kg ?? null;
       const smm = record.muscle_mass ?? record.smm ?? record.smm_kg ?? null;
       const pbf = record.body_fat ?? record.pbf ?? record.pbf_pct ?? null;
