@@ -398,19 +398,7 @@ const RangeChart = ({ standard, value, decimals = 1 }) => {
   const scaleValues = [standard.min, ...standard.thresholds, standard.max];
 
   return (
-    <div className="mt-2.5 flex flex-col gap-[3px]">
-      <div className="flex items-center">
-        {segments.map((segment) => (
-          <span
-            key={`${segment.label}-${segment.width}`}
-            className="text-center text-[7px] font-black uppercase tracking-[0.06em] text-white/25"
-            style={{ width: `${segment.width}%` }}
-          >
-            {segment.label}
-          </span>
-        ))}
-      </div>
-
+    <div className="mt-2.5 flex flex-col gap-[4px]">
       <div className="relative flex h-[6px] overflow-visible rounded-[3px]">
         {segments.map((segment, index) => {
           const tone = ZONE_STYLES[segment.zoneKey] || ZONE_STYLES.normal;
@@ -475,31 +463,48 @@ const BodyScoreRing = ({ score }) => {
 };
 
 const BodyScoreCard = ({ card, isActive, onClick }) => {
-  const tone = card.zone ? (ZONE_STYLES[card.zone.zoneKey] || ZONE_STYLES.normal) : ZONE_STYLES.normal;
-
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex h-full w-full items-start gap-[14px] rounded-[14px] border px-3 py-[11px] pb-[10px] text-left transition-all"
+      className="flex h-full w-full flex-col rounded-[14px] border px-3 py-[11px] pb-[10px] text-left transition-all"
       style={{
         background: isActive ? 'rgba(200,245,63,0.05)' : 'rgba(255,255,255,0.04)',
         borderColor: isActive ? 'rgba(200,245,63,0.22)' : 'rgba(255,255,255,0.07)',
       }}
     >
-      <BodyScoreRing score={card.score} />
+      <p className="text-[10px] font-black uppercase tracking-widest text-[rgba(200,245,63,0.5)]">Your Body Score</p>
 
-      <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-black uppercase tracking-widest text-[rgba(200,245,63,0.5)]">Tổng điểm cơ thể</p>
-        <RangeChart standard={card.standard} value={card.score} decimals={0} />
-        <div className="mt-[6px] flex items-center gap-1.5">
-          <ZonePill zone={card.zone} />
-          <DeltaBadge metricKey="score" delta={card.delta} />
+      <div className="mt-2 flex items-start gap-[14px]">
+        <BodyScoreRing score={card.score} />
+        <div className="min-w-0 flex-1 pt-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <ZonePill zone={card.zone} />
+            <DeltaBadge metricKey="score" delta={card.delta} />
+          </div>
+          <p className="mt-2 text-[8px] font-bold text-white/35">{card.scanInfo}</p>
         </div>
-        <p className="mt-[6px] text-[8px] font-bold text-white/35">{card.scanInfo}</p>
+      </div>
+
+      <div className="mt-3">
+        <RangeChart standard={card.standard} value={card.score} decimals={0} />
       </div>
     </button>
   );
+};
+
+const MetricUnit = ({ unit }) => {
+  if (unit === 'kg/m²') {
+    return (
+      <span className="inline-flex items-end gap-1 text-[9px] font-bold uppercase leading-[0.9] text-white/30">
+        <span>KG</span>
+        <span className="mb-[1px] h-px w-[8px] bg-white/28" aria-hidden="true" />
+        <span>M2</span>
+      </span>
+    );
+  }
+
+  return <span className="text-[9px] font-bold uppercase leading-[0.9] text-white/30">{unit}</span>;
 };
 
 const InBodyMetricCard = ({ card, isActive, onClick }) => {
@@ -519,7 +524,7 @@ const InBodyMetricCard = ({ card, isActive, onClick }) => {
 
       <div className="mt-2 flex items-end gap-1 leading-none">
         <p className="text-[26px] font-light leading-[0.9] text-white">{card.latestValue}</p>
-        <span className="text-[9px] font-bold uppercase leading-[0.9] text-white/30">{card.unit}</span>
+        <MetricUnit unit={card.unit} />
       </div>
 
       <RangeChart standard={card.standard} value={card.numericValue} decimals={card.decimals} />
@@ -527,7 +532,6 @@ const InBodyMetricCard = ({ card, isActive, onClick }) => {
       <div className="mt-[6px]">
         <ZonePill zone={card.zone} />
       </div>
-
       <div className="mt-1">
         <DeltaBadge metricKey={card.key} delta={card.delta} />
       </div>
