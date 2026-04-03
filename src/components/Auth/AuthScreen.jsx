@@ -1,26 +1,34 @@
 import React, { useEffect, useState } from 'react';
-import { Dumbbell, User, Lock, ArrowLeft, AlertCircle, RefreshCw, UserPlus } from 'lucide-react';
+import { Dumbbell, User, Lock, ArrowLeft, AlertCircle, RefreshCw, UserPlus, Mail, Phone } from 'lucide-react';
 import { supabase, toAuthEmail } from '../../supabaseClient';
 
 // Alias để dùng trong component này
 const toEmail = toAuthEmail;
+const coachRequestWebhookUrl = import.meta.env.VITE_COACH_REQUEST_WEBHOOK_URL;
 
-const AuthScreen = ({ onLogin, mode = 'main', onBack = null, onCoachAccess = null }) => {
-  const isCoachMode = mode === 'coach';
+const AuthScreen = ({ onLogin, mode = 'main', onBack = null }) => {
+  const isCoachSignupMode = mode === 'coach-signup';
   const isMainMode = mode === 'main';
-  const [isRegister, setIsRegister] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showCoachRequest, setShowCoachRequest] = useState(false);
+  const [coachRequest, setCoachRequest] = useState({ fullName: '', phone: '', email: '' });
+  const [coachRequestError, setCoachRequestError] = useState('');
+  const [coachRequestSuccess, setCoachRequestSuccess] = useState('');
+  const [isSubmittingCoachRequest, setIsSubmittingCoachRequest] = useState(false);
 
   useEffect(() => {
     setUsername('');
     setPassword('');
     setFullName('');
     setError('');
-    setIsRegister(false);
+    setShowCoachRequest(false);
+    setCoachRequest({ fullName: '', phone: '', email: '' });
+    setCoachRequestError('');
+    setCoachRequestSuccess('');
   }, [mode]);
 
   const handleSubmit = async (e) => {
@@ -32,51 +40,42 @@ const AuthScreen = ({ onLogin, mode = 'main', onBack = null, onCoachAccess = nul
     const email = toEmail(normalizedUsername);
 
     try {
-      if (isCoachMode) {
-        if (isRegister) {
-          if (!normalizedUsername) throw new Error('Vui lòng nhập username.');
-          if (password.length < 6) throw new Error('Mật khẩu phải ít nhất 6 ký tự.');
+      if (isCoachSignupMode) {
+        if (!normalizedUsername) throw new Error('Please enter a coach username.');
+        if (password.length < 6) throw new Error('Password must be at least 6 characters.');
 
-          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { username: normalizedUsername, role: 'coach' },
+          },
+        });
+
+        if (signUpError) {
+          if (signUpError.message.includes('already registered')) {
+            throw new Error('This username already exists. Please contact support for another sign-up link.');
+          }
+          throw signUpError;
+        }
+
+        const { error: coachErr } = await supabase
+          .from('coaches')
+          .insert([{
             email,
-            password,
-            options: {
-              data: { username: normalizedUsername, role: 'coach' },
-            },
-          });
+            full_name: fullName.trim() || normalizedUsername,
+          }]);
 
-          if (signUpError) {
-            if (signUpError.message.includes('already registered')) {
-              throw new Error('Username này đã tồn tại. Hãy đăng nhập hoặc chọn username khác.');
-            }
-            throw signUpError;
-          }
+        if (coachErr) {
+          console.warn('Coach record error:', coachErr.message);
+        }
 
-          const { error: coachErr } = await supabase
-            .from('coaches')
-            .insert([{
-              email: email,
-              full_name: fullName.trim() || normalizedUsername,
-            }]);
-
-          if (coachErr) {
-            console.warn('Coach record error:', coachErr.message);
-          }
-
-          if (signUpData.session) {
-            onLogin(signUpData.session);
-          } else {
-            const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
-            if (loginErr) throw new Error('Tạo tài khoản thành công! Hãy đăng nhập lại.');
-            onLogin(loginData.session);
-          }
+        if (signUpData.session) {
+          onLogin(signUpData.session);
         } else {
-          const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-          if (signInError) {
-            if (signInError.message.includes('Invalid login')) throw new Error('Sai username hoặc mật khẩu. Thử lại nhé!');
-            throw signInError;
-          }
-          onLogin(data.session);
+          const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
+          if (loginErr) throw new Error('Account created. Please sign in from the main login page.');
+          onLogin(loginData.session);
         }
       } else {
         if (!normalizedUsername) throw new Error('Please enter your username or phone number.');
@@ -103,6 +102,78 @@ const AuthScreen = ({ onLogin, mode = 'main', onBack = null, onCoachAccess = nul
     }
   };
 
+  const handleCoachRequestSubmit = async (e) => {
+    e.preventDefault();
+    setCoachRequestError('');
+    setCoachRequestSuccess('');
+
+    const payload = {
+      full_name: coachRequest.fullName.trim(),
+      phone: coachRequest.phone.trim(),
+      email: coachRequest.email.trim().toLowerCase(),
+      source: 'main_login',
+      requested_at: new Date().toISOString(),
+    };
+
+    if (!payload.full_name || !payload.phone || !payload.email) {
+      setCoachRequestError('Please fill in your name, phone number, and email.');
+      return;
+    }
+
+    setIsSubmittingCoachRequest(true);
+
+    let supabaseSaved = false;
+    let webhookSent = false;
+    let lastError = '';
+
+    try {
+      const { error: insertError } = await supabase
+        .from('coach_access_requests')
+        .insert([
+          {
+            full_name: payload.full_name,
+            phone: payload.phone,
+            email: payload.email,
+            source: payload.source,
+          },
+        ]);
+
+      if (!insertError) {
+        supabaseSaved = true;
+      } else {
+        lastError = insertError.message;
+      }
+
+      if (coachRequestWebhookUrl) {
+        const response = await fetch(coachRequestWebhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (response.ok) {
+          webhookSent = true;
+        } else {
+          lastError = `Webhook error ${response.status}`;
+        }
+      }
+
+      if (!supabaseSaved && !webhookSent) {
+        throw new Error(lastError || 'Unable to submit your request right now.');
+      }
+
+      setCoachRequestSuccess("Thanks. We'll review your request and contact you shortly.");
+      setCoachRequest({ fullName: '', phone: '', email: '' });
+      setShowCoachRequest(false);
+    } catch (requestError) {
+      setCoachRequestError(requestError.message || 'Unable to submit your request right now.');
+    } finally {
+      setIsSubmittingCoachRequest(false);
+    }
+  };
+
   return (
     <div className="app-screen-shell h-screen w-full flex flex-col items-center justify-center relative z-20 overflow-hidden px-6">
       <div className="absolute top-[-10%] left-[-20%] w-[140%] h-[400px] bg-white/[0.03] blur-[100px] pointer-events-none"></div>
@@ -125,8 +196,8 @@ const AuthScreen = ({ onLogin, mode = 'main', onBack = null, onCoachAccess = nul
           </div>
           <h1 className="text-2xl font-medium text-white tracking-tight">Aesthetics Hub</h1>
           <p className="text-neutral-500 text-[10px] font-black uppercase tracking-widest mt-2">
-            {isCoachMode
-              ? (isRegister ? 'Coach Sign Up' : 'Coach Sign In')
+            {isCoachSignupMode
+              ? 'Coach Sign Up'
               : 'Sign In'}
           </p>
         </div>
@@ -134,23 +205,20 @@ const AuthScreen = ({ onLogin, mode = 'main', onBack = null, onCoachAccess = nul
         {/* Form đăng nhập */}
         <div className="app-glass-panel border rounded-[32px] p-6 shadow-2xl">
           {isMainMode && (
-            <div className="mb-4 rounded-[18px] border border-blue-500/20 bg-blue-500/10 px-4 py-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-blue-300">Single Sign In</p>
-              <p className="text-[11px] leading-relaxed text-blue-100/80 mt-1">
-                Enter your username or phone number. We will automatically send you to the right workspace after sign in.
-              </p>
-            </div>
+            <p className="mb-4 px-1 text-[11px] leading-relaxed text-white/45">
+              Use the login details shared with you.
+            </p>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
 
             {/* Tên hiển thị (chỉ khi đăng ký coach mới) */}
-            {isCoachMode && isRegister && (
+            {isCoachSignupMode && (
               <div className="relative">
                 <UserPlus className="w-5 h-5 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Tên hiển thị (VD: Coach Hạo)"
+                  placeholder="Display name"
                   value={fullName}
                   onChange={(e) => { setFullName(e.target.value); setError(''); }}
                   className="w-full bg-black/50 border border-white/10 rounded-[20px] py-4 pl-12 pr-4 text-white text-sm outline-none focus:border-white/30 transition-colors"
@@ -162,7 +230,7 @@ const AuthScreen = ({ onLogin, mode = 'main', onBack = null, onCoachAccess = nul
               <User className="w-5 h-5 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder={isCoachMode ? 'Coach username' : 'Username or phone number'}
+                placeholder={isCoachSignupMode ? 'Coach username' : 'Username or phone number'}
                 required
                 value={username}
                 onChange={(e) => { setUsername(e.target.value); setError(''); }}
@@ -173,8 +241,8 @@ const AuthScreen = ({ onLogin, mode = 'main', onBack = null, onCoachAccess = nul
               <Lock className="w-5 h-5 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
               <input
                 type="password"
-                placeholder={isCoachMode
-                  ? (isRegister ? 'Create a password (at least 6 characters)' : 'Password')
+                placeholder={isCoachSignupMode
+                  ? 'Create a password (at least 6 characters)'
                   : 'Password'}
                 required
                 value={password}
@@ -182,12 +250,6 @@ const AuthScreen = ({ onLogin, mode = 'main', onBack = null, onCoachAccess = nul
                 className="w-full bg-black/50 border border-white/10 rounded-[20px] py-4 pl-12 pr-4 text-white text-sm outline-none focus:border-white/30 transition-colors"
               />
             </div>
-
-            {isMainMode && !error && (
-              <p className="text-neutral-600 text-[10px] leading-relaxed px-1">
-                Coaches and trainees use the same sign in form. Your account type is detected automatically.
-              </p>
-            )}
 
             {error && (
               <div className="flex items-start gap-3 bg-red-500/10 border border-red-500/20 rounded-[16px] p-4">
@@ -204,8 +266,8 @@ const AuthScreen = ({ onLogin, mode = 'main', onBack = null, onCoachAccess = nul
               {isLoading
                 ? <RefreshCw className="w-4 h-4 animate-spin" />
                 : <>
-                    {isCoachMode
-                      ? (isRegister ? 'Create a Coach account' : 'Sign In')
+                    {isCoachSignupMode
+                      ? 'Create coach account'
                       : 'Sign In'}
                     <ArrowLeft className="w-4 h-4 rotate-180" />
                   </>
@@ -213,30 +275,95 @@ const AuthScreen = ({ onLogin, mode = 'main', onBack = null, onCoachAccess = nul
             </button>
           </form>
 
-          {/* Toggle đăng nhập / đăng ký cho coach */}
-          {isCoachMode && (
-            <div className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={() => { setIsRegister(!isRegister); setError(''); }}
-                className="text-[10px] font-medium text-neutral-500 hover:text-white transition-colors"
-              >
-                {isRegister
-                  ? '← Đã có tài khoản? Đăng nhập'
-                  : 'New coach here? Create an account'}
-              </button>
-            </div>
-          )}
+          {isMainMode && (
+            <div className="mt-4 space-y-3">
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCoachRequest((prev) => !prev);
+                    setCoachRequestError('');
+                    setCoachRequestSuccess('');
+                  }}
+                  className="text-[10px] font-medium text-neutral-500 hover:text-white transition-colors"
+                >
+                  Are you a coach and need an account to manage your trainees?
+                </button>
+              </div>
 
-          {isMainMode && onCoachAccess && (
-            <div className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={onCoachAccess}
-                className="text-[10px] font-medium text-neutral-600 hover:text-white/80 transition-colors"
-              >
-                Coach access
-              </button>
+              {coachRequestSuccess && (
+                <div className="rounded-[16px] border border-emerald-500/20 bg-emerald-500/10 p-4">
+                  <p className="text-[11px] leading-relaxed text-emerald-300">{coachRequestSuccess}</p>
+                </div>
+              )}
+
+              {showCoachRequest && (
+                <div className="rounded-[20px] border border-white/[0.08] bg-black/30 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/42">Coach account request</p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-white/45">
+                    Leave your details and we&apos;ll contact you with the next steps.
+                  </p>
+
+                  <form onSubmit={handleCoachRequestSubmit} className="mt-4 space-y-3">
+                    <div className="relative">
+                      <UserPlus className="w-4 h-4 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="Full name"
+                        value={coachRequest.fullName}
+                        onChange={(e) => {
+                          setCoachRequest((prev) => ({ ...prev, fullName: e.target.value }));
+                          setCoachRequestError('');
+                        }}
+                        className="w-full bg-black/50 border border-white/10 rounded-[18px] py-3.5 pl-11 pr-4 text-white text-sm outline-none focus:border-white/30 transition-colors"
+                      />
+                    </div>
+
+                    <div className="relative">
+                      <Phone className="w-4 h-4 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="Phone number"
+                        value={coachRequest.phone}
+                        onChange={(e) => {
+                          setCoachRequest((prev) => ({ ...prev, phone: e.target.value }));
+                          setCoachRequestError('');
+                        }}
+                        className="w-full bg-black/50 border border-white/10 rounded-[18px] py-3.5 pl-11 pr-4 text-white text-sm outline-none focus:border-white/30 transition-colors"
+                      />
+                    </div>
+
+                    <div className="relative">
+                      <Mail className="w-4 h-4 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="email"
+                        placeholder="Email"
+                        value={coachRequest.email}
+                        onChange={(e) => {
+                          setCoachRequest((prev) => ({ ...prev, email: e.target.value }));
+                          setCoachRequestError('');
+                        }}
+                        className="w-full bg-black/50 border border-white/10 rounded-[18px] py-3.5 pl-11 pr-4 text-white text-sm outline-none focus:border-white/30 transition-colors"
+                      />
+                    </div>
+
+                    {coachRequestError && (
+                      <div className="flex items-start gap-3 bg-red-500/10 border border-red-500/20 rounded-[14px] p-3">
+                        <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                        <p className="text-red-400 text-[11px] leading-relaxed">{coachRequestError}</p>
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={isSubmittingCoachRequest}
+                      className="w-full rounded-[18px] border border-white/[0.08] bg-white/[0.04] py-3.5 text-[10px] font-black uppercase tracking-wide text-white transition-all active:scale-[0.98] disabled:opacity-60"
+                    >
+                      {isSubmittingCoachRequest ? 'Sending...' : 'Request coach account'}
+                    </button>
+                  </form>
+                </div>
+              )}
             </div>
           )}
         </div>

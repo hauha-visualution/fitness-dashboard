@@ -42,14 +42,13 @@ const normalizeQuickLogSelection = (selection = null) => {
 const getRouteContextFromPath = (pathname = '/') => {
   const normalizedPath = pathname.replace(/\/+$/, '') || '/';
 
-  if (normalizedPath === '/coach' || normalizedPath === '/coach/login') return 'coach';
+  if (normalizedPath === '/coach/signup') return 'coach-signup';
   return 'main';
 };
 
 const getPathForContext = (context, isAuthenticated = false) => {
-  if (context === 'coach') return isAuthenticated ? '/coach' : '/coach/login';
+  if (context === 'coach-signup') return '/coach/signup';
   if (context === 'client') return isAuthenticated ? '/portal' : '/';
-  if (context === 'main') return '/';
   return '/';
 };
 
@@ -193,13 +192,12 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    const logoutContext = userRole === 'coach' ? 'coach' : 'main';
     await supabase.auth.signOut();
     setSession(null);
     setCoachProfile(null);
     setClientProfile(null);
     setUserRole(null);
-    navigateToContext(logoutContext, { replace: true });
+    navigateToContext('main', { replace: true });
   };
 
   // Gọi lại sau khi CoachProfileView lưu thành công → refresh
@@ -297,17 +295,16 @@ export default function App() {
       <div className="app-root-shell min-h-screen flex justify-center font-sans">
         <div className="app-shell-frame w-full max-w-[420px] h-dvh relative overflow-hidden flex flex-col">
           <GlobalStyles />
-          {routeContext === 'coach' ? (
+          {routeContext === 'coach-signup' ? (
             <AuthScreen
               onLogin={handleLogin}
-              mode="coach"
+              mode="coach-signup"
               onBack={() => navigateToContext('main')}
             />
           ) : (
             <AuthScreen
               onLogin={handleLogin}
               mode="main"
-              onCoachAccess={() => navigateToContext('coach')}
             />
           )}
         </div>
