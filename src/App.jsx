@@ -418,7 +418,7 @@ export default function App() {
 
             {/* Nav chính của Coach */}
             {activeTab !== 'add_client' && (
-              <div className="app-nav-shell fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-[390px] rounded-[32px] px-2 py-2 grid grid-cols-5 gap-1 z-50">
+              <div className="app-nav-shell fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-[390px] rounded-[30px] px-2 py-1.5 grid grid-cols-5 gap-1 z-50">
                 {coachTabs.map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -441,8 +441,8 @@ export default function App() {
                       }}
                       className={`min-w-0 rounded-[24px] flex flex-col items-center justify-center gap-1.5 transition-all active:scale-95 ${
                         tab.isAction
-                          ? 'py-3.5'
-                          : 'py-3.5'
+                          ? 'py-2.5'
+                          : 'py-2.5'
                       } ${buttonClassName}`}
                     >
                       <div
