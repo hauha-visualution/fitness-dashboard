@@ -23,12 +23,12 @@ const InfoCell = ({ label, value, valueClassName = 'text-xs font-semibold text-w
 );
 
 const TIME_FILTER_OPTIONS = [
-  { id: '1m', label: '1 month', months: 1 },
-  { id: '3m', label: '3 months', months: 3 },
-  { id: '6m', label: '6 months', months: 6 },
-  { id: '9m', label: '9 months', months: 9 },
-  { id: '12m', label: '12 months', months: 12 },
-  { id: 'all', label: 'All', months: null },
+  { id: '1m', label: '1 month', shortLabel: '1M', months: 1 },
+  { id: '3m', label: '3 months', shortLabel: '3M', months: 3 },
+  { id: '6m', label: '6 months', shortLabel: '6M', months: 6 },
+  { id: '9m', label: '9 months', shortLabel: '9M', months: 9 },
+  { id: '12m', label: '12 months', shortLabel: '12M', months: 12 },
+  { id: 'all', label: 'All', shortLabel: 'ALL', months: null },
 ];
 
 const INBODY_METRICS = [
@@ -851,10 +851,10 @@ const ProfileTab = ({ client, onRegisterActions }) => {
     const overviewCard = {
       ...ALL_METRIC,
       latestValue: `${INBODY_METRICS.length}`,
-      helperText: 'all metrics',
+      helperText: null,
       delta: null,
       badgeLabel: filteredChartRecords.length > 0
-        ? `${filteredChartRecords.length} scans${latestMeasurementDate ? ` · latest ${latestMeasurementDate}` : ''}`
+        ? `${filteredChartRecords.length} scans${latestMeasurementDate ? ` · ${latestMeasurementDate}` : ''}`
         : 'No scan data',
     };
 
@@ -1021,13 +1021,14 @@ const ProfileTab = ({ client, onRegisterActions }) => {
               key={option.id}
               type="button"
               onClick={() => setTimeFilter(option.id)}
-              className={`rounded-[14px] px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wide transition-all ${
+              aria-label={option.label}
+              className={`rounded-[14px] px-2 py-2.5 text-center text-[10px] font-black uppercase tracking-[0.12em] transition-all ${
                 timeFilter === option.id
                   ? 'bg-white text-black shadow-lg'
                   : 'bg-white/[0.02] text-white/35'
               }`}
             >
-              {option.label}
+              {option.shortLabel ?? option.label}
             </button>
           ))}
         </div>
