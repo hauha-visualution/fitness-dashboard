@@ -182,29 +182,37 @@ const normalizeGender = (value) => String(value || '').trim().toLowerCase();
 
 const getStageTone = (stage) => {
   switch (stage) {
-    case 'low':
-      return {
-        badgeClassName: 'border-sky-400/20 bg-sky-400/10 text-sky-200',
-        borderColor: 'rgba(56, 189, 248, 0.20)',
-        shadowColor: 'rgba(56, 189, 248, 0.08)',
-      };
-    case 'medium':
-      return {
-        badgeClassName: 'border-lime-400/20 bg-lime-400/10 text-lime-200',
-        borderColor: 'rgba(163, 230, 53, 0.20)',
-        shadowColor: 'rgba(163, 230, 53, 0.08)',
-      };
-    case 'high':
+    case 'under':
       return {
         badgeClassName: 'border-amber-400/20 bg-amber-400/10 text-amber-200',
-        borderColor: 'rgba(251, 191, 36, 0.20)',
-        shadowColor: 'rgba(251, 191, 36, 0.08)',
+        textClassName: 'text-amber-200',
+        borderColor: 'rgba(245, 158, 11, 0.22)',
+        shadowColor: 'rgba(245, 158, 11, 0.08)',
+        barColors: ['rgba(245, 158, 11, 0.38)', 'rgba(245, 158, 11, 0.62)', 'rgba(245, 158, 11, 0.9)'],
+      };
+    case 'normal':
+      return {
+        badgeClassName: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200',
+        textClassName: 'text-emerald-200',
+        borderColor: 'rgba(16, 185, 129, 0.22)',
+        shadowColor: 'rgba(16, 185, 129, 0.08)',
+        barColors: ['rgba(16, 185, 129, 0.38)', 'rgba(16, 185, 129, 0.62)', 'rgba(16, 185, 129, 0.9)'],
+      };
+    case 'over':
+      return {
+        badgeClassName: 'border-rose-400/20 bg-rose-400/10 text-rose-200',
+        textClassName: 'text-rose-200',
+        borderColor: 'rgba(244, 63, 94, 0.22)',
+        shadowColor: 'rgba(244, 63, 94, 0.08)',
+        barColors: ['rgba(244, 63, 94, 0.38)', 'rgba(244, 63, 94, 0.62)', 'rgba(244, 63, 94, 0.9)'],
       };
     default:
       return {
         badgeClassName: 'border-white/[0.08] bg-white/[0.04] text-white/40',
+        textClassName: 'text-white/35',
         borderColor: 'rgba(255,255,255,0.06)',
         shadowColor: 'transparent',
+        barColors: ['rgba(255,255,255,0.16)', 'rgba(255,255,255,0.24)', 'rgba(255,255,255,0.32)'],
       };
   }
 };
@@ -214,35 +222,35 @@ const getSmmStage = (value, gender, heightCm) => {
 
   if (normalizedGender.startsWith('f')) {
     if (heightCm !== null && heightCm !== undefined) {
-      if (heightCm < 155) return value < 20 ? 'low' : value <= 25 ? 'medium' : 'high';
-      if (heightCm < 165) return value < 21.5 ? 'low' : value <= 27 ? 'medium' : 'high';
-      return value < 23 ? 'low' : value <= 29 ? 'medium' : 'high';
+      if (heightCm < 155) return value < 20 ? 'under' : value <= 25 ? 'normal' : 'over';
+      if (heightCm < 165) return value < 21.5 ? 'under' : value <= 27 ? 'normal' : 'over';
+      return value < 23 ? 'under' : value <= 29 ? 'normal' : 'over';
     }
 
-    return value < 21 ? 'low' : value <= 27 ? 'medium' : 'high';
+    return value < 21 ? 'under' : value <= 27 ? 'normal' : 'over';
   }
 
   if (heightCm !== null && heightCm !== undefined) {
-    if (heightCm < 160) return value < 28 ? 'low' : value <= 34 ? 'medium' : 'high';
-    if (heightCm < 170) return value < 30 ? 'low' : value <= 36 ? 'medium' : 'high';
-    if (heightCm < 180) return value < 32 ? 'low' : value <= 39 ? 'medium' : 'high';
-    return value < 34 ? 'low' : value <= 42 ? 'medium' : 'high';
+    if (heightCm < 160) return value < 28 ? 'under' : value <= 34 ? 'normal' : 'over';
+    if (heightCm < 170) return value < 30 ? 'under' : value <= 36 ? 'normal' : 'over';
+    if (heightCm < 180) return value < 32 ? 'under' : value <= 39 ? 'normal' : 'over';
+    return value < 34 ? 'under' : value <= 42 ? 'normal' : 'over';
   }
 
-  return value < 30 ? 'low' : value <= 37 ? 'medium' : 'high';
+  return value < 30 ? 'under' : value <= 37 ? 'normal' : 'over';
 };
 
 const getPbfStage = (value, gender) => {
   const normalizedGender = normalizeGender(gender);
   if (normalizedGender.startsWith('f')) {
-    if (value < 18) return 'low';
-    if (value <= 28) return 'medium';
-    return 'high';
+    if (value < 18) return 'under';
+    if (value <= 28) return 'normal';
+    return 'over';
   }
 
-  if (value < 10) return 'low';
-  if (value <= 20) return 'medium';
-  return 'high';
+  if (value < 10) return 'under';
+  if (value <= 20) return 'normal';
+  return 'over';
 };
 
 const getMetricStage = (metric, latestValue, context) => {
@@ -258,9 +266,9 @@ const getMetricStage = (metric, latestValue, context) => {
     case 'weight': {
       const bmi = heightCm ? latestValue / ((heightCm / 100) ** 2) : null;
       if (bmi === null || Number.isNaN(bmi)) return null;
-      if (bmi < 18.5) return 'low';
-      if (bmi <= 24.9) return 'medium';
-      return 'high';
+      if (bmi < 18.5) return 'under';
+      if (bmi <= 24.9) return 'normal';
+      return 'over';
     }
     case 'smm':
       return getSmmStage(latestValue, context.gender, heightCm);
@@ -272,13 +280,13 @@ const getMetricStage = (metric, latestValue, context) => {
       return getPbfStage(pbfEquivalent, context.gender);
     }
     case 'bmi':
-      if (latestValue < 18.5) return 'low';
-      if (latestValue <= 24.9) return 'medium';
-      return 'high';
+      if (latestValue < 18.5) return 'under';
+      if (latestValue <= 24.9) return 'normal';
+      return 'over';
     case 'visceralFat':
-      if (latestValue <= 9) return 'low';
-      if (latestValue <= 14) return 'medium';
-      return 'high';
+      if (latestValue <= 9) return 'normal';
+      if (latestValue <= 14) return 'over';
+      return 'over';
     default:
       return null;
   }
@@ -367,6 +375,32 @@ const DeltaTriangle = ({ delta }) => {
   );
 };
 
+const StageBars = ({ stage, label = null }) => {
+  const stageTone = getStageTone(stage);
+
+  return (
+    <div className="mt-3 flex min-h-[22px] items-end gap-2">
+      <div className="flex items-end gap-1">
+        {[10, 14, 18].map((height, index) => (
+          <span
+            key={`${stage}-${height}-${index}`}
+            className="w-1.5 rounded-full"
+            style={{
+              height,
+              backgroundColor: stageTone.barColors[index],
+            }}
+          />
+        ))}
+      </div>
+      {label ? (
+        <span className={`text-[9px] font-black uppercase tracking-wide ${stageTone.textClassName}`}>
+          {label}
+        </span>
+      ) : null}
+    </div>
+  );
+};
+
 const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helperText, badgeLabel, stage }) => {
   const tone = getMetricGoalTone(metric, delta);
   const badgeText = badgeLabel ?? (delta !== null ? formatDeltaMagnitude(delta, metric.decimals) : 'No previous data');
@@ -376,6 +410,7 @@ const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helpe
       ? tone.badgeClassName
       : 'border-white/[0.06] bg-white/[0.03] text-white/28';
   const stageTone = getStageTone(stage);
+  const stageLabel = stage ? (stage === 'under' ? 'Under' : stage === 'normal' ? 'Normal' : 'Over') : null;
 
   return (
     <button
@@ -397,26 +432,22 @@ const InBodyMetricCard = ({ metric, isActive, latestValue, delta, onClick, helpe
     >
       <div className="flex items-start justify-between gap-2.5">
         <p className="min-h-[10px] text-[8px] font-black uppercase tracking-[0.24em] text-white/32">{metric.cardLabel || metric.label}</p>
-
-        {stage ? (
-          <div className={`shrink-0 rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-wide ${stageTone.badgeClassName}`}>
-            {stage}
-          </div>
-        ) : helperText ? (
-          <div className="shrink-0 rounded-full border border-white/[0.06] bg-white/[0.04] px-2 py-1 text-[8px] font-black uppercase tracking-wide text-white/35">
-            {helperText}
-          </div>
-        ) : null}
       </div>
 
       <div className="mt-3 min-h-[52px]">
-        <div className="flex items-end gap-1.5">
-          <p className="text-[20px] font-light leading-none text-white">{latestValue}</p>
+        <div className="flex items-end gap-1 leading-none">
+          <p className="text-[20px] font-light leading-[0.88] text-white">{latestValue}</p>
           {metric.unit ? (
-            <span className="pb-0.5 text-[10px] font-black uppercase tracking-wide text-white/35">{metric.unit}</span>
+            <span className="text-[10px] font-black uppercase leading-[0.88] tracking-wide text-white/35">{metric.unit}</span>
           ) : null}
         </div>
       </div>
+
+      {stage ? (
+        <StageBars stage={stage} label={stageLabel} />
+      ) : (
+        <StageBars stage={null} label={helperText} />
+      )}
 
       <div className={`mt-auto inline-flex max-w-full items-center self-start rounded-[14px] border px-2.5 py-1 text-[8px] font-black uppercase tracking-wide leading-tight whitespace-normal break-words ${badgeClassName}`}>
         {badgeLabel ? badgeText : (
@@ -996,7 +1027,7 @@ const ProfileTab = ({ client, onRegisterActions }) => {
     const overviewCard = {
       ...ALL_METRIC,
       latestValue: `${INBODY_METRICS.length}`,
-      helperText: null,
+      helperText: 'summary',
       delta: null,
       badgeLabel: filteredChartRecords.length > 0
         ? `${filteredChartRecords.length} scans${latestMeasurementDate ? ` · ${latestMeasurementDate}` : ''}`
