@@ -22,6 +22,41 @@ import SessionsTab from './Tabs/SessionsTab';
 import NutritionTab from './Tabs/NutritionTab';
 import PaymentTab from './Tabs/PaymentTab';
 
+const ClientDetailNavigation = ({ activeSubTab, onSelectTab, desktop = false }) => {
+  const tabs = [
+    { id: 'profile', icon: User, label: 'Profile' },
+    { id: 'package', icon: Package, label: 'Services' },
+    { id: 'sessions', icon: Dumbbell, label: 'Sessions' },
+    { id: 'nutrition', icon: Utensils, label: 'Nutrition' },
+    { id: 'payment', icon: CreditCard, label: 'Payment' },
+  ];
+
+  return (
+    <div
+      className={
+        desktop
+          ? 'app-nav-shell hidden lg:flex lg:h-full lg:w-[104px] lg:flex-col lg:justify-center lg:rounded-[34px] lg:p-2.5 lg:shadow-2xl'
+          : 'relative z-20 shrink-0 px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-3 lg:hidden'
+      }
+    >
+      <div className={desktop ? 'flex flex-col gap-2' : 'app-nav-shell flex w-full justify-between rounded-[32px] p-1.5 shadow-2xl shadow-black/40'}>
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => onSelectTab(tab.id)}
+            className={`flex flex-1 flex-col items-center justify-center gap-1 rounded-[26px] py-4 transition-all duration-300 lg:min-h-[80px] lg:gap-1.5 lg:px-2 lg:py-3 ${
+              activeSubTab === tab.id ? 'scale-100 app-nav-item-active shadow-inner shadow-white/5' : 'scale-90 text-neutral-600 opacity-50 lg:scale-100'
+            }`}
+          >
+            <tab.icon className={`h-5 w-5 lg:h-5.5 lg:w-5.5 ${activeSubTab === tab.id ? 'app-accent-text' : 'text-neutral-700'}`} />
+            <span className="text-[7px] font-black uppercase tracking-widest lg:text-[8px] lg:leading-[1.2]">{tab.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey }) => {
   const [activeSubTab, setActiveSubTab] = useState('profile');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -129,12 +164,12 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
   ];
 
   return (
-    <div className="app-screen-shell relative flex h-dvh min-h-0 flex-col overflow-hidden animate-slide-up">
+    <div className="app-screen-shell relative flex h-dvh min-h-0 flex-col overflow-hidden animate-slide-up lg:h-full">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-gradient-to-b from-blue-500/[0.08] via-blue-500/[0.03] to-transparent blur-3xl" />
       <div className="pointer-events-none absolute -right-16 top-32 h-40 w-40 rounded-full bg-blue-400/10 blur-3xl" />
       <div className="pointer-events-none absolute -left-20 bottom-28 h-48 w-48 rounded-full bg-neutral-500/10 blur-3xl" />
 
-      <div className="relative z-20 grid shrink-0 grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-3 border-b border-white/[0.04] bg-black/30 px-4 py-3 backdrop-blur-xl">
+      <div className="relative z-20 grid shrink-0 grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-3 border-b border-white/[0.04] bg-black/30 px-4 py-3 backdrop-blur-xl lg:grid-cols-[52px_minmax(0,1fr)_52px] lg:px-6 lg:py-4">
         <button
           onClick={onBack}
           className="app-ghost-button p-2.5 border rounded-full text-white active:scale-90 transition-all shadow-lg shadow-black/20"
@@ -189,35 +224,28 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
         </>
       )}
 
-      <div className="hide-scrollbar relative z-10 min-h-0 flex-1 overflow-y-auto px-4 pb-6">
-        {renderContent()}
+      <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-5 lg:px-6 lg:pb-6">
+        <div className="hide-scrollbar relative z-10 min-h-0 flex-1 overflow-y-auto px-4 pb-6 lg:px-0 lg:pb-2">
+          {renderContent()}
+        </div>
+
+        <ClientDetailNavigation
+          activeSubTab={activeSubTab}
+          onSelectTab={(tabId) => {
+            setActiveSubTab(tabId);
+            setIsProfileMenuOpen(false);
+          }}
+          desktop
+        />
       </div>
 
-      <div className="relative z-20 shrink-0 px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-3">
-        <div className="app-nav-shell flex w-full justify-between rounded-[32px] p-1.5 shadow-2xl shadow-black/40">
-          {[
-            { id: 'profile', icon: User, label: 'Profile' },
-            { id: 'package', icon: Package, label: 'Gói tập' },
-            { id: 'sessions', icon: Dumbbell, label: 'Sessions' },
-            { id: 'nutrition', icon: Utensils, label: 'Nutrition' },
-            { id: 'payment', icon: CreditCard, label: 'Payment' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                setActiveSubTab(tab.id);
-                setIsProfileMenuOpen(false);
-              }}
-              className={`flex flex-1 flex-col items-center justify-center gap-1 rounded-[26px] py-4 transition-all duration-300 ${
-                activeSubTab === tab.id ? 'scale-100 app-nav-item-active shadow-inner shadow-white/5' : 'scale-90 text-neutral-600 opacity-50'
-              }`}
-            >
-              <tab.icon className={`w-5 h-5 ${activeSubTab === tab.id ? 'app-accent-text' : 'text-neutral-700'}`} />
-              <span className="text-[7px] font-black uppercase tracking-widest">{tab.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      <ClientDetailNavigation
+        activeSubTab={activeSubTab}
+        onSelectTab={(tabId) => {
+          setActiveSubTab(tabId);
+          setIsProfileMenuOpen(false);
+        }}
+      />
 
       {showDeleteModal && (
         <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">

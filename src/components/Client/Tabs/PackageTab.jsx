@@ -99,9 +99,14 @@ const PackageTab = ({ client, readOnly = false }) => {
       <div className="text-center py-16 space-y-4">
         <Package className="w-12 h-12 mx-auto text-neutral-800" />
         <div>
-          <p className="text-white font-medium">No Package Yet</p>
+          <p className="text-white font-medium">No Active Service Yet</p>
           <p className="text-neutral-600 text-xs mt-1">
-            {readOnly ? 'Your coach has not created a package for you yet.' : 'Create the first package for this trainee.'}
+            {readOnly
+              ? 'Your coach has not assigned a service yet.'
+              : 'Create the first service for this trainee.'}
+          </p>
+          <p className="text-neutral-700 text-[11px] mt-2">
+            Training, sketching, meal prep, or custom coaching can all live here.
           </p>
         </div>
         {!readOnly && (
@@ -110,7 +115,7 @@ const PackageTab = ({ client, readOnly = false }) => {
             className="app-cta-button mx-auto flex items-center gap-2 border px-6 py-3 rounded-[20px] text-sm active:scale-95 transition-all shadow-lg"
           >
             <Plus className="w-4 h-4" />
-            Create First Package
+            Create First Service
           </button>
         )}
       </div>
@@ -121,19 +126,19 @@ const PackageTab = ({ client, readOnly = false }) => {
   );
 
   return (
-    <div className="space-y-5 animate-slide-up">
+    <div className="space-y-5 animate-slide-up lg:space-y-6">
 
-      {/* Active Package Card */}
+      {/* Active Service Card */}
       {activePackage && (
-        <div className="border border-[var(--app-accent-soft)] bg-[linear-gradient(135deg,rgba(200,245,63,0.12),rgba(96,180,255,0.08))] rounded-[32px] p-6 relative overflow-hidden">
+        <div className="relative overflow-hidden rounded-[32px] border border-[var(--app-accent-soft)] bg-[linear-gradient(135deg,rgba(200,245,63,0.12),rgba(96,180,255,0.08))] p-6 lg:rounded-[34px] lg:p-7">
           <Zap className="absolute -right-4 -top-4 w-24 h-24 text-white/[0.04] rotate-12" />
-          <div className="flex items-start justify-between mb-4">
+          <div className="mb-4 flex items-start justify-between lg:mb-5">
             <div>
-              <p className="text-[9px] font-black text-[var(--app-accent)] uppercase tracking-widest">Active Package</p>
-              <h3 className="text-white font-medium text-xl mt-0.5">
-                Package #{String(activePackage.package_number).padStart(2, '0')}
+              <p className="text-[9px] font-black text-[var(--app-accent)] uppercase tracking-widest">Active Service</p>
+              <h3 className="mt-0.5 text-xl font-medium text-white lg:text-[1.65rem]">
+                Service #{String(activePackage.package_number).padStart(2, '0')}
                 {activePackage.note && <span className="text-sm text-[var(--app-accent)]/70 font-normal ml-2">· {activePackage.note}</span>}
-                <span className="text-sm text-neutral-500 font-normal ml-2">· {activePackage.total_sessions} sessions</span>
+                <span className="text-sm text-neutral-500 font-normal ml-2">· {activePackage.total_sessions} included sessions</span>
               </h3>
             </div>
             <div className="flex items-center gap-2">
@@ -141,7 +146,7 @@ const PackageTab = ({ client, readOnly = false }) => {
                 <button
                   onClick={() => setPackageToDelete(activePackage)}
                   className="p-2.5 rounded-full border border-red-500/20 bg-red-500/10 text-red-400 active:scale-90 transition-all"
-                  aria-label="Delete package"
+                  aria-label="Delete service"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -150,12 +155,12 @@ const PackageTab = ({ client, readOnly = false }) => {
             </div>
           </div>
 
-          <div className="flex justify-around items-center mb-5">
-            {[{ val: remaining, label: 'Remaining' }, { val: done, label: 'Completed' }, { val: total, label: 'Total Sessions' }].map((item, i) => (
+          <div className="mb-5 flex items-center justify-around lg:mb-6">
+            {[{ val: remaining, label: 'Remaining' }, { val: done, label: 'Used' }, { val: total, label: 'Included' }].map((item, i) => (
               <React.Fragment key={i}>
                 {i > 0 && <div className="w-px h-10 bg-white/10" />}
                 <div className="text-center">
-                  <p className="text-3xl font-light text-white">{item.val}</p>
+                  <p className="text-3xl font-light text-white lg:text-[42px]">{item.val}</p>
                   <p className="text-[8px] font-black text-neutral-500 uppercase mt-0.5">{item.label}</p>
                 </div>
               </React.Fragment>
@@ -165,7 +170,7 @@ const PackageTab = ({ client, readOnly = false }) => {
           <div className="h-1.5 bg-white/10 rounded-full overflow-hidden mb-3">
             <div className="h-full bg-[linear-gradient(90deg,var(--app-accent),var(--app-blue))] rounded-full transition-all duration-700" style={{ width: `${progressPct}%` }} />
           </div>
-          <p className="text-[9px] text-neutral-600">{progressPct}% complete</p>
+          <p className="text-[9px] text-neutral-600">{progressPct}% delivered</p>
 
           {activePackage.weekly_schedule?.length > 0 && (
             <div className="mt-4 pt-4 border-t border-white/[0.06] flex items-center gap-2">
@@ -187,34 +192,34 @@ const PackageTab = ({ client, readOnly = false }) => {
             className="app-ghost-button w-full flex items-center justify-center gap-2 border hover:bg-white/[0.08] text-white font-bold py-4 rounded-[24px] text-sm active:scale-[0.98] transition-all"
           >
             <Plus className="w-4 h-4" />
-            Create Package #{String(nextPackageNumber).padStart(2, '0')}
+            Create Service #{String(nextPackageNumber).padStart(2, '0')}
           </button>
         ) : (
           <div className="flex items-center gap-3 bg-white/[0.02] border border-white/[0.06] rounded-[24px] px-5 py-4">
             <Lock className="w-4 h-4 text-neutral-700 shrink-0" />
             <p className="text-neutral-600 text-xs">
-              A new package can be created once the current one has fewer than 5 sessions left
+              A new service can be created once the current one has fewer than 5 sessions left
               <span className="text-neutral-500"> ({remaining} remaining now)</span>
             </p>
           </div>
         )
       )}
 
-      {/* Package History */}
+      {/* Service History */}
       {completedPackages.length > 0 && (
-        <div>
-          <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3 ml-1">Package History</p>
-          <div className="space-y-2">
+        <div className="space-y-3">
+          <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3 ml-1">Service History</p>
+          <div className="grid gap-3 lg:grid-cols-2">
             {completedPackages.map(pkg => {
               const cnt = sessionCounts[pkg.id] ?? {};
               const expanded = expandedPkg === pkg.id;
               return (
-                <div key={pkg.id} className="bg-white/[0.02] border border-white/[0.06] rounded-[20px] overflow-hidden">
+                <div key={pkg.id} className="overflow-hidden rounded-[20px] border border-white/[0.06] bg-white/[0.02] lg:rounded-[22px]">
                   <button onClick={() => setExpandedPkg(expanded ? null : pkg.id)} className="w-full flex items-center justify-between px-5 py-4">
                     <div className="flex items-center gap-3">
-                      <span className="text-[10px] font-black text-neutral-600 uppercase">Package #{String(pkg.package_number).padStart(2, '0')}</span>
+                      <span className="text-[10px] font-black text-neutral-600 uppercase">Service #{String(pkg.package_number).padStart(2, '0')}</span>
                       {pkg.note && <span className="text-[10px] text-neutral-500 font-medium">{pkg.note}</span>}
-                      <span className="text-xs text-neutral-500">{pkg.total_sessions} sessions</span>
+                      <span className="text-xs text-neutral-500">{pkg.total_sessions} included sessions</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-[9px] font-black text-neutral-700 uppercase">Completed</span>
@@ -225,7 +230,7 @@ const PackageTab = ({ client, readOnly = false }) => {
                             setPackageToDelete(pkg);
                           }}
                           className="p-2 rounded-full border border-red-500/15 bg-red-500/10 text-red-400 active:scale-90 transition-all"
-                          aria-label={`Delete package ${pkg.package_number}`}
+                          aria-label={`Delete service ${pkg.package_number}`}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -235,8 +240,8 @@ const PackageTab = ({ client, readOnly = false }) => {
                   </button>
                   {expanded && (
                     <div className="px-5 pb-4 border-t border-white/[0.04] pt-3 space-y-1.5 text-xs text-neutral-500">
-                      <div className="flex justify-between"><span>Total Sessions</span><span className="text-white">{pkg.total_sessions}</span></div>
-                      <div className="flex justify-between"><span>Completed</span><span className="text-emerald-400">{cnt.completed ?? 0}</span></div>
+                      <div className="flex justify-between"><span>Included Sessions</span><span className="text-white">{pkg.total_sessions}</span></div>
+                      <div className="flex justify-between"><span>Used</span><span className="text-emerald-400">{cnt.completed ?? 0}</span></div>
                       {pkg.price > 0 && <div className="flex justify-between"><span>Price</span><span className="text-white">{pkg.price.toLocaleString('vi-VN')} đ</span></div>}
                       {pkg.weekly_schedule?.length > 0 && <div className="flex justify-between"><span>Schedule</span><span className="text-white">{formatScheduleLabel(pkg.weekly_schedule)}</span></div>}
                     </div>
@@ -260,13 +265,13 @@ const PackageTab = ({ client, readOnly = false }) => {
                 <AlertTriangle className="w-5 h-5 text-red-400" />
               </div>
               <div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-red-400/70">Delete Package</p>
-                <h3 className="text-white font-semibold">Package #{String(packageToDelete.package_number).padStart(2, '0')}</h3>
+                <p className="text-[9px] font-black uppercase tracking-widest text-red-400/70">Delete Service</p>
+                <h3 className="text-white font-semibold">Service #{String(packageToDelete.package_number).padStart(2, '0')}</h3>
               </div>
             </div>
 
             <p className="text-sm leading-relaxed text-neutral-400">
-              Deleting this package will also remove every linked session because the relationship uses `ON DELETE CASCADE`.
+              Deleting this service will also remove every linked session because the relationship uses `ON DELETE CASCADE`.
             </p>
 
             <div className="flex gap-3 mt-6">
@@ -281,7 +286,7 @@ const PackageTab = ({ client, readOnly = false }) => {
                 disabled={deletingPackage}
                 className="flex-1 py-3.5 rounded-[16px] bg-red-500 text-white font-bold text-sm disabled:opacity-50"
               >
-                {deletingPackage ? 'Deleting...' : 'Delete Package'}
+                {deletingPackage ? 'Deleting...' : 'Delete Service'}
               </button>
             </div>
           </div>

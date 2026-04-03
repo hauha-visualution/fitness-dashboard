@@ -203,7 +203,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
               ))}
             </div>
               <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-widest shrink-0">
-              Package #{String(packageNumber).padStart(2, '0')} · {step === 1 ? 'Setup' : 'Schedule'}
+              Service #{String(packageNumber).padStart(2, '0')} · {step === 1 ? 'Setup' : 'Schedule'}
               {packageNote.trim() && <span className="normal-case tracking-normal text-neutral-400 ml-1">· {packageNote.trim()}</span>}
             </span>
             <button type="button" onClick={onClose} className="p-1.5 bg-white/[0.04] border border-white/[0.08] rounded-full text-neutral-500 active:scale-90 transition-all shrink-0">
@@ -260,7 +260,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
               </div>
 
               {/* Giá tiền — coach gõ full VND, auto thêm "." */}
-              <FieldBlock label="Package Value (VND)">
+              <FieldBlock label="Service Value (VND)">
                 <div className="relative">
                   <input
                     type="text"
@@ -284,7 +284,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
               </FieldBlock>
 
               {/* Ghi chú gói */}
-              <FieldBlock label="Package Note (Optional)">
+              <FieldBlock label="Service Note (Optional)">
                 <input
                   type="text"
                   placeholder="VD: Chapter 1, Cutting, Bulking…"
@@ -461,7 +461,7 @@ const CreatePackageModal = ({ clientId, packageNumber, onClose, onCreated }) => 
                 >
                   {isCreating
                     ? <><RefreshCw className="w-4 h-4 animate-spin" /> Creating...</>
-                    : <><CheckCircle2 className="w-4 h-4" /> Create Package</>
+                    : <><CheckCircle2 className="w-4 h-4" /> Create Service</>
                   }
                 </button>
               </div>
