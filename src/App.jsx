@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Home, Library, PersonStanding, Users, Wallet } from 'lucide-react';
+import { Home, Library, Users, Wallet } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
 // Import các thành phần chính
@@ -22,6 +22,24 @@ const GlobalStyles = () => (
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   `}} />
+);
+
+const StartWorkoutIcon = ({ className = '' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <path d="M3 6h1.5" />
+    <path d="M19.5 6H21" />
+    <path d="M4.5 4v4" />
+    <path d="M19.5 4v4" />
+    <path d="M6 6h3" />
+    <path d="M15 6h3" />
+    <path d="M9 6h6" />
+    <path d="M12 9.5a3.3 3.3 0 1 1 0 6.6a3.3 3.3 0 0 1 0-6.6Z" />
+    <path d="M10.5 15.2L8.7 21" />
+    <path d="M13.5 15.2L15.3 21" />
+    <path d="M12 16.1V21" />
+    <path d="M9.4 11.3L7.2 8.8" />
+    <path d="M14.6 11.3L16.8 8.8" />
+  </svg>
 );
 
 const normalizeQuickLogSelection = (selection = null) => {
@@ -80,7 +98,7 @@ export default function App() {
   const coachTabs = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'templates', label: 'Workout Templates', icon: Library },
-    { id: 'quick_log', label: 'Start', icon: PersonStanding, isAction: true },
+    { id: 'quick_log', label: 'START WORKOUT', icon: StartWorkoutIcon, isAction: true },
     { id: 'clients', label: 'Trainees', icon: Users },
     { id: 'payments', label: 'Payments', icon: Wallet },
   ];
@@ -441,9 +459,9 @@ export default function App() {
                         <Icon className={`${tab.isAction ? 'w-5 h-5' : 'w-4.5 h-4.5'}`} />
                       </div>
                       <span
-                        className={`font-black uppercase tracking-tight ${
+                        className={`font-black uppercase tracking-tight text-center ${
                           tab.isAction
-                            ? 'text-[7px]'
+                            ? 'max-w-[64px] text-[6px] leading-[1.15]'
                             : 'text-[7px]'
                         }`}
                       >
