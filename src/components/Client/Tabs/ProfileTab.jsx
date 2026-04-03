@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, Plus, RefreshCw, Save, X } from 'lucide-react';
+import ReactDOM from 'react-dom';
+import { CalendarDays, Camera, MapPin, Plus, RefreshCw, Save, X } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 import ClientAvatar from '../../shared/ClientAvatar';
+import { parseServiceBooking, parseServiceMeta } from '../../../utils/serviceUtils';
 
 const EditableField = ({ label, value, onChange, type = 'text' }) => (
   <div className="space-y-1.5">
@@ -162,17 +164,37 @@ const formatChartDate = (value) => new Intl.DateTimeFormat('en-GB', {
   year: 'numeric',
 }).format(new Date(value));
 
-const formatAxisDate = (value) => new Intl.DateTimeFormat('en-GB', {
+const formatAxisDate = (value, includeYear = false) => new Intl.DateTimeFormat('en-GB', {
   day: '2-digit',
   month: '2-digit',
+  ...(includeYear ? { year: '2-digit' } : {}),
 }).format(new Date(value));
 
-const formatShortDate = (value) => {
+const formatShortDate = (value, includeYear = false) => {
   if (!value) return null;
   return new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
     month: '2-digit',
+    ...(includeYear ? { year: '2-digit' } : {}),
   }).format(new Date(value));
+};
+
+const formatSessionDayLabel = (value) => new Intl.DateTimeFormat('en-GB', {
+  weekday: 'short',
+  day: '2-digit',
+  month: '2-digit',
+}).format(new Date(`${value}T00:00:00`));
+
+const getPortalSessionLabel = (serviceType, sessionNumber) => {
+  switch (serviceType) {
+    case 'sketching':
+      return `Sketching #${sessionNumber}`;
+    case 'meal_prep':
+      return `Meal Prep #${sessionNumber}`;
+    case 'training':
+    default:
+      return `Workout #${sessionNumber}`;
+  }
 };
 
 const formatDobDisplay = (value) => {
@@ -235,7 +257,7 @@ const getMetricStandard = (metricKey, gender) => {
         min: 0,
         max: 100,
         thresholds: [25, 50, 75],
-        labels: ['Kém', 'TB', 'Tốt', 'Rất tốt'],
+        labels: ['Poor', 'Fair', 'Good', 'Excellent'],
         zoneKeys: ['high', 'over', 'normal', 'normal'],
       };
     case 'weight':
@@ -409,8 +431,8 @@ const RangeChart = ({ standard, value, decimals = 1 }) => {
   const scaleValues = [standard.min, ...standard.thresholds, standard.max];
 
   return (
-    <div className="mt-1.5 flex flex-col gap-[4px]">
-      <div className="relative flex h-[3px] overflow-visible rounded-[2px]">
+    <div className="mt-1 flex flex-col gap-[3px]">
+      <div className="relative flex h-[2px] overflow-visible rounded-[2px]">
         {segments.map((segment, index) => {
           const tone = ZONE_STYLES[segment.zoneKey] || ZONE_STYLES.normal;
 
@@ -424,7 +446,7 @@ const RangeChart = ({ standard, value, decimals = 1 }) => {
         })}
 
         <span
-          className="absolute top-[-2.5px] h-[8px] w-[2px] rounded-[1px]"
+          className="absolute top-[-2px] h-[7px] w-[2px] rounded-[1px]"
           style={{
             left: `${needlePercent}%`,
             transform: 'translateX(-50%)',
@@ -434,7 +456,7 @@ const RangeChart = ({ standard, value, decimals = 1 }) => {
         />
       </div>
 
-      <div className="flex items-center justify-between text-[7px] font-bold text-white/20">
+      <div className="flex items-center justify-between text-[6px] font-bold text-white/20">
         {scaleValues.map((scaleValue) => (
           <span key={`${scaleValue}`}>{trimZero(scaleValue)}</span>
         ))}
@@ -445,28 +467,28 @@ const RangeChart = ({ standard, value, decimals = 1 }) => {
 
 const BodyScoreRing = ({ score }) => {
   const safeScore = clamp(score ?? 0, 0, 100);
-  const radius = 30;
+  const radius = 26;
   const circumference = 2 * Math.PI * radius;
   const dash = (safeScore / 100) * circumference;
 
   return (
-    <svg viewBox="0 0 80 80" className="h-20 w-20 shrink-0">
-      <circle cx="40" cy="40" r={radius} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="7" />
+    <svg viewBox="0 0 80 80" className="h-[52px] w-[52px] shrink-0">
+      <circle cx="40" cy="40" r={radius} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="2" />
       <circle
         cx="40"
         cy="40"
         r={radius}
         fill="none"
         stroke="#c8f53f"
-        strokeWidth="7"
+        strokeWidth="2"
         strokeLinecap="round"
         strokeDasharray={`${dash} ${circumference - dash}`}
         transform="rotate(-90 40 40)"
       />
-      <text x="40" y="38" textAnchor="middle" fill="#c8f53f" fontSize="18" fontWeight="300">
+      <text x="40" y="39" textAnchor="middle" fill="#c8f53f" fontSize="14" fontWeight="300">
         {score !== null && score !== undefined && !Number.isNaN(score) ? Math.round(score) : '--'}
       </text>
-      <text x="40" y="51" textAnchor="middle" fill="rgba(255,255,255,0.30)" fontSize="8" fontWeight="700">
+      <text x="40" y="48" textAnchor="middle" fill="rgba(255,255,255,0.30)" fontSize="6" fontWeight="700">
         /100
       </text>
     </svg>
@@ -478,22 +500,22 @@ const BodyScoreCard = ({ card, isActive, onClick }) => {
     <button
       type="button"
       onClick={onClick}
-      className="flex h-full w-full flex-col rounded-[14px] border px-3 py-[10px] pb-[8px] text-left transition-all"
+      className="flex h-full w-full flex-col rounded-[14px] border px-2.5 py-[8px] pb-[7px] text-left transition-all"
       style={{
         background: isActive ? 'rgba(200,245,63,0.05)' : 'rgba(255,255,255,0.04)',
         borderColor: isActive ? 'rgba(200,245,63,0.22)' : 'rgba(255,255,255,0.07)',
       }}
     >
-      <p className="text-[10px] font-black uppercase tracking-widest text-[rgba(200,245,63,0.5)]">Your Body Score</p>
+      <p className="text-[9px] font-black uppercase tracking-widest text-[rgba(200,245,63,0.5)]">Your Body Score</p>
 
-      <div className="mt-1.5 grid grid-cols-[80px_minmax(0,1fr)] items-center gap-2">
+      <div className="mt-1 grid grid-cols-[52px_minmax(0,1fr)] items-center gap-2">
         <BodyScoreRing score={card.score} />
-        <div className="min-w-0">
+        <div className="min-w-0 self-center">
           <div className="flex items-center gap-2 whitespace-nowrap">
             <ZonePill zone={card.zone} />
             <DeltaBadge metricKey="score" delta={card.delta} />
           </div>
-          <p className="mt-1 text-[8px] font-bold text-white/35">{card.scanInfo}</p>
+          <p className="mt-0.5 text-[7px] font-bold leading-none text-white/35">{card.scanInfo}</p>
         </div>
       </div>
     </button>
@@ -503,10 +525,13 @@ const BodyScoreCard = ({ card, isActive, onClick }) => {
 const MetricUnit = ({ unit }) => {
   if (unit === 'kg/m²') {
     return (
-      <span className="inline-flex items-end gap-1 text-[9px] font-bold uppercase leading-[0.9] text-white/30">
-        <span>KG</span>
-        <span className="mb-[1px] h-px w-[8px] bg-white/28" aria-hidden="true" />
-        <span>M2</span>
+      <span className="inline-flex flex-col items-center justify-end text-[8px] font-bold uppercase leading-none text-white/30">
+        <span className="px-[1px]">KG</span>
+        <span className="mt-[2px] h-px w-[16px] bg-white/28" aria-hidden="true" />
+        <span className="mt-[2px] inline-flex items-start">
+          <span>M</span>
+          <sup className="text-[5px] leading-none">2</sup>
+        </span>
       </span>
     );
   }
@@ -521,7 +546,7 @@ const InBodyMetricCard = ({ card, isActive, onClick }) => {
     <button
       type="button"
       onClick={onClick}
-      className="w-full rounded-[14px] border px-3 py-[10px] pb-[8px] text-left transition-all"
+      className="w-full rounded-[14px] border px-2.5 py-[8px] pb-[7px] text-left transition-all"
       style={{
         background: 'rgba(255,255,255,0.04)',
         borderColor: isActive ? `${card.color}55` : tone ? tone.track.replace('0.28', '0.20').replace('0.32', '0.20') : 'rgba(255,255,255,0.07)',
@@ -529,14 +554,14 @@ const InBodyMetricCard = ({ card, isActive, onClick }) => {
     >
       <p className="text-[8px] font-black uppercase tracking-[0.13em] text-white/30">{card.cardLabel}</p>
 
-      <div className="mt-1.5 flex items-end gap-1 leading-none">
-        <p className="text-[26px] font-light leading-[0.9] text-white">{card.latestValue}</p>
+      <div className="mt-1 flex items-end gap-1 leading-none">
+        <p className="text-[23px] font-light leading-[0.9] text-white">{card.latestValue}</p>
         <MetricUnit unit={card.unit} />
       </div>
 
       <RangeChart standard={card.standard} value={card.numericValue} decimals={card.decimals} />
 
-      <div className="mt-[5px] flex items-center justify-between gap-2 whitespace-nowrap">
+      <div className="mt-1 flex items-center justify-between gap-2 whitespace-nowrap">
         <ZonePill zone={card.zone} />
         <DeltaBadge metricKey={card.key} delta={card.delta} />
       </div>
@@ -629,8 +654,8 @@ const DeltaTriangle = ({ delta }) => {
 
 const InBodyProgressChart = ({ records, selectedMetricKey, activeIndex, onActiveIndexChange }) => {
   const width = 320;
-  const height = 220;
-  const padding = { top: 18, right: 14, bottom: 30, left: 34 };
+  const height = 112;
+  const padding = { top: 10, right: 10, bottom: 18, left: 28 };
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
   const chartBottom = padding.top + plotHeight;
@@ -640,6 +665,11 @@ const InBodyProgressChart = ({ records, selectedMetricKey, activeIndex, onActive
     () => [...records].sort((left, right) => new Date(left.measuredAt) - new Date(right.measuredAt)),
     [records],
   );
+  const chartRef = useRef(null);
+  const shouldShowYear = useMemo(() => {
+    const years = new Set(sortedRecords.map((record) => new Date(record.measuredAt).getFullYear()));
+    return years.size > 1;
+  }, [sortedRecords]);
 
   const xPositions = sortedRecords.map((record, index) => {
     if (sortedRecords.length === 1) return padding.left + plotWidth / 2;
@@ -712,20 +742,33 @@ const InBodyProgressChart = ({ records, selectedMetricKey, activeIndex, onActive
 
   const selectedRecord = sortedRecords[activeIndex] || null;
 
+  useEffect(() => {
+    if (activeIndex === null) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (!chartRef.current?.contains(event.target)) {
+        onActiveIndexChange(null);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [activeIndex, onActiveIndexChange]);
+
   return (
-    <div className="relative rounded-[24px] border border-white/[0.05] bg-white/[0.02] p-4 shadow-xl shadow-black/20 backdrop-blur-sm">
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <div ref={chartRef} className="relative rounded-[24px] border border-white/[0.05] bg-white/[0.02] p-3 shadow-xl shadow-black/20 backdrop-blur-sm">
+      <div className="mb-2.5 flex items-center justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-white/28">
             {isAllView ? 'Normalized trends' : selectedMetric?.label}
           </p>
-          <p className="mt-1 text-[12px] font-semibold text-white/72">
+          <p className="mt-0.5 text-[11px] font-semibold text-white/72">
             {isAllView ? 'Visual comparison only. Tooltip always shows real values.' : selectedMetric?.goalLabel}
           </p>
         </div>
         {!isAllView && selectedMetric ? (
           <div
-            className="rounded-full border px-3 py-1 text-[9px] font-black uppercase tracking-wide"
+            className="rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-wide"
             style={{
               color: selectedMetric.color,
               borderColor: `${selectedMetric.color}33`,
@@ -740,15 +783,25 @@ const InBodyProgressChart = ({ records, selectedMetricKey, activeIndex, onActive
       <div className="relative">
         {selectedRecord ? (
           <div
-            className="pointer-events-none absolute z-20 min-w-[210px] rounded-[18px] border border-white/[0.08] bg-[rgba(8,14,25,0.96)] px-4 py-3 shadow-2xl shadow-black/40 backdrop-blur-xl"
+            className="absolute z-20 min-w-[170px] max-w-[210px] rounded-[16px] border border-white/[0.08] bg-[rgba(8,14,25,0.96)] px-3 py-2 shadow-2xl shadow-black/40 backdrop-blur-xl"
             style={{
               left: `${Math.min(Math.max(((xPositions[activeIndex] / width) * 100), 18), 82)}%`,
-              top: '8px',
+              top: '4px',
               transform: 'translateX(-50%)',
             }}
           >
-            <p className="text-[10px] font-black uppercase tracking-widest text-white/35">{formatChartDate(selectedRecord.measuredAt)}</p>
-            <div className="mt-2 space-y-1.5">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[9px] font-black uppercase tracking-widest text-white/35">{formatChartDate(selectedRecord.measuredAt)}</p>
+              <button
+                type="button"
+                onClick={() => onActiveIndexChange(null)}
+                className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/[0.05] text-white/45 transition-all active:scale-95"
+                aria-label="Close chart details"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+            <div className="mt-1.5 space-y-1">
               {(isAllView ? INBODY_METRICS : [selectedMetric]).filter(Boolean).map((metric) => {
                 const current = selectedRecord[metric.key];
                 if (current === null || current === undefined || Number.isNaN(current)) return null;
@@ -765,14 +818,14 @@ const InBodyProgressChart = ({ records, selectedMetricKey, activeIndex, onActive
                 const tone = getMetricGoalTone(metric, delta);
 
                 return (
-                  <div key={metric.key} className="flex items-center justify-between gap-4 text-[11px]">
+                  <div key={metric.key} className="flex items-center justify-between gap-3 text-[10px]">
                     <span className="font-semibold" style={{ color: metric.color }}>{metric.label}</span>
                     <div className="text-right">
                       <p className="font-semibold text-white">
                         {formatMetricValue(current, metric.decimals)} {metric.unit}
                       </p>
                       {delta !== null ? (
-                        <p className={`text-[10px] font-black uppercase tracking-wide ${tone.textClassName}`}>
+                        <p className={`text-[9px] font-black uppercase tracking-wide ${tone.textClassName}`}>
                           {formatMetricDelta(delta, metric.decimals)} {metric.unit}
                         </p>
                       ) : null}
@@ -784,7 +837,7 @@ const InBodyProgressChart = ({ records, selectedMetricKey, activeIndex, onActive
           </div>
         ) : null}
 
-        <svg viewBox={`0 0 ${width} ${height}`} className="h-[220px] w-full overflow-visible">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-[112px] w-full overflow-visible">
           {tickValues.map((tickValue, index) => {
             const y = padding.top + (plotHeight * index) / (tickValues.length - 1);
             const label = isAllView ? `${Math.round(100 - ((index * 100) / (tickValues.length - 1)))}%` : formatMetricValue(tickValues[tickValues.length - 1 - index], selectedMetric?.decimals ?? 1);
@@ -792,7 +845,7 @@ const InBodyProgressChart = ({ records, selectedMetricKey, activeIndex, onActive
             return (
               <g key={`${tickValue}-${index}`}>
                 <line x1={padding.left} x2={width - padding.right} y1={y} y2={y} stroke="rgba(255,255,255,0.06)" strokeDasharray="3 6" />
-                <text x={padding.left - 8} y={y + 4} textAnchor="end" fill="rgba(255,255,255,0.24)" fontSize="9" fontWeight="700">
+                <text x={padding.left - 6} y={y + 3} textAnchor="end" fill="rgba(255,255,255,0.24)" fontSize="7" fontWeight="700">
                   {label}
                 </text>
               </g>
@@ -816,7 +869,7 @@ const InBodyProgressChart = ({ records, selectedMetricKey, activeIndex, onActive
                   d={buildSvgPath(segment)}
                   fill="none"
                   stroke={metric.color}
-                  strokeWidth="2.5"
+                  strokeWidth="0.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
@@ -828,14 +881,14 @@ const InBodyProgressChart = ({ records, selectedMetricKey, activeIndex, onActive
             <g key={`${metric.key}-points`}>
               {points.map((point) => (
                 point.y !== null ? (
-                  <circle
-                    key={`${metric.key}-${point.index}`}
-                    cx={point.x}
-                    cy={point.y}
-                    r={activeIndex === point.index ? 4.5 : 3.2}
+                <circle
+                  key={`${metric.key}-${point.index}`}
+                  cx={point.x}
+                  cy={point.y}
+                    r={activeIndex === point.index ? 3.2 : 2.2}
                     fill={metric.color}
                     stroke="rgba(10,16,26,0.95)"
-                    strokeWidth="2"
+                    strokeWidth="1.2"
                   />
                 ) : null
               ))}
@@ -855,7 +908,7 @@ const InBodyProgressChart = ({ records, selectedMetricKey, activeIndex, onActive
                 height={plotHeight}
                 fill="transparent"
                 onMouseEnter={() => onActiveIndexChange(index)}
-                onClick={() => onActiveIndexChange(index)}
+                onClick={() => onActiveIndexChange(activeIndex === index ? null : index)}
               />
             );
           })}
@@ -867,13 +920,13 @@ const InBodyProgressChart = ({ records, selectedMetricKey, activeIndex, onActive
               <text
                 key={`label-${record.measuredAt}`}
                 x={xPositions[index]}
-                y={height - 8}
+                y={height - 5}
                 textAnchor={index === 0 ? 'start' : index === sortedRecords.length - 1 ? 'end' : 'middle'}
                 fill="rgba(255,255,255,0.28)"
-                fontSize="9"
+                fontSize="7"
                 fontWeight="700"
               >
-                {formatAxisDate(record.measuredAt)}
+                {formatAxisDate(record.measuredAt, shouldShowYear)}
               </text>
             );
           })}
@@ -914,6 +967,7 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
   const [selectedMetricKey, setSelectedMetricKey] = useState('all');
   const [timeFilter, setTimeFilter] = useState('all');
   const [activeChartIndex, setActiveChartIndex] = useState(null);
+  const [upcomingSchedule, setUpcomingSchedule] = useState([]);
   const [avatarUrl, setAvatarUrl] = useState(client.avatar_url || client.avatar || '');
   const [editData, setEditData] = useState({
     name: client.name || '',
@@ -936,6 +990,64 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
   useEffect(() => {
     setAvatarUrl(client.avatar_url || client.avatar || '');
   }, [client.avatar, client.avatar_url]);
+
+  const fetchUpcomingSchedule = useCallback(async () => {
+    if (!readOnly || !client.id) {
+      setUpcomingSchedule([]);
+      return;
+    }
+
+    const { data: sessionRows, error: sessionError } = await supabase
+      .from('sessions')
+      .select('id, package_id, session_number, scheduled_date, scheduled_time, status, notes')
+      .eq('client_id', client.id)
+      .in('status', ['scheduled', 'in_progress'])
+      .order('scheduled_date', { ascending: true })
+      .order('scheduled_time', { ascending: true })
+      .limit(3);
+
+    if (sessionError) {
+      console.error('Upcoming schedule load error:', sessionError.message);
+      setUpcomingSchedule([]);
+      return;
+    }
+
+    const packageIds = Array.from(new Set((sessionRows || []).map((item) => item.package_id).filter(Boolean)));
+    let packageMetaMap = {};
+
+    if (packageIds.length > 0) {
+      const { data: packageRows, error: packageError } = await supabase
+        .from('packages')
+        .select('id, note')
+        .in('id', packageIds);
+
+      if (packageError) {
+        console.error('Upcoming schedule package load error:', packageError.message);
+      } else {
+        packageMetaMap = (packageRows || []).reduce((acc, item) => {
+          acc[item.id] = parseServiceMeta(item.note);
+          return acc;
+        }, {});
+      }
+    }
+
+    const normalized = (sessionRows || []).map((item) => {
+      const packageMeta = packageMetaMap[item.package_id] || {};
+      const bookingMeta = parseServiceBooking(item.notes);
+      return {
+        id: item.id,
+        label: getPortalSessionLabel(packageMeta.serviceType || 'training', item.session_number ?? '--'),
+        dayLabel: formatSessionDayLabel(item.scheduled_date),
+        timeLabel: bookingMeta.endTime
+          ? `${item.scheduled_time?.slice(0, 5)} - ${bookingMeta.endTime}`
+          : item.scheduled_time?.slice(0, 5) || '--:--',
+        location: bookingMeta.location || '',
+        status: item.status,
+      };
+    });
+
+    setUpcomingSchedule(normalized);
+  }, [client.id, readOnly]);
 
   const fetchInBody = useCallback(async () => {
     const { data } = await supabase
@@ -969,7 +1081,8 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
   useEffect(() => {
     fetchInBody();
     fetchProgressPhotos();
-  }, [fetchInBody, fetchProgressPhotos]);
+    void fetchUpcomingSchedule();
+  }, [fetchInBody, fetchProgressPhotos, fetchUpcomingSchedule]);
 
   useEffect(() => {
     if (readOnly || !onRegisterActions) return undefined;
@@ -991,9 +1104,8 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
 
     setIsUploadingAvatar(true);
     try {
-      const extension = file.name?.split('.').pop()?.toLowerCase() || 'jpg';
-      const fileName = `client-${client.id}-avatar-${Date.now()}.${extension}`;
-      const { error: avatarError } = await supabase.storage.from('client-avatars').upload(fileName, file, { upsert: false });
+      const fileName = `client-${client.id}-avatar`;
+      const { error: avatarError } = await supabase.storage.from('client-avatars').upload(fileName, file, { upsert: true });
 
       if (avatarError) throw avatarError;
 
@@ -1192,14 +1304,19 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
 
     return chartRecords.filter((record) => new Date(record.measuredAt) >= threshold);
   }, [chartRecords, timeFilter]);
+  const chartSpansMultipleYears = useMemo(() => {
+    const years = new Set(filteredChartRecords.map((record) => new Date(record.measuredAt).getFullYear()));
+    return years.size > 1;
+  }, [filteredChartRecords]);
 
   useEffect(() => {
-    setActiveChartIndex(filteredChartRecords.length > 0 ? filteredChartRecords.length - 1 : null);
+    const nextIndex = filteredChartRecords.length > 0 ? filteredChartRecords.length - 1 : null;
+    setActiveChartIndex((current) => (current === nextIndex ? current : nextIndex));
   }, [filteredChartRecords, selectedMetricKey, timeFilter]);
 
   const inbodyCardData = useMemo(() => {
     const latestMeasurementDate = filteredChartRecords.length > 0
-      ? formatShortDate(filteredChartRecords[filteredChartRecords.length - 1].measuredAt)
+      ? formatShortDate(filteredChartRecords[filteredChartRecords.length - 1].measuredAt, chartSpansMultipleYears)
       : null;
     const latestRecord = filteredChartRecords[filteredChartRecords.length - 1] ?? null;
     const latestScore = latestRecord?.inbodyScore ?? null;
@@ -1233,7 +1350,7 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
       bodyScoreCard,
       metrics: metricSummaries,
     };
-  }, [client.gender, client.height, filteredChartRecords]);
+  }, [chartSpansMultipleYears, client.gender, client.height, filteredChartRecords]);
 
   const metricCardMap = useMemo(
     () => Object.fromEntries(inbodyCardData.metrics.map((metric) => [metric.key, metric])),
@@ -1385,6 +1502,53 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
         ) : null}
       </div>
 
+      {readOnly ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="app-label text-[9px] font-black uppercase tracking-widest">Upcoming Schedule</p>
+              <p className="mt-1 text-[11px] text-white/45">Your next booked sessions and appointments.</p>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-[24px] border border-white/[0.05] bg-white/[0.02] shadow-xl shadow-black/20 backdrop-blur-sm">
+            {upcomingSchedule.length > 0 ? (
+              upcomingSchedule.map((item, index) => (
+                <div
+                  key={item.id}
+                  className={`flex items-start gap-3 px-4 py-3 ${index !== upcomingSchedule.length - 1 ? 'border-b border-white/[0.05]' : ''}`}
+                >
+                  <div className={`mt-1 h-2 w-2 shrink-0 rounded-full ${item.status === 'in_progress' ? 'bg-blue-400' : 'bg-[var(--app-accent)]'}`} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[12px] font-bold text-white">{item.label}</p>
+                    <p className="mt-1 text-[10px] font-semibold text-white/42">{item.dayLabel} · {item.timeLabel}</p>
+                    {item.location ? (
+                      <div className="mt-1 inline-flex items-center gap-1.5 text-[10px] text-white/35">
+                        <MapPin className="h-3 w-3" />
+                        <span className="truncate">{item.location}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide ${
+                    item.status === 'in_progress'
+                      ? 'border border-blue-500/20 bg-blue-500/10 text-blue-300'
+                      : 'border border-white/[0.07] bg-white/[0.04] text-white/35'
+                  }`}>
+                    {item.status === 'in_progress' ? 'Live' : 'Booked'}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="px-5 py-6 text-center">
+                <CalendarDays className="mx-auto h-5 w-5 text-white/18" />
+                <p className="mt-3 text-sm font-semibold text-white">No upcoming sessions yet</p>
+                <p className="mt-1 text-[11px] text-white/42">Your coach will add the next booking here.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -1431,14 +1595,14 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
           </div>
         </div>
 
-        <div className="grid w-full grid-cols-3 gap-2 rounded-[20px] border border-white/[0.06] bg-white/[0.02] p-2 md:grid-cols-6">
+        <div className="grid w-full grid-cols-6 gap-1.5 rounded-[20px] border border-white/[0.06] bg-white/[0.02] p-1.5">
           {TIME_FILTER_OPTIONS.map((option) => (
             <button
               key={option.id}
               type="button"
               onClick={() => setTimeFilter(option.id)}
               aria-label={option.label}
-              className={`rounded-[14px] px-2 py-2.5 text-center text-[10px] font-black uppercase tracking-[0.12em] transition-all ${
+              className={`rounded-[12px] px-1 py-2 text-center text-[9px] font-black uppercase tracking-[0.08em] transition-all ${
                 timeFilter === option.id
                   ? 'bg-white text-black shadow-lg'
                   : 'bg-white/[0.02] text-white/35'
@@ -1481,7 +1645,10 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
             const Wrapper = readOnly ? 'div' : 'label';
 
             return (
-            <Wrapper key={photo.type} className={`block ${readOnly ? '' : 'cursor-pointer'}`}>
+            <Wrapper
+              key={photo.type}
+              className={`block ${readOnly ? '' : 'cursor-pointer'}`}
+            >
               <div className="relative aspect-[4/5] overflow-hidden rounded-[16px] border border-white/[0.05] bg-white/[0.02] shadow-lg shadow-black/20 transition-all duration-300 hover:-translate-y-0.5 hover:border-white/10">
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/40 to-transparent" />
                 <span className="absolute left-3 top-3 z-10 text-[9px] font-black uppercase tracking-widest text-neutral-700">
@@ -1542,7 +1709,7 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
         </div>
       </div>
 
-      {!readOnly && isModalOpen && (
+      {!readOnly && isModalOpen && ReactDOM.createPortal(
         <div className="fixed inset-0 z-[180] flex items-end justify-center bg-black/60 px-4 pb-10 backdrop-blur-sm">
           <div className="w-full max-w-[360px] rounded-[32px] border border-white/10 bg-[#1a1a1c] p-6 shadow-2xl animate-slide-up">
             <h3 className="mb-6 text-sm font-bold text-white">Add InBody Record</h3>
@@ -1584,7 +1751,8 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

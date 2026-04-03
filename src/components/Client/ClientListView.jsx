@@ -61,6 +61,11 @@ const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading }) => {
                       <div className="flex flex-col items-end">
                         <p className="text-[8px] font-black app-label uppercase tracking-widest">Remaining</p>
                         <p className="text-xs font-bold app-accent-text mt-0.5">{c.package.remaining} sessions</p>
+                        {typeof c.package.remaining === 'number' && c.package.remaining > 0 && c.package.remaining <= 5 ? (
+                          <span className="mt-1 inline-flex items-center rounded-full border border-amber-400/20 bg-amber-400/10 px-2 py-1 text-[7px] font-black uppercase tracking-widest text-amber-300">
+                            Ending Soon
+                          </span>
+                        ) : null}
                       </div>
                     )}
                  </div>

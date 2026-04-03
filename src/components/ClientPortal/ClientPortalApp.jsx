@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Package, Dumbbell, Utensils, CreditCard, LogOut, User,
+  User, Package, Dumbbell, Utensils, CreditCard, LogOut,
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 
@@ -10,6 +10,34 @@ import SessionsTab from '../Client/Tabs/SessionsTab';
 import NutritionTab from '../Client/Tabs/NutritionTab';
 import PaymentTab from '../Client/Tabs/PaymentTab';
 import ProfileTab from '../Client/Tabs/ProfileTab';
+import QuickLogSheet from '../Dashboard/QuickLogSheet';
+
+const ClientPortalNavigation = ({ tabs, activeTab, onSelectTab, desktop = false }) => (
+  <div
+    className={
+      desktop
+        ? 'app-nav-shell hidden lg:flex lg:h-full lg:w-[104px] lg:flex-col lg:justify-center lg:rounded-[34px] lg:p-2.5 lg:shadow-2xl'
+        : 'app-nav-shell absolute bottom-6 left-1/2 z-50 flex w-[94%] -translate-x-1/2 justify-between rounded-[32px] p-1.5 shadow-2xl lg:hidden'
+    }
+  >
+    <div className={desktop ? 'flex flex-col gap-2' : 'contents'}>
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          onClick={() => onSelectTab(tab.id)}
+          className={`flex flex-1 flex-col items-center justify-center gap-1 rounded-[26px] py-3.5 transition-all duration-300 lg:min-h-[80px] lg:gap-1.5 lg:px-2 lg:py-3 ${
+            activeTab === tab.id
+              ? 'app-nav-item-active scale-100'
+              : 'text-neutral-600 scale-90 opacity-50 lg:scale-100'
+          }`}
+        >
+          <tab.icon className={`h-4 w-4 lg:h-5 lg:w-5 ${activeTab === tab.id ? 'app-accent-text' : 'text-neutral-700'}`} />
+          <span className="text-[7px] font-black uppercase tracking-tighter lg:text-[8px] lg:leading-[1.2]">{tab.label}</span>
+        </button>
+      ))}
+    </div>
+  </div>
+);
 
 // ============================================================
 // MAIN: ClientPortalApp
@@ -18,6 +46,7 @@ const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
   const [activeTab, setActiveTab] = useState('profile');
   const [client, setClient] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [quickLogSelection, setQuickLogSelection] = useState(null);
 
   const formatClient = (raw) => {
     if (!raw) return null;
@@ -66,7 +95,7 @@ const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
 
   const tabs = [
     { id: 'profile',   icon: User,      label: 'Profile' },
-    { id: 'package',   icon: Package,   label: 'Gói tập' },
+    { id: 'package',   icon: Package,   label: 'Services' },
     { id: 'sessions',  icon: Dumbbell,  label: 'Sessions' },
     { id: 'nutrition', icon: Utensils,  label: 'Dinh dưỡng' },
     { id: 'payment',   icon: CreditCard, label: 'Thanh toán' },
@@ -75,32 +104,32 @@ const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
   const renderContent = () => {
     switch (activeTab) {
       case 'profile':   return (
-        <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4">
+        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
           <ProfileTab client={client} readOnly={true} />
         </div>
       );
       case 'package':   return (
-        <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4">
+        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
           <PackageTab client={client} readOnly={true} />
         </div>
       );
       case 'sessions':  return (
-        <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4">
-          <SessionsTab clientId={client?.id} readOnly={true} />
+        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
+          <SessionsTab clientId={client?.id} client={client} readOnly={true} onOpenQuickLog={setQuickLogSelection} />
         </div>
       );
       case 'nutrition': return (
-        <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4">
+        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
           <NutritionTab client={client} readOnly={true} />
         </div>
       );
       case 'payment':   return (
-        <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4">
+        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
           <PaymentTab client={client} readOnly={true} />
         </div>
       );
       default:          return (
-        <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4">
+        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
           <ProfileTab client={client} readOnly={true} />
         </div>
       );
@@ -108,11 +137,11 @@ const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
   };
 
   return (
-    <div className="app-screen-shell h-screen flex flex-col relative">
+    <div className="app-screen-shell relative flex h-screen flex-col lg:h-full">
 
-      {/* Top bar (hiển thị khi không ở profile) */}
+      {/* Top bar (hiển thị khi không ở home) */}
       {activeTab !== 'profile' && (
-        <div className="shrink-0 px-5 pt-6 pb-3 flex items-center justify-between">
+        <div className="flex shrink-0 items-center justify-between px-5 pt-6 pb-3 lg:px-8 lg:pt-7">
           <div>
             <h3 className="text-white font-medium">
               {tabs.find(t => t.id === activeTab)?.label}
@@ -128,26 +157,33 @@ const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
         </div>
       )}
 
-      {/* Content */}
-      {renderContent()}
+      <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-5 lg:p-5">
+        <div className="min-h-0 flex-1 overflow-hidden">
+          {renderContent()}
+        </div>
 
-      {/* Bottom Navigation */}
-      <div className="app-nav-shell absolute bottom-6 left-1/2 -translate-x-1/2 w-[94%] rounded-[32px] p-1.5 flex justify-between z-50 shadow-2xl">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 py-3.5 rounded-[26px] flex flex-col items-center justify-center gap-1 transition-all duration-300 ${
-              activeTab === tab.id
-                ? 'app-nav-item-active scale-100'
-                : 'text-neutral-600 scale-90 opacity-50'
-            }`}
-          >
-            <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'app-accent-text' : 'text-neutral-700'}`} />
-            <span className="text-[7px] font-black uppercase tracking-tighter">{tab.label}</span>
-          </button>
-        ))}
+        <ClientPortalNavigation
+          tabs={tabs}
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+          desktop
+        />
+
+        <ClientPortalNavigation
+          tabs={tabs}
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+        />
       </div>
+
+      {quickLogSelection ? (
+        <QuickLogSheet
+          session={null}
+          initialSelection={quickLogSelection}
+          onClose={() => setQuickLogSelection(null)}
+          onSaved={() => {}}
+        />
+      ) : null}
     </div>
   );
 };

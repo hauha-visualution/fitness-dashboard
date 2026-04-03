@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Bell, ChevronLeft, ChevronRight, LogOut, CheckCircle2, Dumbbell, RefreshCw, XCircle, Clock } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import ClientAvatar from '../shared/ClientAvatar';
+import { parseServiceMeta } from '../../utils/serviceUtils';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const CALENDAR_DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -131,6 +132,21 @@ const buildQuickLogSelection = (sessionItem) => ({
   manualMode: false,
 });
 
+const getSessionServiceLabel = (sessionItem) => {
+  const serviceType = sessionItem.packageMeta?.serviceType || 'training';
+  const sessionNumber = sessionItem.session_number ?? '--';
+
+  switch (serviceType) {
+    case 'sketching':
+      return `Sketching #${sessionNumber}`;
+    case 'meal_prep':
+      return `Meal Prep #${sessionNumber}`;
+    case 'training':
+    default:
+      return `Workout #${sessionNumber}`;
+  }
+};
+
 const buildCalendarDays = (displayedMonth, sessionMap, selectedDate, today) => {
   const monthStart = getMonthStart(displayedMonth);
   const monthEnd = getMonthEnd(displayedMonth);
@@ -241,6 +257,25 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
     }, {});
 
     const relevantSessions = (rangeSessions || []).filter((sessionItem) => clientIds.has(sessionItem.client_id));
+    const packageIds = Array.from(new Set(relevantSessions.map((sessionItem) => sessionItem.package_id).filter(Boolean)));
+    let packageMetaById = {};
+
+    if (packageIds.length > 0) {
+      const { data: packageRows, error: packageError } = await supabase
+        .from('packages')
+        .select('id, note')
+        .in('id', packageIds);
+
+      if (packageError) {
+        console.error('Dashboard package meta load error:', packageError.message);
+      } else {
+        packageMetaById = (packageRows || []).reduce((acc, packageItem) => {
+          acc[packageItem.id] = parseServiceMeta(packageItem.note);
+          return acc;
+        }, {});
+      }
+    }
+
     const groupedSessions = {};
     relevantSessions.forEach((sessionItem) => {
       const key = sessionItem.scheduled_date;
@@ -248,6 +283,7 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
       groupedSessions[key].push({
         ...sessionItem,
         client: clientMap[sessionItem.client_id],
+        packageMeta: packageMetaById[sessionItem.package_id] || null,
       });
     });
 
@@ -376,8 +412,8 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
   ];
 
   return (
-    <div className="app-screen-shell h-screen flex flex-col relative z-10 overflow-hidden">
-      <div className="flex justify-between items-center px-5 pt-5 pb-4 shrink-0">
+    <div className="app-screen-shell relative z-10 flex h-screen flex-col overflow-hidden lg:h-full">
+      <div className="flex shrink-0 items-center justify-between px-5 pt-5 pb-4 lg:px-8 lg:pt-7 lg:pb-5">
         <div onClick={onOpenProfile} className="flex items-center gap-3 cursor-pointer active:scale-95 transition-all">
           {coachProfile?.avatar_url ? (
             <img src={coachProfile.avatar_url} className="w-10 h-10 rounded-full border border-white/10 object-cover" alt="avatar" />
@@ -403,19 +439,19 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 pb-32 hide-scrollbar">
-        <div className="grid grid-cols-2 gap-3 mb-4">
+      <div className="hide-scrollbar flex-1 overflow-y-auto px-5 pb-32 lg:px-8 lg:pb-8">
+        <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
           {metricCards.map((card) => (
             <div
               key={card.label}
-              className={`relative overflow-hidden rounded-[20px] border p-4 ${card.isHighlight ? 'bg-[linear-gradient(135deg,rgba(200,245,63,0.10),rgba(120,240,160,0.06))] border-[rgba(200,245,63,0.22)]' : 'app-glass-panel'}`}
+              className={`relative overflow-hidden rounded-[20px] border p-4 lg:min-h-[170px] lg:rounded-[22px] lg:p-5 ${card.isHighlight ? 'bg-[linear-gradient(135deg,rgba(200,245,63,0.10),rgba(120,240,160,0.06))] border-[rgba(200,245,63,0.22)]' : 'app-glass-panel'}`}
             >
               <div
                 className="absolute -top-5 -right-5 w-[78px] h-[78px] rounded-full pointer-events-none"
                 style={{ background: card.glow }}
               />
               <p className="text-[9px] font-black uppercase tracking-[0.16em] app-label mb-2">{card.label}</p>
-              <p className={`text-[34px] leading-none font-light ${card.tone}`}>{card.value}</p>
+              <p className={`text-[34px] leading-none font-light lg:text-[42px] ${card.tone}`}>{card.value}</p>
               <div className={`inline-flex items-center mt-3 px-2.5 py-1 rounded-full text-[9px] font-black ${card.deltaClassName}`}>
                 {card.delta}
               </div>
@@ -423,7 +459,7 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
           ))}
         </div>
 
-        <div className="rounded-[22px] border app-glass-panel overflow-hidden mb-4">
+        <div className="mb-4 overflow-hidden rounded-[22px] border app-glass-panel lg:rounded-[24px]">
           <div className="px-4 py-3 border-b border-white/[0.05]">
             <div>
               <p className="text-[14px] font-black text-white">{sessionsCardTitle}</p>
@@ -492,12 +528,12 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
                       <p className={`text-[15px] font-bold truncate ${isCancelled ? 'text-red-300' : 'text-white'}`}>
                         {sessionItem.client?.name || 'Unknown'}
                       </p>
-                      <p className="text-[10px] font-bold app-subtle-text mt-0.5">Session #{sessionItem.session_number}</p>
+                      <p className="text-[10px] font-bold app-subtle-text mt-0.5">{getSessionServiceLabel(sessionItem)}</p>
                     </div>
 
                     {isCompleted && (
                       <div className="px-3 py-1.5 rounded-full border border-[rgba(200,245,63,0.2)] bg-[rgba(200,245,63,0.12)] text-[10px] font-black uppercase tracking-wide app-accent-text">
-                        View Log
+                        View
                       </div>
                     )}
                     {isInProgress && (
@@ -522,8 +558,8 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
           )}
         </div>
 
-        <div className="space-y-4">
-          <div className="rounded-[22px] border app-glass-panel overflow-hidden">
+        <div className="grid gap-4 lg:grid-cols-2 lg:gap-4">
+          <div className="overflow-hidden rounded-[22px] border app-glass-panel lg:flex lg:min-h-[360px] lg:flex-col lg:rounded-[24px]">
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.05]">
               <div>
                 <p className="text-[14px] font-black text-white">Sessions This Week</p>
@@ -534,7 +570,7 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
               </p>
             </div>
 
-            <div className="px-4 py-4 space-y-3">
+            <div className="space-y-3 px-4 py-4 lg:flex-1 lg:space-y-4 lg:py-5">
               {weekBars.map((bar) => (
                 <div
                   key={bar.label}
@@ -557,7 +593,7 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
             </div>
           </div>
 
-          <div className="rounded-[22px] border app-glass-panel overflow-hidden">
+          <div className="overflow-hidden rounded-[22px] border app-glass-panel lg:flex lg:min-h-[360px] lg:flex-col lg:rounded-[24px]">
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.05]">
               <p className="text-[14px] font-black text-white">
                 {formatMonthLabel(displayedMonth)}
@@ -588,7 +624,7 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
               </div>
             </div>
 
-            <div className="px-4 pt-4 pb-3">
+            <div className="px-4 pt-4 pb-3 lg:flex-1 lg:pt-5">
               <div className="grid grid-cols-7 gap-y-2 mb-2">
                 {CALENDAR_DAY_LABELS.map((label) => (
                   <div key={label} className="text-center text-[8px] font-black uppercase tracking-wide text-white/20">
@@ -626,7 +662,7 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
               </div>
             </div>
 
-            <div className="px-4 pb-4 flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4 px-4 pb-4 lg:pt-1 lg:pb-5">
               <div className="flex items-center gap-2 text-[9px] font-bold text-white/24">
                 <span className="w-2 h-2 rounded-full bg-[var(--app-accent)]" />
                 Done
