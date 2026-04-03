@@ -448,11 +448,11 @@ export default function App() {
                       <div
                         className={`flex items-center justify-center transition-all ${
                           tab.isAction
-                            ? 'w-9 h-9 rounded-[16px]'
+                            ? 'w-10 h-10 rounded-[16px]'
                             : 'w-9 h-9 rounded-[16px]'
                         }`}
                       >
-                        <Icon className={`${tab.isAction ? 'w-5 h-5' : 'w-4.5 h-4.5'}`} />
+                        <Icon className={`${tab.isAction ? 'w-9 h-9' : 'w-4.5 h-4.5'}`} />
                       </div>
                       <span
                         className={`font-black uppercase tracking-tight text-center ${
