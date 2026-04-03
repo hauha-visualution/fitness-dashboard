@@ -175,6 +175,17 @@ const formatShortDate = (value) => {
   }).format(new Date(value));
 };
 
+const formatDobDisplay = (value) => {
+  if (!value) return '--';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day} - ${month} - ${year}`;
+};
+
 const parseNullableNumber = (value) => {
   if (value === '' || value === null || value === undefined) return null;
   const parsed = Number.parseFloat(value);
@@ -1230,7 +1241,7 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
   );
 
   const personalInfoCells = [
-    { label: 'DATE OF BIRTH', value: client.dob || '--' },
+    { label: 'DATE OF BIRTH', value: formatDobDisplay(client.dob) },
     { label: 'GENDER', value: client.gender || '--' },
     { label: 'HEIGHT CM', value: client.height ? `${client.height} cm` : '--' },
     { label: 'WEIGHT KG', value: client.weight ? `${client.weight} kg` : '--' },
