@@ -93,10 +93,10 @@ const AuthScreen = ({ onLogin, mode = 'main', onBack = null }) => {
   };
 
   return (
-    <div className="app-screen-shell h-screen w-full flex flex-col items-center justify-center relative z-20 overflow-hidden px-6">
+    <div className="app-screen-shell relative z-20 flex h-screen w-full flex-col items-center justify-center overflow-hidden px-6 lg:h-full lg:px-10">
       <div className="absolute top-[-10%] left-[-20%] w-[140%] h-[400px] bg-white/[0.03] blur-[100px] pointer-events-none"></div>
 
-      <div className="w-full relative z-10 animate-slide-up">
+      <div className="relative z-10 w-full max-w-[440px] animate-slide-up lg:max-w-[520px]">
         {onBack && (
           <button
             type="button"
@@ -108,11 +108,11 @@ const AuthScreen = ({ onLogin, mode = 'main', onBack = null }) => {
         )}
 
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className="mb-8 text-center lg:mb-10">
           <div className="w-16 h-16 bg-[linear-gradient(135deg,rgba(200,245,63,0.22),rgba(96,180,255,0.18))] border border-[rgba(200,245,63,0.3)] rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_30px_rgba(200,245,63,0.08)]">
             <Dumbbell className="w-8 h-8 app-accent-text" />
           </div>
-          <h1 className="text-2xl font-medium text-white tracking-tight">Aesthetics Hub</h1>
+          <h1 className="text-2xl font-medium tracking-tight text-white lg:text-[2rem]">Aesthetics Hub</h1>
           <p className="text-neutral-500 text-[10px] font-black uppercase tracking-widest mt-2">
             {isCoachSignupMode
               ? 'Coach Sign Up'
@@ -121,7 +121,7 @@ const AuthScreen = ({ onLogin, mode = 'main', onBack = null }) => {
         </div>
 
         {/* Form đăng nhập */}
-        <div className="app-glass-panel border rounded-[32px] p-6 shadow-2xl">
+        <div className="app-glass-panel border rounded-[32px] p-6 shadow-2xl lg:rounded-[36px] lg:p-7">
           {isMainMode && (
             <p className="mb-4 px-1 text-[11px] leading-relaxed text-white/45">
               Use the login details shared with you.

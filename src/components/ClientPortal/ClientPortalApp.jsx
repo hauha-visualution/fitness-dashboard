@@ -12,6 +12,14 @@ import PaymentTab from '../Client/Tabs/PaymentTab';
 import ProfileTab from '../Client/Tabs/ProfileTab';
 import QuickLogSheet from '../Dashboard/QuickLogSheet';
 
+const PORTAL_HEADER_META = {
+  profile: { eyebrow: 'Client Profile', title: 'Profile' },
+  package: { eyebrow: 'Client Services', title: 'Services' },
+  sessions: { eyebrow: 'Client Sessions', title: 'Sessions' },
+  nutrition: { eyebrow: 'Client Nutrition', title: 'Nutrition' },
+  payment: { eyebrow: 'Client Payments', title: 'Payment' },
+};
+
 const ClientPortalNavigation = ({ tabs, activeTab, onSelectTab, desktop = false }) => (
   <div
     className={
@@ -97,9 +105,10 @@ const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
     { id: 'profile',   icon: User,      label: 'Profile' },
     { id: 'package',   icon: Package,   label: 'Services' },
     { id: 'sessions',  icon: Dumbbell,  label: 'Sessions' },
-    { id: 'nutrition', icon: Utensils,  label: 'Dinh dưỡng' },
-    { id: 'payment',   icon: CreditCard, label: 'Thanh toán' },
+    { id: 'nutrition', icon: Utensils,  label: 'Nutrition' },
+    { id: 'payment',   icon: CreditCard, label: 'Payment' },
   ];
+  const activeHeader = PORTAL_HEADER_META[activeTab] || PORTAL_HEADER_META.profile;
 
   const renderContent = () => {
     switch (activeTab) {
@@ -141,16 +150,19 @@ const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
 
       {/* Top bar (hiển thị khi không ở home) */}
       {activeTab !== 'profile' && (
-        <div className="flex shrink-0 items-center justify-between px-5 pt-6 pb-3 lg:px-8 lg:pt-7">
-          <div>
-            <h3 className="text-white font-medium">
-              {tabs.find(t => t.id === activeTab)?.label}
-            </h3>
-            <p className="text-neutral-600 text-[10px]">{client?.name}</p>
+        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.04] bg-black/30 px-5 py-4 backdrop-blur-xl lg:px-8 lg:py-4">
+          <div className="min-w-0">
+            <p className="text-[9px] font-black uppercase tracking-[0.28em] text-neutral-600">
+              {activeHeader.eyebrow}
+            </p>
+            <h1 className="mt-1 truncate text-[17px] font-semibold tracking-[-0.01em] text-white">
+              {activeHeader.title}
+            </h1>
+            <p className="mt-1 truncate text-[11px] text-neutral-500">{client?.name}</p>
           </div>
           <button
             onClick={onLogout}
-            className="app-ghost-button p-2.5 border rounded-full text-neutral-600"
+            className="app-ghost-button shrink-0 p-2.5 border rounded-full text-neutral-600"
           >
             <LogOut className="w-4 h-4" />
           </button>

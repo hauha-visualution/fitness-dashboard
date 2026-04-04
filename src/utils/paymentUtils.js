@@ -58,7 +58,7 @@ export const getPaymentStatusMeta = (status) => {
   switch (status) {
     case 'submitted':
       return {
-        label: 'Transfer Submitted',
+        label: 'Submitted',
         tone: 'amber',
         description: 'Client marked the transfer as sent and is waiting for coach confirmation.',
       };
@@ -90,6 +90,27 @@ export const getPaymentTitle = (payment) => {
     return `Package #${String(payment.package_number).padStart(2, '0')}`;
   }
   return 'Service Payment';
+};
+
+export const getPaymentDisplayTitle = (payment) => {
+  const indexLabel = payment?.package_number
+    ? ` #${String(payment.package_number).padStart(2, '0')}`
+    : '';
+
+  switch (payment?.payment_type) {
+    case 'package':
+      return `Package${indexLabel}`;
+    case 'prep_meal':
+      return `Meal Prep${indexLabel}`;
+    case 'sketching':
+      return `Sketching${indexLabel}`;
+    case 'nutrition':
+      return payment?.title?.trim() || `Nutrition${indexLabel}`;
+    case 'other':
+      return payment?.title?.trim() || `Service${indexLabel}`;
+    default:
+      return getPaymentTitle(payment);
+  }
 };
 
 export const getToneClasses = (tone) => {

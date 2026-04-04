@@ -66,6 +66,70 @@ const getPathForContext = (context, isAuthenticated = false) => {
   return '/';
 };
 
+const CoachNavigation = ({ coachTabs, activeTab, onSelectTab, onOpenQuickLog, desktop = false }) => (
+  <div
+    className={
+      desktop
+        ? 'app-nav-shell hidden lg:flex lg:h-full lg:w-[104px] lg:flex-col lg:justify-center lg:rounded-[34px] lg:p-2.5 lg:shadow-2xl'
+        : 'app-nav-shell fixed bottom-6 left-1/2 z-50 grid w-[92%] max-w-[390px] -translate-x-1/2 grid-cols-5 gap-1 rounded-[30px] px-2 py-1.5 lg:hidden'
+    }
+  >
+    <div className={desktop ? 'flex flex-col gap-2' : 'contents'}>
+      {coachTabs.map((tab) => {
+        const Icon = tab.icon;
+        const isActive = activeTab === tab.id;
+        const buttonClassName = tab.isAction
+          ? 'app-nav-action'
+          : isActive
+            ? 'app-nav-item-active'
+            : 'app-nav-item border border-transparent';
+
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => {
+              if (tab.isAction) {
+                onOpenQuickLog();
+                return;
+              }
+              onSelectTab(tab.id);
+            }}
+            className={`min-w-0 rounded-[24px] flex ${desktop ? 'flex-col px-2 py-3.5' : 'flex-col py-2.5'} items-center justify-center gap-1.5 transition-all active:scale-95 ${buttonClassName}`}
+          >
+            <div
+              className={`flex items-center justify-center transition-all ${
+                tab.isAction
+                  ? desktop
+                    ? 'h-11 w-11 rounded-[18px]'
+                    : 'w-10 h-10 rounded-[16px]'
+                  : desktop
+                    ? 'h-10 w-10 rounded-[18px]'
+                    : 'w-9 h-9 rounded-[16px]'
+              }`}
+            >
+              <Icon className={`${tab.isAction ? (desktop ? 'h-10 w-10' : 'w-9 h-9') : (desktop ? 'h-5 w-5' : 'w-4.5 h-4.5')}`} />
+            </div>
+            <span
+              className={`font-black uppercase tracking-tight text-center ${
+                tab.isAction
+                  ? desktop
+                    ? 'max-w-[72px] text-[7px] leading-[1.2]'
+                    : 'max-w-[64px] text-[6px] leading-[1.15]'
+                  : desktop
+                    ? 'text-[8px] leading-[1.2]'
+                    : 'text-[7px]'
+              }`}
+            >
+              {tab.label}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
+
 export default function App() {
   const [session, setSession] = useState(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
@@ -306,8 +370,8 @@ export default function App() {
 
   if (!session) {
     return (
-      <div className="app-root-shell min-h-screen flex justify-center font-sans">
-        <div className="app-shell-frame w-full max-w-[420px] h-dvh relative overflow-hidden flex flex-col">
+      <div className="app-root-shell min-h-screen flex justify-center px-0 font-sans sm:px-4 lg:px-6 lg:py-6">
+        <div className="app-shell-frame relative flex h-dvh w-full max-w-[420px] flex-col overflow-hidden sm:max-w-[540px] lg:h-[min(920px,calc(100vh-3rem))] lg:max-w-[1180px] lg:rounded-[40px] lg:border lg:border-white/[0.08]">
           <GlobalStyles />
           {routeContext === 'coach-signup' ? (
             <AuthScreen
@@ -329,8 +393,8 @@ export default function App() {
   // ==== CLIENT PORTAL ====
   if (userRole === 'client') {
     return (
-      <div className="app-root-shell min-h-screen flex justify-center font-sans">
-        <div className="app-shell-frame w-full max-w-[420px] h-dvh relative overflow-hidden flex flex-col">
+      <div className="app-root-shell min-h-screen flex justify-center px-0 font-sans sm:px-4 lg:px-6 lg:py-6">
+        <div className="app-shell-frame relative flex h-dvh w-full max-w-[420px] flex-col overflow-hidden sm:max-w-[680px] lg:h-[min(920px,calc(100vh-3rem))] lg:max-w-[1280px] lg:rounded-[40px] lg:border lg:border-white/[0.08]">
           <GlobalStyles />
           <ClientPortalApp
             session={session}
@@ -361,8 +425,8 @@ export default function App() {
   }
 
   return (
-    <div className="app-root-shell min-h-screen flex justify-center font-sans">
-      <div className="app-shell-frame w-full max-w-[420px] h-dvh relative overflow-hidden flex flex-col">
+    <div className="app-root-shell min-h-screen flex justify-center px-0 font-sans sm:px-4 lg:px-6 lg:py-6">
+      <div className="app-shell-frame relative flex h-dvh w-full max-w-[420px] flex-col overflow-hidden sm:max-w-[760px] lg:h-[min(920px,calc(100vh-3rem))] lg:max-w-[1380px] lg:flex-row lg:rounded-[40px] lg:border lg:border-white/[0.08]">
         <GlobalStyles />
 
         {showCoachProfile ? (
@@ -374,6 +438,8 @@ export default function App() {
           />
         ) : !selectedClient ? (
           <>
+            <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-5 lg:p-5">
+            <div className="relative flex min-h-0 flex-1 flex-col">
             {activeTab === 'home' && (
               <DashboardView
                 session={session}
@@ -415,59 +481,26 @@ export default function App() {
                 coachEmail={session?.user?.email}
               />
             )}
+            </div>
+
+            <CoachNavigation
+              coachTabs={coachTabs}
+              activeTab={activeTab}
+              onSelectTab={setActiveTab}
+              onOpenQuickLog={openQuickLog}
+              desktop
+            />
 
             {/* Nav chính của Coach */}
             {activeTab !== 'add_client' && (
-              <div className="app-nav-shell fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-[390px] rounded-[30px] px-2 py-1.5 grid grid-cols-5 gap-1 z-50">
-                {coachTabs.map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
-                  const buttonClassName = tab.isAction
-                    ? 'app-nav-action'
-                    : isActive
-                      ? 'app-nav-item-active'
-                      : 'app-nav-item border border-transparent';
-
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => {
-                        if (tab.isAction) {
-                          openQuickLog();
-                          return;
-                        }
-                        setActiveTab(tab.id);
-                      }}
-                      className={`min-w-0 rounded-[24px] flex flex-col items-center justify-center gap-1.5 transition-all active:scale-95 ${
-                        tab.isAction
-                          ? 'py-2.5'
-                          : 'py-2.5'
-                      } ${buttonClassName}`}
-                    >
-                      <div
-                        className={`flex items-center justify-center transition-all ${
-                          tab.isAction
-                            ? 'w-10 h-10 rounded-[16px]'
-                            : 'w-9 h-9 rounded-[16px]'
-                        }`}
-                      >
-                        <Icon className={`${tab.isAction ? 'w-9 h-9' : 'w-4.5 h-4.5'}`} />
-                      </div>
-                      <span
-                        className={`font-black uppercase tracking-tight text-center ${
-                          tab.isAction
-                            ? 'max-w-[64px] text-[6px] leading-[1.15]'
-                            : 'text-[7px]'
-                        }`}
-                      >
-                        {tab.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              <CoachNavigation
+                coachTabs={coachTabs}
+                activeTab={activeTab}
+                onSelectTab={setActiveTab}
+                onOpenQuickLog={openQuickLog}
+              />
             )}
+            </div>
 
           </>
         ) : (

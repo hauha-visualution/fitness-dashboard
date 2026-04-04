@@ -1,11 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import ReactDOM from 'react-dom';
 import {
+  Building2,
   CalendarClock,
   CheckCircle2,
   Clock3,
+  Copy,
   CreditCard,
   Library,
   Plus,
+  QrCode,
   RefreshCw,
   Tag,
   Wallet,
@@ -17,8 +21,8 @@ import {
   fmtDate,
   fmtVNDAbridged,
   fmtVND,
+  getPaymentDisplayTitle,
   getPaymentStatusMeta,
-  getPaymentTitle,
   getPaymentTypeMeta,
   getToneClasses,
   isOutstandingPayment,
@@ -30,6 +34,8 @@ const PaymentTab = ({ client, readOnly = false }) => {
   const [actioningId, setActioningId] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showExactTotals, setShowExactTotals] = useState(false);
+  const [coachBankInfo, setCoachBankInfo] = useState(null);
+  const [showBankInfo, setShowBankInfo] = useState(false);
 
   const isCoachView = !readOnly;
 
@@ -59,6 +65,26 @@ const PaymentTab = ({ client, readOnly = false }) => {
 
     return () => window.clearTimeout(timeoutId);
   }, [fetchPayments]);
+
+  useEffect(() => {
+    const coachEmail = client?.coach_email;
+    if (!coachEmail) {
+      setCoachBankInfo(null);
+      return;
+    }
+
+    const loadCoachBankInfo = async () => {
+      const { data } = await supabase
+        .from('coaches')
+        .select('full_name, bank_qr_url, bank_name, bank_branch, bank_account_name, bank_account_number')
+        .eq('email', coachEmail)
+        .maybeSingle();
+
+      setCoachBankInfo(data || null);
+    };
+
+    void loadCoachBankInfo();
+  }, [client?.coach_email]);
 
   const runCoachUpdate = async (paymentId, payload, errorPrefix) => {
     setActioningId(paymentId);
@@ -118,6 +144,17 @@ const PaymentTab = ({ client, readOnly = false }) => {
     setActioningId(null);
   };
 
+  const copyAccountNumber = async () => {
+    if (!coachBankInfo?.bank_account_number?.trim()) return;
+    try {
+      await navigator.clipboard.writeText(coachBankInfo.bank_account_number.trim());
+      alert('Copied account number');
+    } catch {
+      alert('Unable to copy account number');
+    }
+  };
+
+  const pendingPayments = payments.filter((payment) => payment.status === 'pending');
   const outstandingPayments = payments.filter((payment) => isOutstandingPayment(payment.status));
   const submittedPayments = payments.filter((payment) => payment.status === 'submitted');
   const totalOutstanding = outstandingPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
@@ -127,12 +164,24 @@ const PaymentTab = ({ client, readOnly = false }) => {
   const totalCancelled = payments.filter((payment) => payment.status === 'cancelled').length;
 
   const buildTimeline = (payment) => {
-    const entries = [`Created ${fmtDate(payment.created_at)}`];
-    if (payment.customer_marked_at) entries.push(`Submitted ${fmtDate(payment.customer_marked_at)}`);
-    if (payment.coach_confirmed_at) entries.push(`Confirmed ${fmtDate(payment.coach_confirmed_at)}`);
-    if (payment.paid_at) entries.push(`Completed ${fmtDate(payment.paid_at)}`);
-    if (payment.cancelled_at) entries.push(`Voided ${fmtDate(payment.cancelled_at)}`);
-    return entries.join(' · ');
+    const created = fmtDate(payment.created_at);
+
+    if (payment.status === 'paid') {
+      const finalDate = fmtDate(payment.paid_at || payment.coach_confirmed_at || payment.customer_marked_at || payment.created_at);
+      return `Created ${created} · Paid ${finalDate}`;
+    }
+
+    if (payment.status === 'submitted') {
+      const submittedDate = fmtDate(payment.customer_marked_at || payment.created_at);
+      return `Created ${created} · Submitted ${submittedDate}`;
+    }
+
+    if (payment.status === 'cancelled') {
+      const cancelledDate = fmtDate(payment.cancelled_at || payment.created_at);
+      return `Created ${created} · Voided ${cancelledDate}`;
+    }
+
+    return `Created ${created}`;
   };
 
   const summaryCards = [
@@ -176,10 +225,16 @@ const PaymentTab = ({ client, readOnly = false }) => {
 
   const paymentGroups = [
     {
-      id: 'open',
+      id: 'pending',
       label: 'Open',
-      description: 'Waiting for payment or coach confirmation',
-      items: payments.filter((payment) => isOutstandingPayment(payment.status)),
+      description: 'Waiting for payment',
+      items: pendingPayments,
+    },
+    {
+      id: 'submitted',
+      label: 'Submitted',
+      description: 'Awaiting coach confirmation',
+      items: submittedPayments,
     },
     {
       id: 'paid',
@@ -193,7 +248,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
       description: 'Voided requests',
       items: payments.filter((payment) => payment.status === 'cancelled'),
     },
-  ].filter((group) => group.items.length > 0);
+  ];
 
   if (loading) {
     return (
@@ -205,8 +260,8 @@ const PaymentTab = ({ client, readOnly = false }) => {
 
   return (
     <>
-      <div className="space-y-5 pt-2 animate-slide-up">
-        <div className="flex items-start justify-between gap-3">
+      <div className="space-y-4 pt-2 animate-slide-up lg:space-y-5">
+        <div className="flex items-start justify-between gap-3 lg:items-center">
           <div className="pt-1">
             <p className="app-label text-[11px] font-black uppercase tracking-[0.24em] mb-0.5">
               Payments
@@ -219,6 +274,17 @@ const PaymentTab = ({ client, readOnly = false }) => {
           </div>
 
           <div className="flex items-center gap-2">
+            {coachBankInfo && (
+              <button
+                type="button"
+                onClick={() => setShowBankInfo(true)}
+                className="app-ghost-button rounded-full border px-4 h-11 text-white/80 text-[10px] font-black uppercase tracking-[0.18em] inline-flex items-center gap-2 active:scale-95 transition-all"
+                title="View bank details"
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                Bank Account
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -246,7 +312,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
         </div>
 
         {payments.length > 0 && (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:gap-3">
             {summaryCards.map((card) => {
               const Icon = card.icon;
               return (
@@ -256,7 +322,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
                   onClick={() => {
                     if (card.isCurrency) setShowExactTotals((current) => !current);
                   }}
-                  className={`rounded-[16px] border px-3 py-2.5 text-left ${card.classes} ${card.isCurrency ? 'cursor-pointer active:scale-[0.98] transition-transform' : 'cursor-default'}`}
+                  className={`rounded-[16px] border px-3 py-2.5 text-left lg:min-h-[92px] lg:rounded-[18px] lg:px-4 lg:py-3 ${card.classes} ${card.isCurrency ? 'cursor-pointer active:scale-[0.98] transition-transform' : 'cursor-default'}`}
                   title={card.isCurrency ? 'Toggle between compact and exact totals' : undefined}
                 >
                   <div className="flex items-center gap-1.5 mb-1">
@@ -284,9 +350,9 @@ const PaymentTab = ({ client, readOnly = false }) => {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 xl:grid-cols-4">
             {paymentGroups.map((group) => (
-              <div key={group.id} className="space-y-2.5">
+              <div key={group.id} className="space-y-2 lg:space-y-2.5">
                 <div className="flex items-center justify-between gap-3 px-1">
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/85">
@@ -299,11 +365,17 @@ const PaymentTab = ({ client, readOnly = false }) => {
                   </span>
                 </div>
 
+                {group.items.length === 0 ? (
+                  <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.02] px-3 py-4 text-center text-[11px] text-neutral-600">
+                    No payments
+                  </div>
+                ) : (
+                <div className="grid gap-2.5">
                 {group.items.map((payment) => {
                   const statusMeta = getPaymentStatusMeta(payment.status);
                   const tone = getToneClasses(statusMeta.tone);
                   const typeMeta = getPaymentTypeMeta(payment.payment_type);
-                  const title = getPaymentTitle(payment);
+                  const title = getPaymentDisplayTitle(payment);
                   const isBusy = actioningId === payment.id;
                   const packageLabel = payment.package_number
                     ? `Package #${String(payment.package_number).padStart(2, '0')}`
@@ -311,65 +383,66 @@ const PaymentTab = ({ client, readOnly = false }) => {
                   const shouldShowPackageMeta =
                     packageLabel && title.trim().toLowerCase() !== packageLabel.toLowerCase();
                   const timeline = buildTimeline(payment);
-                  const supportingCopy = payment.detail_note?.trim() || (payment.status === 'pending' || payment.status === 'submitted'
-                    ? statusMeta.description
-                    : '');
+                  const supportingCopy = payment.detail_note?.trim() || '';
 
                   return (
                     <div
                       key={payment.id}
-                      className={`rounded-[22px] border px-4 py-3.5 transition-all ${tone.panel}`}
+                      className={`rounded-[20px] border px-3.5 py-3 transition-all lg:min-h-[132px] lg:rounded-[22px] lg:px-4 lg:py-3.5 ${tone.panel}`}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap mb-2">
-                            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-[0.18em] ${tone.badge}`}>
+                      <div className="flex items-start justify-between gap-2.5 h-full">
+                        <div className="flex-1 min-w-0 flex h-full flex-col">
+                          <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                            <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.16em] ${tone.badge}`}>
                               {payment.payment_type === 'package' ? (
-                                <Library className="w-3 h-3" />
+                                <Library className="h-2.5 w-2.5" />
                               ) : (
-                                <Wallet className="w-3 h-3" />
+                                <Wallet className="h-2.5 w-2.5" />
                               )}
                               {typeMeta.label}
                             </span>
-                            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-[0.18em] ${tone.badge}`}>
-                              <CheckCircle2 className="w-3 h-3" />
+                            <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.16em] ${tone.badge}`}>
+                              <CheckCircle2 className="h-2.5 w-2.5" />
                               {statusMeta.label}
                             </span>
                             {shouldShowPackageMeta && (
-                              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-neutral-400">
-                                <Tag className="w-3 h-3" />
+                              <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.16em] text-neutral-400">
+                                <Tag className="h-2.5 w-2.5" />
                                 {packageLabel}
                               </span>
                             )}
                           </div>
 
-                          <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="font-semibold text-[15px] text-white leading-tight">{title}</p>
-                              {payment.payment_method && (
-                                <p className="text-neutral-500 text-[11px] mt-1 uppercase tracking-[0.18em]">
-                                  {payment.payment_method.replace('_', ' ')}
-                                </p>
-                              )}
+                              <p className="text-[14px] font-semibold leading-tight text-white">{title}</p>
                             </div>
-                            <p className="shrink-0 text-white font-bold text-[18px] leading-none mt-0.5">
-                              {fmtVND(payment.amount)}
-                            </p>
+                            <div className="mt-0.5 shrink-0 text-right text-white">
+                              <p className="text-[16px] font-bold leading-none tabular-nums">
+                                {fmtVND(payment.amount)}
+                              </p>
+                            </div>
                           </div>
 
+                          {payment.payment_method && (
+                            <p className="mt-0.5 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                              {payment.payment_method.replace('_', ' ')}
+                            </p>
+                          )}
+
                           {supportingCopy && (
-                            <p className="text-neutral-400 text-[12px] mt-2 leading-relaxed">
+                            <p className="mt-auto pt-1.5 line-clamp-1 text-[11px] leading-snug text-neutral-400">
                               {supportingCopy}
                             </p>
                           )}
 
-                          <div className="flex items-center gap-2 text-[10px] text-neutral-600 mt-3 min-w-0">
-                            <CalendarClock className="w-3.5 h-3.5 shrink-0" />
+                          <div className={`${supportingCopy ? 'mt-1.5' : 'mt-auto pt-2'} flex min-w-0 items-center gap-1.5 text-[9.5px] text-neutral-600`}>
+                            <CalendarClock className="h-3 w-3 shrink-0" />
                             <p className="truncate">{timeline}</p>
                           </div>
                         </div>
 
-                        <div className="flex flex-col items-end gap-2 shrink-0">
+                        <div className="flex shrink-0 flex-col items-end gap-1.5">
                           {isCoachView && payment.status === 'pending' && (
                             <>
                               <button
@@ -378,9 +451,9 @@ const PaymentTab = ({ client, readOnly = false }) => {
                                   void handleMarkPaid(payment);
                                 }}
                                 disabled={isBusy}
-                                className="min-w-[88px] px-4 py-2 rounded-[12px] border border-[rgba(200,245,63,0.3)] bg-[rgba(200,245,63,0.14)] text-[var(--app-accent)] text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                                className="inline-flex min-w-[74px] items-center justify-center gap-1 rounded-[11px] border border-[rgba(200,245,63,0.3)] bg-[rgba(200,245,63,0.14)] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-[var(--app-accent)] transition-all active:scale-95 disabled:opacity-50"
                               >
-                                {isBusy ? <RefreshCw className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                                {isBusy ? <RefreshCw className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
                                 Paid
                               </button>
                               <button
@@ -389,9 +462,9 @@ const PaymentTab = ({ client, readOnly = false }) => {
                                   void handleVoid(payment);
                                 }}
                                 disabled={isBusy}
-                                className="min-w-[88px] px-4 py-2 rounded-[12px] border border-white/10 bg-white/[0.04] text-neutral-300 text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                                className="inline-flex min-w-[74px] items-center justify-center gap-1 rounded-[11px] border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-neutral-300 transition-all active:scale-95 disabled:opacity-50"
                               >
-                                <X className="w-3 h-3" />
+                                <X className="h-3 w-3" />
                                 Void
                               </button>
                             </>
@@ -405,9 +478,9 @@ const PaymentTab = ({ client, readOnly = false }) => {
                                   void handleMarkPaid(payment);
                                 }}
                                 disabled={isBusy}
-                                className="min-w-[88px] px-4 py-2 rounded-[12px] border border-[rgba(200,245,63,0.3)] bg-[rgba(200,245,63,0.14)] text-[var(--app-accent)] text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                                className="inline-flex min-w-[74px] items-center justify-center gap-1 rounded-[11px] border border-[rgba(200,245,63,0.3)] bg-[rgba(200,245,63,0.14)] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-[var(--app-accent)] transition-all active:scale-95 disabled:opacity-50"
                               >
-                                {isBusy ? <RefreshCw className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                                {isBusy ? <RefreshCw className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
                                 Confirm
                               </button>
                               <button
@@ -416,9 +489,9 @@ const PaymentTab = ({ client, readOnly = false }) => {
                                   void handleVoid(payment);
                                 }}
                                 disabled={isBusy}
-                                className="min-w-[88px] px-4 py-2 rounded-[12px] border border-white/10 bg-white/[0.04] text-neutral-300 text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                                className="inline-flex min-w-[74px] items-center justify-center gap-1 rounded-[11px] border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-neutral-300 transition-all active:scale-95 disabled:opacity-50"
                               >
-                                <X className="w-3 h-3" />
+                                <X className="h-3 w-3" />
                                 Void
                               </button>
                             </>
@@ -431,9 +504,9 @@ const PaymentTab = ({ client, readOnly = false }) => {
                                 void handleClientSubmit(payment.id);
                               }}
                               disabled={isBusy}
-                              className="min-w-[108px] px-4 py-2 rounded-[12px] border border-blue-400/20 bg-blue-500/[0.12] text-blue-300 text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                              className="inline-flex min-w-[96px] items-center justify-center gap-1 rounded-[11px] border border-blue-400/20 bg-blue-500/[0.12] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-blue-300 transition-all active:scale-95 disabled:opacity-50"
                             >
-                              {isBusy ? <RefreshCw className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                              {isBusy ? <RefreshCw className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
                               I've Paid
                             </button>
                           )}
@@ -442,6 +515,8 @@ const PaymentTab = ({ client, readOnly = false }) => {
                     </div>
                   );
                 })}
+                </div>
+                )}
               </div>
             ))}
           </div>
@@ -457,6 +532,75 @@ const PaymentTab = ({ client, readOnly = false }) => {
             void fetchPayments();
           }}
         />
+      )}
+
+      {showBankInfo && coachBankInfo && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[650] bg-black/65 backdrop-blur-sm px-4 py-8">
+          <div className="mx-auto flex w-full max-w-[420px] flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[var(--app-bg-dialog)] shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-white/[0.06] px-5 py-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-neutral-600">Bank Details</p>
+                <h3 className="mt-1 text-lg font-semibold text-white">{coachBankInfo.bank_name || 'Coach Bank Account'}</h3>
+                <p className="mt-1 text-xs text-neutral-500">{coachBankInfo.full_name || 'Coach payment details'}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBankInfo(false)}
+                className="app-ghost-button h-10 w-10 rounded-full border flex items-center justify-center"
+                title="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 px-5 py-5">
+              <div className="overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+                <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-[20px] border border-white/8 bg-black/20">
+                  {coachBankInfo.bank_qr_url ? (
+                    <img src={coachBankInfo.bank_qr_url} alt="Bank QR" className="h-full w-full object-contain p-3" />
+                  ) : (
+                    <QrCode className="w-20 h-20 text-white/20" />
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-[24px] border border-white/8 bg-white/[0.03] px-4 py-4">
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-600">Bank</p>
+                    <p className="mt-1.5 text-[15px] font-medium text-white">{coachBankInfo.bank_name || 'Not set yet'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-600">Branch</p>
+                    <p className="mt-1.5 text-sm text-neutral-300">{coachBankInfo.bank_branch || 'Not set yet'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-600">Account</p>
+                    <p className="mt-1.5 text-sm text-white">{coachBankInfo.bank_account_name || 'Not set yet'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-600">Number</p>
+                    <div className="mt-1.5 flex items-center justify-between gap-3 rounded-[18px] border border-white/8 bg-black/10 px-3 py-3">
+                      <p className="min-w-0 text-[17px] font-semibold tracking-[0.06em] text-white text-left">
+                        {coachBankInfo.bank_account_number || 'Not set yet'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={copyAccountNumber}
+                        className="app-ghost-button h-10 w-10 shrink-0 rounded-full border flex items-center justify-center"
+                        title="Copy account number"
+                        disabled={!coachBankInfo.bank_account_number}
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </>
   );

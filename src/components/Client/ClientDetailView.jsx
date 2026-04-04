@@ -22,6 +22,14 @@ import SessionsTab from './Tabs/SessionsTab';
 import NutritionTab from './Tabs/NutritionTab';
 import PaymentTab from './Tabs/PaymentTab';
 
+const DETAIL_HEADER_META = {
+  profile: { eyebrow: 'Client Profile', title: 'Profile' },
+  package: { eyebrow: 'Client Services', title: 'Services' },
+  sessions: { eyebrow: 'Client Sessions', title: 'Sessions' },
+  nutrition: { eyebrow: 'Client Nutrition', title: 'Nutrition' },
+  payment: { eyebrow: 'Client Payments', title: 'Payment' },
+};
+
 const ClientDetailNavigation = ({ activeSubTab, onSelectTab, desktop = false }) => {
   const tabs = [
     { id: 'profile', icon: User, label: 'Profile' },
@@ -68,7 +76,13 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
   const [profileActions, setProfileActions] = useState(null);
 
   const isProfileTab = activeSubTab === 'profile';
-  const profileHeading = `${client?.name || 'Trainee'}'s Profile`;
+  const activeHeader = DETAIL_HEADER_META[activeSubTab] || DETAIL_HEADER_META.profile;
+
+  const renderTabShell = (content) => (
+    <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
+      {content}
+    </div>
+  );
 
   const openDeleteModal = () => {
     setIsProfileMenuOpen(false);
@@ -78,17 +92,23 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
   const renderContent = () => {
     switch (activeSubTab) {
       case 'profile':
-        return <ProfileTab client={client} onDelete={openDeleteModal} onRegisterActions={setProfileActions} />;
+        return renderTabShell(
+          <ProfileTab client={client} onDelete={openDeleteModal} onRegisterActions={setProfileActions} />
+        );
       case 'package':
-        return <PackageTab client={client} readOnly={false} />;
+        return renderTabShell(<PackageTab client={client} readOnly={false} />);
       case 'sessions':
-        return <SessionsTab clientId={client.id} client={client} readOnly={false} onOpenQuickLog={onOpenQuickLog} refreshKey={refreshKey} />;
+        return renderTabShell(
+          <SessionsTab clientId={client.id} client={client} readOnly={false} onOpenQuickLog={onOpenQuickLog} refreshKey={refreshKey} />
+        );
       case 'nutrition':
-        return <NutritionTab client={client} readOnly={false} />;
+        return renderTabShell(<NutritionTab client={client} readOnly={false} />);
       case 'payment':
-        return <PaymentTab client={client} readOnly={false} />;
+        return renderTabShell(<PaymentTab client={client} readOnly={false} />);
       default:
-        return <ProfileTab client={client} onDelete={openDeleteModal} onRegisterActions={setProfileActions} />;
+        return renderTabShell(
+          <ProfileTab client={client} onDelete={openDeleteModal} onRegisterActions={setProfileActions} />
+        );
     }
   };
 
@@ -164,7 +184,7 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
   ];
 
   return (
-    <div className="app-screen-shell relative flex h-dvh min-h-0 flex-col overflow-hidden animate-slide-up lg:h-full">
+    <div className="app-screen-shell relative flex h-screen min-h-0 flex-col overflow-hidden animate-slide-up lg:h-full">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-gradient-to-b from-blue-500/[0.08] via-blue-500/[0.03] to-transparent blur-3xl" />
       <div className="pointer-events-none absolute -right-16 top-32 h-40 w-40 rounded-full bg-blue-400/10 blur-3xl" />
       <div className="pointer-events-none absolute -left-20 bottom-28 h-48 w-48 rounded-full bg-neutral-500/10 blur-3xl" />
@@ -177,9 +197,17 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
           <ArrowLeft className="w-4 h-4" />
         </button>
 
-        <p className="px-4 text-center text-[9px] font-black uppercase tracking-widest text-neutral-600">
-          {profileHeading}
-        </p>
+        <div className="min-w-0 px-1 text-center">
+          <p className="text-[9px] font-black uppercase tracking-[0.28em] text-neutral-600">
+            {activeHeader.eyebrow}
+          </p>
+          <h1 className="mt-1 truncate text-[17px] font-semibold tracking-[-0.01em] text-white">
+            {activeHeader.title}
+          </h1>
+          <p className="mt-1 truncate text-[11px] text-neutral-500">
+            {client?.name || 'Trainee'}
+          </p>
+        </div>
 
         {isProfileTab ? (
           <button
@@ -224,8 +252,8 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
         </>
       )}
 
-      <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-5 lg:px-6 lg:pb-6">
-        <div className="hide-scrollbar relative z-10 min-h-0 flex-1 overflow-y-auto px-4 pb-6 lg:px-0 lg:pb-2">
+      <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-5 lg:p-5">
+        <div className="min-h-0 flex-1 overflow-hidden">
           {renderContent()}
         </div>
 
