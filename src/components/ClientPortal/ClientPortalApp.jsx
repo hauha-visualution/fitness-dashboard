@@ -148,26 +148,24 @@ const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
   return (
     <div className="app-screen-shell relative flex h-screen flex-col lg:h-full">
 
-      {/* Top bar (hiển thị khi không ở home) */}
-      {activeTab !== 'profile' && (
-        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.04] bg-black/30 px-5 py-4 backdrop-blur-xl lg:px-8 lg:py-4">
-          <div className="min-w-0">
-            <p className="text-[9px] font-black uppercase tracking-[0.28em] text-neutral-600">
-              {activeHeader.eyebrow}
-            </p>
-            <h1 className="mt-1 truncate text-[17px] font-semibold tracking-[-0.01em] text-white">
-              {activeHeader.title}
-            </h1>
-            <p className="mt-1 truncate text-[11px] text-neutral-500">{client?.name}</p>
-          </div>
-          <button
-            onClick={onLogout}
-            className="app-ghost-button shrink-0 p-2.5 border rounded-full text-neutral-600"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+      {/* Top bar — luôn hiển thị trên mọi tab, kể cả Profile */}
+      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.04] bg-black/30 px-5 py-4 backdrop-blur-xl lg:px-8 lg:py-4">
+        <div className="min-w-0">
+          <p className="text-[9px] font-black uppercase tracking-[0.28em] text-neutral-600">
+            {activeHeader.eyebrow}
+          </p>
+          <h1 className="mt-1 truncate text-[17px] font-semibold tracking-[-0.01em] text-white">
+            {activeHeader.title}
+          </h1>
+          <p className="mt-1 truncate text-[11px] text-neutral-500">{client?.name}</p>
         </div>
-      )}
+        <button
+          onClick={onLogout}
+          className="app-ghost-button shrink-0 p-2.5 border rounded-full text-neutral-600"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
+      </div>
 
       <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-5 lg:p-5">
         <div className="min-h-0 flex-1 overflow-hidden">
