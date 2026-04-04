@@ -6,7 +6,6 @@ import {
   Library,
   Plus,
   RefreshCw,
-  UserRound,
   Wallet,
   X,
 } from 'lucide-react';
@@ -16,8 +15,8 @@ import {
   fmtDate,
   fmtVNDAbridged,
   fmtVND,
+  getPaymentDisplayTitle,
   getPaymentStatusMeta,
-  getPaymentTitle,
   getPaymentTypeMeta,
   getToneClasses,
   isOutstandingPayment,
@@ -29,6 +28,27 @@ const FILTERS = [
   { id: 'submitted', label: 'Submitted' },
   { id: 'paid', label: 'Paid' },
 ];
+
+const buildCompactTimeline = (payment) => {
+  const created = fmtDate(payment.created_at);
+
+  if (payment.status === 'paid') {
+    const finalDate = fmtDate(payment.paid_at || payment.coach_confirmed_at || payment.customer_marked_at || payment.created_at);
+    return `Created ${created} · Paid ${finalDate}`;
+  }
+
+  if (payment.status === 'submitted') {
+    const submittedDate = fmtDate(payment.customer_marked_at || payment.created_at);
+    return `Created ${created} · Submitted ${submittedDate}`;
+  }
+
+  if (payment.status === 'cancelled') {
+    const cancelledDate = fmtDate(payment.cancelled_at || payment.created_at);
+    return `Created ${created} · Voided ${cancelledDate}`;
+  }
+
+  return `Created ${created}`;
+};
 
 const CoachPaymentsView = ({ clients = [] }) => {
   const [payments, setPayments] = useState([]);
@@ -298,7 +318,9 @@ const CoachPaymentsView = ({ clients = [] }) => {
                 const statusMeta = getPaymentStatusMeta(payment.status);
                 const typeMeta = getPaymentTypeMeta(payment.payment_type);
                 const tone = getToneClasses(statusMeta.tone);
-                const title = getPaymentTitle(payment);
+                const title = getPaymentDisplayTitle(payment);
+                const detailNote = payment.detail_note?.trim() || '';
+                const timeline = buildCompactTimeline(payment);
                 const isBusy = actioningId === payment.id;
 
                 return (
@@ -330,30 +352,25 @@ const CoachPaymentsView = ({ clients = [] }) => {
                         <span className="truncate">{title}</span>
                       </div>
 
-                      <div className="flex items-center gap-2 text-neutral-500 text-[12px] mt-1">
-                        <UserRound className="w-3.5 h-3.5" />
-                        <span className="truncate">{statusMeta.description}</span>
-                      </div>
+                      {payment.payment_method && (
+                        <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                          {payment.payment_method.replace('_', ' ')}
+                        </p>
+                      )}
 
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[11px]">
-                        <span className="text-white font-semibold">{fmtVND(payment.amount)}</span>
+                        <span className="font-semibold text-white tabular-nums">{fmtVND(payment.amount)}</span>
                         {payment.package_number && (
                           <span className="text-neutral-500">
                             Package #{String(payment.package_number).padStart(2, '0')}
                           </span>
                         )}
-                        <span className="text-neutral-600">Created {fmtDate(payment.created_at)}</span>
-                        {payment.customer_marked_at && (
-                          <span className="text-amber-300/80">Submitted {fmtDate(payment.customer_marked_at)}</span>
-                        )}
-                        {payment.paid_at && (
-                          <span className="text-[rgba(200,245,63,0.85)]">Paid {fmtDate(payment.paid_at)}</span>
-                        )}
+                        <span className="text-neutral-600">{timeline}</span>
                       </div>
 
-                      {payment.detail_note && (
+                      {detailNote && (
                         <p className="text-neutral-300 text-[12px] mt-2 leading-relaxed">
-                          {payment.detail_note}
+                          {detailNote}
                         </p>
                       )}
                     </div>

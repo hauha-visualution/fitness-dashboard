@@ -1,10 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Camera, Lock, Calendar, Save, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Camera, Lock, Calendar, Save, RefreshCw, Building2, Copy, QrCode } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 
 const CoachProfileView = ({ session, coachProfile, onBack, onProfileUpdated }) => {
   const [coachData, setCoachData] = useState({
-    full_name: '', avatar_url: '', dob: '', password: ''
+    full_name: '',
+    avatar_url: '',
+    dob: '',
+    password: '',
+    bank_qr_url: '',
+    bank_name: '',
+    bank_branch: '',
+    bank_account_name: '',
+    bank_account_number: '',
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -20,6 +28,11 @@ const CoachProfileView = ({ session, coachProfile, onBack, onProfileUpdated }) =
         avatar_url: coachProfile.avatar_url || '',
         dob: coachProfile.dob || '',
         password: '',
+        bank_qr_url: coachProfile.bank_qr_url || '',
+        bank_name: coachProfile.bank_name || '',
+        bank_branch: coachProfile.bank_branch || '',
+        bank_account_name: coachProfile.bank_account_name || '',
+        bank_account_number: coachProfile.bank_account_number || '',
       });
     }
   }, [coachProfile]);
@@ -66,6 +79,11 @@ const CoachProfileView = ({ session, coachProfile, onBack, onProfileUpdated }) =
       full_name: coachData.full_name || null,
       avatar_url: coachData.avatar_url || null,
       dob: coachData.dob || null,  // Chuyển empty string thành null
+      bank_qr_url: coachData.bank_qr_url || null,
+      bank_name: coachData.bank_name || null,
+      bank_branch: coachData.bank_branch || null,
+      bank_account_name: coachData.bank_account_name || null,
+      bank_account_number: coachData.bank_account_number || null,
       email: coachEmail,
     };
 
@@ -82,6 +100,41 @@ const CoachProfileView = ({ session, coachProfile, onBack, onProfileUpdated }) =
       onBack();
     } else {
       alert('Lỗi lưu profile: ' + error.message);
+    }
+  };
+
+  const handleUploadBankQr = async (event) => {
+    try {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      setIsUploading(true);
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `coach-bank-qr-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
+      setCoachData((prev) => ({ ...prev, bank_qr_url: data.publicUrl }));
+    } catch (error) {
+      alert('Lỗi upload QR ngân hàng: ' + error.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const copyAccountNumber = async () => {
+    if (!coachData.bank_account_number?.trim()) return;
+    try {
+      await navigator.clipboard.writeText(coachData.bank_account_number.trim());
+      alert('Đã copy số tài khoản');
+    } catch {
+      alert('Không thể copy số tài khoản');
     }
   };
 
@@ -167,6 +220,98 @@ const CoachProfileView = ({ session, coachProfile, onBack, onProfileUpdated }) =
                 onChange={e => setCoachData({ ...coachData, password: e.target.value })}
                 className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-red-500/20"
               />
+            </div>
+          </div>
+
+          <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4 space-y-4">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-neutral-400" />
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500">Bank Details</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-neutral-500 ml-1 tracking-widest">QR Code</label>
+                <div className="flex items-center gap-3">
+                  <div className="aspect-square w-20 rounded-[18px] border border-white/10 bg-black/20 overflow-hidden flex items-center justify-center shrink-0">
+                    {coachData.bank_qr_url ? (
+                      <img src={coachData.bank_qr_url} alt="Bank QR" className="w-full h-full object-cover" />
+                    ) : (
+                      <QrCode className="w-7 h-7 text-white/20" />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <label className="app-ghost-button rounded-[16px] px-4 py-3 border cursor-pointer inline-flex items-center gap-2">
+                      <Camera className="w-4 h-4" />
+                      <span className="text-sm font-semibold">Upload QR</span>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleUploadBankQr}
+                        disabled={isUploading}
+                      />
+                    </label>
+                    <p className="max-w-[180px] text-[11px] leading-relaxed text-neutral-500">
+                      Please crop the image to a 1:1 square before upload so the full QR code stays visible.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-neutral-500 ml-1 tracking-widest">Bank</label>
+                <input
+                  type="text"
+                  value={coachData.bank_name}
+                  onChange={e => setCoachData({ ...coachData, bank_name: e.target.value })}
+                  className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-white/20"
+                  placeholder="Vietcombank"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-neutral-500 ml-1 tracking-widest">Branch</label>
+                <input
+                  type="text"
+                  value={coachData.bank_branch}
+                  onChange={e => setCoachData({ ...coachData, bank_branch: e.target.value })}
+                  className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-white/20"
+                  placeholder="Ho Chi Minh City"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-neutral-500 ml-1 tracking-widest">Account</label>
+                <input
+                  type="text"
+                  value={coachData.bank_account_name}
+                  onChange={e => setCoachData({ ...coachData, bank_account_name: e.target.value })}
+                  className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-white/20"
+                  placeholder="NGUYEN VAN A"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-neutral-500 ml-1 tracking-widest">Number</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={coachData.bank_account_number}
+                    onChange={e => setCoachData({ ...coachData, bank_account_number: e.target.value })}
+                    className="flex-1 bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-white/20"
+                    placeholder="0123456789"
+                  />
+                  <button
+                    type="button"
+                    onClick={copyAccountNumber}
+                    className="app-ghost-button h-12 w-12 rounded-2xl border flex items-center justify-center shrink-0"
+                    title="Copy account number"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
