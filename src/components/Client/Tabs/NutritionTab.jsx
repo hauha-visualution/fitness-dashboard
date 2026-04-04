@@ -498,7 +498,9 @@ const NutritionTab = ({ client, readOnly = false }) => {
   const activeMealDay = mealPlanDays[activeMealDayIndex] || mealPlanDays[0] || null;
 
   return (
-    <div className="space-y-5 animate-slide-up">
+    <div className="animate-slide-up lg:grid lg:grid-cols-2 lg:gap-5 lg:items-start space-y-5 lg:space-y-0">
+      {/* --- CỘT TRÁI --- */}
+      <div className="space-y-5">
       <SectionCard
         icon={Target}
         title="Macro & Target"
@@ -515,7 +517,7 @@ const NutritionTab = ({ client, readOnly = false }) => {
       >
         {readOnly || !isEditingTargets ? (
           <>
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
               {macroCards.map((card) => (
                 <MacroHeroCard
                   key={card.label}
@@ -625,6 +627,58 @@ const NutritionTab = ({ client, readOnly = false }) => {
       </SectionCard>
 
       <SectionCard
+        icon={ShoppingCart}
+        title="Shopping & Prep"
+        accentClassName="text-cyan-200"
+        action={!readOnly ? <IconButton onClick={handleSavePrep} isSaving={isSavingPrep} /> : null}
+      >
+        <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
+          {readOnly ? (
+            <>
+              <ReadOnlyBlock label="Shopping List" value={prep.shoppingList} />
+              <ReadOnlyBlock label="Batch Cooking" value={prep.batchCooking} />
+              <ReadOnlyBlock label="Pantry Staples" value={prep.pantryStaples} />
+              <ReadOnlyBlock label="Eating-out Rules" value={prep.eatingOutRules} />
+              <ReadOnlyBlock label="Coach Notes" value={prep.coachNotes} />
+            </>
+          ) : (
+            <>
+              <TextAreaField label="Shopping List" value={prep.shoppingList} onChange={(value) => setPrep((prev) => ({ ...prev, shoppingList: value }))} placeholder="Ức gà, trứng, sữa chua Hy Lạp, rau xanh, berries..." rows={4} />
+              <TextAreaField label="Batch Cooking" value={prep.batchCooking} onChange={(value) => setPrep((prev) => ({ ...prev, batchCooking: value }))} placeholder="Chủ nhật prep 3 hộp lunch, luộc sẵn trứng, chia sẵn snack..." rows={4} />
+              <TextAreaField label="Pantry Staples" value={prep.pantryStaples} onChange={(value) => setPrep((prev) => ({ ...prev, pantryStaples: value }))} placeholder="Yến mạch, gạo, gia vị không đường, whey, tuna..." rows={4} />
+              <TextAreaField label="Eating-out Rules" value={prep.eatingOutRules} onChange={(value) => setPrep((prev) => ({ ...prev, eatingOutRules: value }))} placeholder="Ưu tiên món nướng/hấp, xin sauce riêng, 1 social meal/tuần..." rows={4} />
+              <TextAreaField label="Coach Notes" value={prep.coachNotes} onChange={(value) => setPrep((prev) => ({ ...prev, coachNotes: value }))} placeholder="Lưu ý logistics, budget, travel week, món thay thế nhanh..." rows={4} />
+            </>
+          )}
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        icon={Archive}
+        title="Archive"
+        accentClassName="text-neutral-300"
+        action={!readOnly ? <IconButton onClick={handleSyncIntakeProfile} isSaving={isSyncingIntake} icon={RefreshCw} /> : null}
+      >
+        {archiveItems.length > 0 ? (
+          <div className="grid gap-2.5 md:grid-cols-2">
+            {archiveItems.map((field) => (
+              <div key={field.key} className="rounded-[16px] border border-white/[0.05] bg-black/20 px-3.5 py-2.5">
+                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-neutral-600">{field.label}</p>
+                <p className="mt-1.5 text-sm leading-relaxed text-white">{archive[field.key]}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-[18px] border border-white/[0.05] bg-black/20 px-3.5 py-5 text-center text-sm text-neutral-500">
+            Chưa có dữ liệu intake nào được lưu.
+          </div>
+        )}
+      </SectionCard>
+      </div>
+
+      {/* --- CỘT PHẢI --- */}
+      <div className="space-y-5">
+      <SectionCard
         icon={ChefHat}
         title="Meal Plan"
         accentClassName="text-pink-300"
@@ -638,7 +692,7 @@ const NutritionTab = ({ client, readOnly = false }) => {
           ) : null
         }
       >
-        <div className="grid gap-2.5 md:grid-cols-[1.3fr_0.9fr]">
+        <div className="grid gap-2.5 md:grid-cols-2">
           {readOnly || !isEditingPlan ? (
             <>
               <ReadOnlyBlock label="Mục tiêu tuần này" value={plan.focus} />
@@ -869,54 +923,7 @@ const NutritionTab = ({ client, readOnly = false }) => {
         )}
       </SectionCard>
 
-      <SectionCard
-        icon={ShoppingCart}
-        title="Shopping & Prep"
-        accentClassName="text-cyan-200"
-        action={!readOnly ? <IconButton onClick={handleSavePrep} isSaving={isSavingPrep} /> : null}
-      >
-        <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
-          {readOnly ? (
-            <>
-              <ReadOnlyBlock label="Shopping List" value={prep.shoppingList} />
-              <ReadOnlyBlock label="Batch Cooking" value={prep.batchCooking} />
-              <ReadOnlyBlock label="Pantry Staples" value={prep.pantryStaples} />
-              <ReadOnlyBlock label="Eating-out Rules" value={prep.eatingOutRules} />
-              <ReadOnlyBlock label="Coach Notes" value={prep.coachNotes} />
-            </>
-          ) : (
-            <>
-              <TextAreaField label="Shopping List" value={prep.shoppingList} onChange={(value) => setPrep((prev) => ({ ...prev, shoppingList: value }))} placeholder="Ức gà, trứng, sữa chua Hy Lạp, rau xanh, berries..." rows={4} />
-              <TextAreaField label="Batch Cooking" value={prep.batchCooking} onChange={(value) => setPrep((prev) => ({ ...prev, batchCooking: value }))} placeholder="Chủ nhật prep 3 hộp lunch, luộc sẵn trứng, chia sẵn snack..." rows={4} />
-              <TextAreaField label="Pantry Staples" value={prep.pantryStaples} onChange={(value) => setPrep((prev) => ({ ...prev, pantryStaples: value }))} placeholder="Yến mạch, gạo, gia vị không đường, whey, tuna..." rows={4} />
-              <TextAreaField label="Eating-out Rules" value={prep.eatingOutRules} onChange={(value) => setPrep((prev) => ({ ...prev, eatingOutRules: value }))} placeholder="Ưu tiên món nướng/hấp, xin sauce riêng, 1 social meal/tuần..." rows={4} />
-              <TextAreaField label="Coach Notes" value={prep.coachNotes} onChange={(value) => setPrep((prev) => ({ ...prev, coachNotes: value }))} placeholder="Lưu ý logistics, budget, travel week, món thay thế nhanh..." rows={4} />
-            </>
-          )}
-        </div>
-      </SectionCard>
-
-      <SectionCard
-        icon={Archive}
-        title="Archive"
-        accentClassName="text-neutral-300"
-        action={!readOnly ? <IconButton onClick={handleSyncIntakeProfile} isSaving={isSyncingIntake} icon={RefreshCw} /> : null}
-      >
-        {archiveItems.length > 0 ? (
-          <div className="grid gap-2.5 md:grid-cols-2">
-            {archiveItems.map((field) => (
-              <div key={field.key} className="rounded-[16px] border border-white/[0.05] bg-black/20 px-3.5 py-2.5">
-                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-neutral-600">{field.label}</p>
-                <p className="mt-1.5 text-sm leading-relaxed text-white">{archive[field.key]}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-[18px] border border-white/[0.05] bg-black/20 px-3.5 py-5 text-center text-sm text-neutral-500">
-            Chưa có dữ liệu intake nào được lưu.
-          </div>
-        )}
-      </SectionCard>
+      </div>
     </div>
   );
 };

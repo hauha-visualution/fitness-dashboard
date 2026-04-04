@@ -79,21 +79,19 @@ const WorkoutTemplateManager = ({ session }) => {
 
   return (
     <div className="app-screen-shell h-screen flex flex-col overflow-hidden">
-      <div className="px-5 pt-5 pb-4 border-b border-white/[0.05] shrink-0">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="app-label text-[9px] font-black uppercase tracking-widest">Quản lý</p>
-            <h2 className="text-lg font-semibold text-white">Workout Templates</h2>
-          </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="app-cta-button inline-flex items-center justify-center w-11 h-11 rounded-[14px] border active:scale-95 transition-all"
-            aria-label="Tạo gói bài tập"
-            title="Tạo gói bài tập"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
+      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.04] bg-black/30 px-5 py-4 backdrop-blur-xl lg:px-8 lg:py-4">
+        <div className="min-w-0">
+          <p className="text-[9px] font-black uppercase tracking-[0.28em] text-neutral-600">Quản lý</p>
+          <h1 className="mt-1 text-[17px] font-semibold tracking-[-0.01em] text-white">Workout Templates</h1>
         </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="app-cta-button inline-flex shrink-0 items-center justify-center w-10 h-10 rounded-full border active:scale-95 transition-all"
+          aria-label="Tạo gói bài tập"
+          title="Tạo gói bài tập"
+        >
+          <Plus className="w-4 h-4" />
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-5 hide-scrollbar">

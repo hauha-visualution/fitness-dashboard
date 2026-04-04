@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  CalendarClock,
   CheckCircle2,
   Clock3,
   CreditCard,
   Library,
   Plus,
   RefreshCw,
+  User,
   Wallet,
   X,
 } from 'lucide-react';
@@ -22,7 +24,7 @@ import {
   isOutstandingPayment,
 } from '../../utils/paymentUtils';
 
-const FILTERS = [
+const STATUS_FILTERS = [
   { id: 'all', label: 'All' },
   { id: 'open', label: 'Open' },
   { id: 'submitted', label: 'Submitted' },
@@ -54,7 +56,8 @@ const CoachPaymentsView = ({ clients = [] }) => {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actioningId, setActioningId] = useState(null);
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [activeStatusFilter, setActiveStatusFilter] = useState('all');
+  const [activeClientId, setActiveClientId] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showExactTotals, setShowExactTotals] = useState(false);
 
@@ -146,27 +149,43 @@ const CoachPaymentsView = ({ clients = [] }) => {
     );
   };
 
-  const visiblePayments = payments.filter((payment) => {
-    if (activeFilter === 'open') return isOutstandingPayment(payment.status);
-    if (activeFilter === 'submitted') return payment.status === 'submitted';
-    if (activeFilter === 'paid') return payment.status === 'paid';
-    return true;
-  });
+  // Payments scoped to selected client (for summary + feed)
+  const clientScopedPayments = useMemo(
+    () =>
+      activeClientId === 'all'
+        ? payments
+        : payments.filter((p) => p.client_id === activeClientId),
+    [payments, activeClientId]
+  );
 
-  const totalOutstanding = payments
-    .filter((payment) => isOutstandingPayment(payment.status))
-    .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  // Payments further filtered by status
+  const visiblePayments = useMemo(
+    () =>
+      clientScopedPayments.filter((payment) => {
+        if (activeStatusFilter === 'open') return isOutstandingPayment(payment.status);
+        if (activeStatusFilter === 'submitted') return payment.status === 'submitted';
+        if (activeStatusFilter === 'paid') return payment.status === 'paid';
+        return true;
+      }),
+    [clientScopedPayments, activeStatusFilter]
+  );
 
-  const totalPaid = payments
-    .filter((payment) => payment.status === 'paid')
-    .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-  const totalCancelled = payments.filter((payment) => payment.status === 'cancelled').length;
+  // Summary numbers follow the client scope
+  const totalOutstanding = clientScopedPayments
+    .filter((p) => isOutstandingPayment(p.status))
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+  const totalPaid = clientScopedPayments
+    .filter((p) => p.status === 'paid')
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+  const totalCancelled = clientScopedPayments.filter((p) => p.status === 'cancelled').length;
 
   const summaryCards = [
     {
       label: 'Open',
       value: showExactTotals ? fmtVND(totalOutstanding) : fmtVNDAbridged(totalOutstanding),
-      caption: `${payments.filter((payment) => isOutstandingPayment(payment.status)).length} open`,
+      caption: `${clientScopedPayments.filter((p) => isOutstandingPayment(p.status)).length} open`,
       classes: 'border-red-500/20 bg-red-500/[0.06]',
       textClass: 'text-red-300/80',
       icon: Clock3,
@@ -174,7 +193,7 @@ const CoachPaymentsView = ({ clients = [] }) => {
     },
     {
       label: 'Submitted',
-      value: `${payments.filter((payment) => payment.status === 'submitted').length}`,
+      value: `${clientScopedPayments.filter((p) => p.status === 'submitted').length}`,
       caption: 'Awaiting confirmation',
       classes: 'border-amber-500/20 bg-amber-500/[0.06]',
       textClass: 'text-amber-300/80',
@@ -184,7 +203,7 @@ const CoachPaymentsView = ({ clients = [] }) => {
     {
       label: 'Paid',
       value: showExactTotals ? fmtVND(totalPaid) : fmtVNDAbridged(totalPaid),
-      caption: `${payments.filter((payment) => payment.status === 'paid').length} Paid`,
+      caption: `${clientScopedPayments.filter((p) => p.status === 'paid').length} Paid`,
       classes: 'border-[rgba(200,245,63,0.2)] bg-[rgba(200,245,63,0.06)]',
       textClass: 'text-[rgba(200,245,63,0.85)]',
       icon: CheckCircle2,
@@ -201,46 +220,47 @@ const CoachPaymentsView = ({ clients = [] }) => {
     },
   ];
 
+  // Only show clients that have at least one payment
+  const clientsWithPayments = useMemo(() => {
+    const ids = new Set(payments.map((p) => p.client_id));
+    return clients.filter((c) => ids.has(c.id));
+  }, [clients, payments]);
+
   return (
     <>
-      <div className="app-screen-shell flex-1 overflow-y-auto hide-scrollbar px-5 pt-6 pb-28 animate-slide-up">
-        <div className="flex items-start justify-between gap-4 mb-6">
-          <div>
-            <p className="app-label text-[10px] font-black uppercase tracking-[0.35em] mb-2">
-              Payments
-            </p>
-            <h1 className="text-white text-[28px] leading-none font-semibold">
-              Service Payments
-            </h1>
-            <p className="app-subtle-text text-xs mt-2">
-              Create charges, track submitted transfers, and confirm completion from one feed.
-            </p>
-          </div>
+      <div className="app-screen-shell flex flex-col flex-1 overflow-hidden animate-slide-up">
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                void fetchPayments();
-              }}
-              className="app-ghost-button w-11 h-11 rounded-full border flex items-center justify-center active:scale-95 transition-all"
-              aria-label="Refresh"
-              title="Refresh"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowCreateModal(true)}
-              className="app-cta-button w-11 h-11 rounded-full border flex items-center justify-center active:scale-95 transition-all"
-              aria-label="Create payment"
-              title="Create payment"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
+      {/* HEADER */}
+      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.04] bg-black/30 px-5 py-4 backdrop-blur-xl lg:px-8 lg:py-4">
+        <div className="min-w-0">
+          <p className="text-[9px] font-black uppercase tracking-[0.28em] text-neutral-600">Payments</p>
+          <h1 className="mt-1 text-[17px] font-semibold tracking-[-0.01em] text-white">Service Payments</h1>
         </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => { void fetchPayments(); }}
+            className="app-ghost-button w-10 h-10 rounded-full border flex items-center justify-center active:scale-95 transition-all"
+            aria-label="Refresh"
+            title="Refresh"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowCreateModal(true)}
+            className="app-cta-button w-10 h-10 rounded-full border flex items-center justify-center active:scale-95 transition-all"
+            aria-label="Create payment"
+            title="Create payment"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
 
+      <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pt-6 pb-28">
+
+        {/* SUMMARY CARDS */}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 mb-5">
           {summaryCards.map((card) => {
             const Icon = card.icon;
@@ -267,14 +287,47 @@ const CoachPaymentsView = ({ clients = [] }) => {
           })}
         </div>
 
+        {/* CLIENT FILTER */}
+        {clientsWithPayments.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-1 mb-3">
+            <button
+              type="button"
+              onClick={() => setActiveClientId('all')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-[0.18em] whitespace-nowrap transition-all ${
+                activeClientId === 'all'
+                  ? 'border-white/20 bg-white/[0.1] text-white'
+                  : 'border-white/10 bg-white/[0.03] text-neutral-500'
+              }`}
+            >
+              <User className="w-3 h-3" />
+              All clients
+            </button>
+            {clientsWithPayments.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setActiveClientId(c.id)}
+                className={`px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-[0.18em] whitespace-nowrap transition-all ${
+                  activeClientId === c.id
+                    ? 'border-[var(--app-accent)]/40 bg-[var(--app-accent)]/10 text-[var(--app-accent)]'
+                    : 'border-white/10 bg-white/[0.03] text-neutral-500'
+                }`}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* STATUS FILTER */}
         <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-1 mb-4">
-          {FILTERS.map((filter) => (
+          {STATUS_FILTERS.map((filter) => (
             <button
               key={filter.id}
               type="button"
-              onClick={() => setActiveFilter(filter.id)}
+              onClick={() => setActiveStatusFilter(filter.id)}
               className={`px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all ${
-                activeFilter === filter.id
+                activeStatusFilter === filter.id
                   ? 'border-white/10 bg-white/[0.08] text-white'
                   : 'border-white/10 bg-white/[0.03] text-neutral-500'
               }`}
@@ -284,13 +337,18 @@ const CoachPaymentsView = ({ clients = [] }) => {
           ))}
         </div>
 
+        {/* PAYMENT FEED */}
         <div className="rounded-[28px] border border-white/[0.06] bg-white/[0.02] overflow-hidden">
           <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between gap-3">
             <div>
               <p className="text-[9px] font-black uppercase tracking-[0.28em] text-neutral-600 mb-1">
                 Payment Feed
               </p>
-              <p className="text-white text-sm font-medium">All Payment Requests</p>
+              <p className="text-white text-sm font-medium">
+                {activeClientId === 'all'
+                  ? 'All Payment Requests'
+                  : `${clientMap[activeClientId]?.name || ''} · Payments`}
+              </p>
             </div>
             <div className="w-10 h-10 rounded-full border border-white/10 bg-white/[0.04] flex items-center justify-center text-neutral-400">
               <Wallet className="w-4 h-4" />
@@ -312,131 +370,285 @@ const CoachPaymentsView = ({ clients = [] }) => {
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-white/[0.06]">
-              {visiblePayments.map((payment) => {
-                const client = clientMap[payment.client_id];
-                const statusMeta = getPaymentStatusMeta(payment.status);
-                const typeMeta = getPaymentTypeMeta(payment.payment_type);
-                const tone = getToneClasses(statusMeta.tone);
-                const title = getPaymentDisplayTitle(payment);
-                const detailNote = payment.detail_note?.trim() || '';
-                const timeline = buildCompactTimeline(payment);
-                const isBusy = actioningId === payment.id;
+            <>
+              {/* MOBILE: flat row list */}
+              <div className="divide-y divide-white/[0.06] lg:hidden">
+                {visiblePayments.map((payment) => {
+                  const client = clientMap[payment.client_id];
+                  const statusMeta = getPaymentStatusMeta(payment.status);
+                  const typeMeta = getPaymentTypeMeta(payment.payment_type);
+                  const tone = getToneClasses(statusMeta.tone);
+                  const title = getPaymentDisplayTitle(payment);
+                  const detailNote = payment.detail_note?.trim() || '';
+                  const timeline = buildCompactTimeline(payment);
+                  const isBusy = actioningId === payment.id;
 
-                return (
-                  <div
-                    key={payment.id}
-                    className="px-5 py-4 flex items-start gap-4 transition-colors hover:bg-white/[0.02]"
-                  >
-                    <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${tone.icon}`}>
-                      {payment.payment_type === 'package' ? (
-                        <Library className="w-4 h-4" />
-                      ) : (
-                        <Wallet className="w-4 h-4" />
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-2">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.2em] ${tone.badge}`}>
-                          {typeMeta.label}
-                        </span>
-                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.2em] ${tone.badge}`}>
-                          {statusMeta.label}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2 text-white">
-                        <p className="font-semibold truncate">{client?.name || 'Trainee'}</p>
-                        <span className="text-neutral-600">·</span>
-                        <span className="truncate">{title}</span>
-                      </div>
-
-                      {payment.payment_method && (
-                        <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                          {payment.payment_method.replace('_', ' ')}
-                        </p>
-                      )}
-
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[11px]">
-                        <span className="font-semibold text-white tabular-nums">{fmtVND(payment.amount)}</span>
-                        {payment.package_number && (
-                          <span className="text-neutral-500">
-                            Package #{String(payment.package_number).padStart(2, '0')}
-                          </span>
+                  return (
+                    <div
+                      key={payment.id}
+                      className="px-5 py-4 flex items-start gap-4 transition-colors hover:bg-white/[0.02]"
+                    >
+                      <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${tone.icon}`}>
+                        {payment.payment_type === 'package' ? (
+                          <Library className="w-4 h-4" />
+                        ) : (
+                          <Wallet className="w-4 h-4" />
                         )}
-                        <span className="text-neutral-600">{timeline}</span>
                       </div>
 
-                      {detailNote && (
-                        <p className="text-neutral-300 text-[12px] mt-2 leading-relaxed">
-                          {detailNote}
-                        </p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-2">
+                          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.2em] ${tone.badge}`}>
+                            {typeMeta.label}
+                          </span>
+                          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.2em] ${tone.badge}`}>
+                            {statusMeta.label}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-white">
+                          <p className="font-semibold truncate">{client?.name || 'Trainee'}</p>
+                          <span className="text-neutral-600">·</span>
+                          <span className="truncate">{title}</span>
+                        </div>
+
+                        {payment.payment_method && (
+                          <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                            {payment.payment_method.replace('_', ' ')}
+                          </p>
+                        )}
+
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[11px]">
+                          <span className="font-semibold text-white tabular-nums">{fmtVND(payment.amount)}</span>
+                          {payment.package_number && (
+                            <span className="text-neutral-500">
+                              Package #{String(payment.package_number).padStart(2, '0')}
+                            </span>
+                          )}
+                          <span className="text-neutral-600">{timeline}</span>
+                        </div>
+
+                        {detailNote && (
+                          <p className="text-neutral-300 text-[12px] mt-2 leading-relaxed">
+                            {detailNote}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        {payment.status === 'pending' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => { void handleMarkPaid(payment); }}
+                              disabled={isBusy}
+                              className="min-w-[88px] px-4 py-2 rounded-[12px] border border-[rgba(200,245,63,0.3)] bg-[rgba(200,245,63,0.14)] text-[var(--app-accent)] text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                            >
+                              {isBusy ? <RefreshCw className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                              Paid
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { void handleVoid(payment); }}
+                              disabled={isBusy}
+                              className="min-w-[88px] px-4 py-2 rounded-[12px] border border-white/10 bg-white/[0.04] text-neutral-300 text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                            >
+                              <X className="w-3 h-3" />
+                              Void
+                            </button>
+                          </>
+                        )}
+
+                        {payment.status === 'submitted' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => { void handleMarkPaid(payment); }}
+                              disabled={isBusy}
+                              className="min-w-[88px] px-4 py-2 rounded-[12px] border border-[rgba(200,245,63,0.3)] bg-[rgba(200,245,63,0.14)] text-[var(--app-accent)] text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                            >
+                              {isBusy ? <RefreshCw className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                              Confirm
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { void handleVoid(payment); }}
+                              disabled={isBusy}
+                              className="min-w-[88px] px-4 py-2 rounded-[12px] border border-white/10 bg-white/[0.04] text-neutral-300 text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                            >
+                              <X className="w-3 h-3" />
+                              Void
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* DESKTOP: 4-column grouped layout (same as client PaymentTab) */}
+              <div className="hidden lg:block lg:p-4">
+                <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+                  {[
+                    { id: 'pending',   label: 'Open',      description: 'Waiting for payment',          items: visiblePayments.filter((p) => p.status === 'pending') },
+                    { id: 'submitted', label: 'Submitted',  description: 'Awaiting coach confirmation',   items: visiblePayments.filter((p) => p.status === 'submitted') },
+                    { id: 'paid',      label: 'Paid',       description: 'Completed payments',            items: visiblePayments.filter((p) => p.status === 'paid') },
+                    { id: 'cancelled', label: 'Cancelled',  description: 'Voided requests',               items: visiblePayments.filter((p) => p.status === 'cancelled') },
+                  ].map((group) => (
+                    <div key={group.id} className="space-y-2.5">
+                      {/* Column header */}
+                      <div className="flex items-center justify-between gap-3 px-1">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/85">{group.label}</p>
+                          <p className="text-neutral-500 text-[11px]">{group.description}</p>
+                        </div>
+                        <span className="text-neutral-500 text-[11px] font-semibold">{group.items.length}</span>
+                      </div>
+
+                      {/* Empty state */}
+                      {group.items.length === 0 ? (
+                        <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.02] px-3 py-4 text-center text-[11px] text-neutral-600">
+                          No payments
+                        </div>
+                      ) : (
+                        <div className="grid gap-2.5">
+                          {group.items.map((payment) => {
+                            const client = clientMap[payment.client_id];
+                            const statusMeta = getPaymentStatusMeta(payment.status);
+                            const typeMeta = getPaymentTypeMeta(payment.payment_type);
+                            const tone = getToneClasses(statusMeta.tone);
+                            const title = getPaymentDisplayTitle(payment);
+                            const detailNote = payment.detail_note?.trim() || '';
+                            const timeline = buildCompactTimeline(payment);
+                            const isBusy = actioningId === payment.id;
+                            const packageLabel = payment.package_number
+                              ? `Package #${String(payment.package_number).padStart(2, '0')}`
+                              : null;
+                            const shouldShowPackageMeta =
+                              packageLabel && title.trim().toLowerCase() !== packageLabel.toLowerCase();
+
+                            return (
+                              <div
+                                key={payment.id}
+                                className={`rounded-[22px] border px-4 py-3.5 transition-all min-h-[132px] ${tone.panel}`}
+                              >
+                                <div className="flex items-start justify-between gap-2.5 h-full">
+                                  <div className="flex-1 min-w-0 flex h-full flex-col">
+                                    <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                                      <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.16em] ${tone.badge}`}>
+                                        {payment.payment_type === 'package' ? (
+                                          <Library className="h-2.5 w-2.5" />
+                                        ) : (
+                                          <Wallet className="h-2.5 w-2.5" />
+                                        )}
+                                        {typeMeta.label}
+                                      </span>
+                                      <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.16em] ${tone.badge}`}>
+                                        <CheckCircle2 className="h-2.5 w-2.5" />
+                                        {statusMeta.label}
+                                      </span>
+                                      {shouldShowPackageMeta && (
+                                        <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.16em] text-neutral-400">
+                                          {packageLabel}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="min-w-0">
+                                        <p className="text-[11px] font-semibold text-neutral-400 leading-tight truncate">
+                                          {client?.name || 'Trainee'}
+                                        </p>
+                                        <p className="text-[14px] font-semibold leading-tight text-white">{title}</p>
+                                      </div>
+                                      <div className="mt-0.5 shrink-0 text-right text-white">
+                                        <p className="text-[16px] font-bold leading-none tabular-nums">
+                                          {fmtVND(payment.amount)}
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    {payment.payment_method && (
+                                      <p className="mt-0.5 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                                        {payment.payment_method.replace('_', ' ')}
+                                      </p>
+                                    )}
+
+                                    {detailNote && (
+                                      <p className="mt-auto pt-1.5 line-clamp-1 text-[11px] leading-snug text-neutral-400">
+                                        {detailNote}
+                                      </p>
+                                    )}
+
+                                    <div className={`${detailNote ? 'mt-1.5' : 'mt-auto pt-2'} flex min-w-0 items-center gap-1.5 text-[9.5px] text-neutral-600`}>
+                                      <CalendarClock className="h-3 w-3 shrink-0" />
+                                      <p className="truncate">{timeline}</p>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex shrink-0 flex-col items-end gap-1.5">
+                                    {payment.status === 'pending' && (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => { void handleMarkPaid(payment); }}
+                                          disabled={isBusy}
+                                          className="inline-flex min-w-[74px] items-center justify-center gap-1 rounded-[11px] border border-[rgba(200,245,63,0.3)] bg-[rgba(200,245,63,0.14)] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-[var(--app-accent)] transition-all active:scale-95 disabled:opacity-50"
+                                        >
+                                          {isBusy ? <RefreshCw className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                                          Paid
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => { void handleVoid(payment); }}
+                                          disabled={isBusy}
+                                          className="inline-flex min-w-[74px] items-center justify-center gap-1 rounded-[11px] border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-neutral-300 transition-all active:scale-95 disabled:opacity-50"
+                                        >
+                                          <X className="h-3 w-3" />
+                                          Void
+                                        </button>
+                                      </>
+                                    )}
+                                    {payment.status === 'submitted' && (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => { void handleMarkPaid(payment); }}
+                                          disabled={isBusy}
+                                          className="inline-flex min-w-[74px] items-center justify-center gap-1 rounded-[11px] border border-[rgba(200,245,63,0.3)] bg-[rgba(200,245,63,0.14)] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-[var(--app-accent)] transition-all active:scale-95 disabled:opacity-50"
+                                        >
+                                          {isBusy ? <RefreshCw className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                                          Confirm
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => { void handleVoid(payment); }}
+                                          disabled={isBusy}
+                                          className="inline-flex min-w-[74px] items-center justify-center gap-1 rounded-[11px] border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-neutral-300 transition-all active:scale-95 disabled:opacity-50"
+                                        >
+                                          <X className="h-3 w-3" />
+                                          Void
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       )}
                     </div>
-
-                    <div className="flex flex-col items-end gap-2 shrink-0">
-                      {payment.status === 'pending' && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              void handleMarkPaid(payment);
-                            }}
-                            disabled={isBusy}
-                            className="min-w-[88px] px-4 py-2 rounded-[12px] border border-[rgba(200,245,63,0.3)] bg-[rgba(200,245,63,0.14)] text-[var(--app-accent)] text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
-                          >
-                            {isBusy ? <RefreshCw className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
-                            Paid
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              void handleVoid(payment);
-                            }}
-                            disabled={isBusy}
-                            className="min-w-[88px] px-4 py-2 rounded-[12px] border border-white/10 bg-white/[0.04] text-neutral-300 text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
-                          >
-                            <X className="w-3 h-3" />
-                            Void
-                          </button>
-                        </>
-                      )}
-
-                      {payment.status === 'submitted' && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              void handleMarkPaid(payment);
-                            }}
-                            disabled={isBusy}
-                            className="min-w-[88px] px-4 py-2 rounded-[12px] border border-[rgba(200,245,63,0.3)] bg-[rgba(200,245,63,0.14)] text-[var(--app-accent)] text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
-                          >
-                            {isBusy ? <RefreshCw className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
-                            Confirm
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              void handleVoid(payment);
-                            }}
-                            disabled={isBusy}
-                            className="min-w-[88px] px-4 py-2 rounded-[12px] border border-white/10 bg-white/[0.04] text-neutral-300 text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
-                          >
-                            <X className="w-3 h-3" />
-                            Void
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>
+
+      </div>{/* end app-screen-shell wrapper */}
 
       {showCreateModal && (
         <CreatePaymentModal

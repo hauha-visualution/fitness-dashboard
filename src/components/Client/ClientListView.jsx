@@ -4,22 +4,24 @@ import ClientAvatar from '../shared/ClientAvatar';
 
 const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading }) => {
   return (
-    <div className="app-screen-shell h-screen flex flex-col relative z-10 px-6 py-8 pb-32 overflow-y-auto hide-scrollbar">
-      
+    <div className="app-screen-shell h-screen flex flex-col relative z-10 overflow-hidden">
+
       {/* HEADER */}
-      <div className="flex justify-between items-center mb-8 shrink-0">
-         <div>
-           <h1 className="text-2xl font-medium text-white tracking-tight">Trainee List</h1>
-           <p className="app-label text-[10px] font-black uppercase tracking-widest mt-1">Total: {clients.length} trainees</p>
-         </div>
-         <button 
-          onClick={onOpenAdd} 
-          className="app-cta-button p-3 border rounded-full hover:scale-105 active:scale-95 transition-all"
-         >
-           <UserPlus className="w-5 h-5" />
-         </button>
+      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.04] bg-black/30 px-5 py-4 backdrop-blur-xl lg:px-8 lg:py-4">
+        <div className="min-w-0">
+          <p className="text-[9px] font-black uppercase tracking-[0.28em] text-neutral-600">Coach</p>
+          <h1 className="mt-1 text-[17px] font-semibold tracking-[-0.01em] text-white">Trainee List</h1>
+          <p className="mt-1 text-[11px] text-neutral-500">Total: {clients.length} trainees</p>
+        </div>
+        <button
+          onClick={onOpenAdd}
+          className="app-cta-button shrink-0 p-2.5 border rounded-full active:scale-95 transition-all"
+        >
+          <UserPlus className="w-4 h-4" />
+        </button>
       </div>
-      
+
+      <div className="flex-1 overflow-y-auto hide-scrollbar px-6 py-6 pb-32">
       {isLoading ? (
         <div className="flex flex-col items-center justify-center h-64 mt-10">
           <RefreshCw className="w-8 h-8 mb-4 app-blue-text animate-spin" />
@@ -75,6 +77,7 @@ const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading }) => {
             ))}
          </div>
       )}
+      </div>
     </div>
   );
 };

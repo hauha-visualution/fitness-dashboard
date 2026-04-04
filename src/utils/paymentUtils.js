@@ -7,8 +7,8 @@ export const PAYMENT_TYPE_OPTIONS = [
 ];
 
 export const PAYMENT_METHOD_OPTIONS = [
-  { value: 'bank_transfer', label: 'Bank Transfer', description: 'Client transfers money to the coach account.' },
-  { value: 'cash', label: 'Cash', description: 'Client pays in cash.' },
+  { value: 'bank_transfer', label: 'Bank Transfer', description: 'Trainee transfers money to the coach account.' },
+  { value: 'cash', label: 'Cash', description: 'Trainee pays in cash.' },
   { value: 'card', label: 'Card', description: 'Paid by card or POS.' },
   { value: 'other', label: 'Other', description: 'Any other method noted by the coach.' },
 ];
@@ -60,7 +60,7 @@ export const getPaymentStatusMeta = (status) => {
       return {
         label: 'Submitted',
         tone: 'amber',
-        description: 'Client marked the transfer as sent and is waiting for coach confirmation.',
+        description: 'Trainee marked the transfer as sent and is waiting for coach confirmation.',
       };
     case 'paid':
       return {
@@ -79,7 +79,7 @@ export const getPaymentStatusMeta = (status) => {
       return {
         label: 'Pending',
         tone: 'red',
-        description: 'This payment is still waiting for the client to pay.',
+        description: 'This payment is still waiting for the trainee to pay.',
       };
   }
 };

@@ -65,8 +65,14 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
       supabase.from('sessions').select('*').eq('client_id', clientId).order('scheduled_date').order('scheduled_time'),
     ]);
 
-    setPackages(pkgs ?? []);
+    const loadedPackages = pkgs ?? [];
+    setPackages(loadedPackages);
     setSessions(sess ?? []);
+    // Auto-expand the first active package by default
+    if (loadedPackages.length > 0) {
+      const firstActive = loadedPackages.find(p => p.status === 'active') ?? loadedPackages[0];
+      setExpandedPkg((current) => current ?? firstActive.id);
+    }
     setLoading(false);
   }, [clientId]);
 
@@ -147,6 +153,17 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
     void fetchData();
   };
 
+  const serviceGroups = React.useMemo(() => {
+    const groups = {};
+    packages.forEach((pkg) => {
+      const pkgMetaRaw = parseServiceMeta(pkg.note);
+      const type = pkgMetaRaw.serviceType || 'training';
+      if (!groups[type]) groups[type] = [];
+      groups[type].push(pkg);
+    });
+    return groups;
+  }, [packages]);
+
   if (loading) return (
     <div className="flex items-center justify-center py-20">
       <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
@@ -161,77 +178,112 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
   );
 
   return (
-    <div className="space-y-4 animate-slide-up lg:space-y-5">
-
-      {packages.map(pkg => {
-        const pkgSessions = sessions.filter(s => s.package_id === pkg.id);
-        const pkgMetaRaw = parseServiceMeta(pkg.note);
-        const serviceType = pkgMetaRaw.serviceType || 'training';
+    <div className="animate-slide-up space-y-4 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-5 lg:items-start">
+      {Object.entries(serviceGroups).map(([serviceType, pkgs]) => {
         const serviceLabel = getServiceTypeLabel(serviceType);
 
-        const completedCount = pkgSessions.filter(s => s.status === 'completed').length;
-        const isActive = pkg.status === 'active';
-        const isExpanded = expandedPkg === pkg.id;
-        const remainingCount = Math.max((pkg.total_sessions || 0) - pkgSessions.filter((s) => s.status !== 'cancelled').length, 0);
-
-        // Find next relevant session
-        const nextSession = pkgSessions.find(s => s.status === 'in_progress' && (s.session_kind ?? 'fixed') === 'fixed')
-          || pkgSessions.find(s => s.status === 'scheduled' && (s.session_kind ?? 'fixed') === 'fixed');
-        const upcomingSessions = pkgSessions
-          .filter(s => ['scheduled', 'in_progress'].includes(s.status))
-          .sort((a, b) => a.session_number - b.session_number || a.scheduled_date.localeCompare(b.scheduled_date) || a.scheduled_time.localeCompare(b.scheduled_time));
-        const doneSessions = pkgSessions.filter(s => s.status === 'completed');
-        const cancelledSessions = pkgSessions
-          .filter(s => s.status === 'cancelled' && s.cancel_reason !== 'overflow_by_extra_session')
-          .sort((a, b) => {
-            const aCancelledAt = a.cancelled_at ? new Date(a.cancelled_at).getTime() : 0;
-            const bCancelledAt = b.cancelled_at ? new Date(b.cancelled_at).getTime() : 0;
-            if (aCancelledAt !== bCancelledAt) return bCancelledAt - aCancelledAt;
-            return b.session_number - a.session_number;
-          });
-
         return (
-          <div key={pkg.id} className={`overflow-hidden rounded-[22px] border lg:rounded-[24px] ${isActive ? 'border-white/10 bg-white/[0.02]' : 'border-white/[0.05] bg-white/[0.01]'}`}>
+          <div key={serviceType} className="space-y-4">
+            <h3 className="hidden lg:block text-[10px] px-1 font-black uppercase tracking-widest text-neutral-500 mb-1">
+              {serviceLabel}
+            </h3>
+            
+            <div className="space-y-4">
+              {pkgs.map((pkg) => {
+                const pkgSessions = sessions.filter((s) => s.package_id === pkg.id);
+                const completedCount = pkgSessions.filter((s) => s.status === 'completed').length;
+                const isActive = pkg.status === 'active';
+                const isExpanded = expandedPkg === pkg.id;
+                const remainingCount = Math.max((pkg.total_sessions || 0) - pkgSessions.filter((s) => s.status !== 'cancelled').length, 0);
 
-            {/* Package header */}
-            <button
-              onClick={() => setExpandedPkg(isExpanded ? null : pkg.id)}
-              className="w-full flex items-center justify-between gap-3 px-4 py-3.5"
-            >
-              <div className="min-w-0 flex-1 text-left">
-                <p className={`text-[12px] font-black uppercase tracking-wide ${isActive ? 'text-blue-400' : 'text-neutral-500'}`}>
-                  {serviceLabel}
-                </p>
-                <div className="mt-1 flex items-center gap-2 text-[11px] text-neutral-500">
-                  <span className="shrink-0">{completedCount}/{pkg.total_sessions} used</span>
-                  {serviceType === 'sketching' ? (
-                    <>
-                      <span className="text-neutral-700">•</span>
-                      <span className="truncate">{remainingCount} left to book</span>
-                    </>
-                  ) : null}
-                </div>
-              </div>
+                // Find next relevant session
+                const nextSession =
+                  pkgSessions.find((s) => s.status === 'in_progress' && (s.session_kind ?? 'fixed') === 'fixed') ||
+                  pkgSessions.find((s) => s.status === 'scheduled' && (s.session_kind ?? 'fixed') === 'fixed');
+                const upcomingSessions = pkgSessions
+                  .filter((s) => ['scheduled', 'in_progress'].includes(s.status))
+                  .sort(
+                    (a, b) =>
+                      a.session_number - b.session_number ||
+                      a.scheduled_date.localeCompare(b.scheduled_date) ||
+                      a.scheduled_time.localeCompare(b.scheduled_time)
+                  );
+                const doneSessions = pkgSessions.filter((s) => s.status === 'completed');
+                const cancelledSessions = pkgSessions
+                  .filter((s) => s.status === 'cancelled' && s.cancel_reason !== 'overflow_by_extra_session')
+                  .sort((a, b) => {
+                    const aCancelledAt = a.cancelled_at ? new Date(a.cancelled_at).getTime() : 0;
+                    const bCancelledAt = b.cancelled_at ? new Date(b.cancelled_at).getTime() : 0;
+                    if (aCancelledAt !== bCancelledAt) return bCancelledAt - aCancelledAt;
+                    return b.session_number - a.session_number;
+                  });
 
-              <div className="flex items-center gap-2">
-                {isActive && nextSession ? (
-                  <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[9px] font-black text-emerald-300">
-                    Active
-                  </span>
-                ) : null}
-                <div className="w-12 h-1 bg-white/10 rounded-full overflow-hidden">
+                return (
                   <div
-                    className={`h-full rounded-full ${isActive ? 'bg-blue-500' : 'bg-neutral-700'}`}
-                    style={{ width: `${pkg.total_sessions > 0 ? (completedCount / pkg.total_sessions) * 100 : 0}%` }}
-                  />
-                </div>
-                {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-neutral-600" /> : <ChevronDown className="w-3.5 h-3.5 text-neutral-600" />}
-              </div>
-            </button>
+                    key={pkg.id}
+                    className={`overflow-hidden rounded-[22px] border lg:rounded-[24px] ${
+                      isActive ? 'border-white/10 bg-white/[0.02]' : 'border-white/[0.05] bg-white/[0.01]'
+                    }`}
+                  >
+                    {/* Package header */}
+                    <button
+                      onClick={() => setExpandedPkg(isExpanded ? null : pkg.id)}
+                      className="w-full flex items-center justify-between gap-3 px-4 py-3.5"
+                    >
+                      <div className="min-w-0 flex-1 text-left">
+                        <p
+                          className={`text-[12px] font-black uppercase tracking-wide lg:hidden ${
+                            isActive ? 'text-blue-400' : 'text-neutral-500'
+                          }`}
+                        >
+                          {serviceLabel}
+                        </p>
+                        <p
+                          className={`text-[12px] font-black uppercase tracking-wide hidden lg:block ${
+                            isActive ? 'text-white' : 'text-neutral-500'
+                          }`}
+                        >
+                          Package #{String(pkg.package_number).padStart(2, '0')}
+                        </p>
+                        <div className="mt-1 flex items-center gap-2 text-[11px] text-neutral-500">
+                          <span className="shrink-0">
+                            {completedCount}/{pkg.total_sessions} used
+                          </span>
+                          {serviceType === 'sketching' ? (
+                            <>
+                              <span className="text-neutral-700">•</span>
+                              <span className="truncate">{remainingCount} left to book</span>
+                            </>
+                          ) : null}
+                        </div>
+                      </div>
 
-            {/* Sessions list */}
-            {isExpanded && (
-              <div className="space-y-1.5 px-4 pb-4 lg:px-5 lg:pb-5">
+                      <div className="flex items-center gap-2">
+                        {isActive && nextSession ? (
+                          <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[9px] font-black text-emerald-300">
+                            Active
+                          </span>
+                        ) : null}
+                        <div className="w-12 h-1 bg-white/10 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${isActive ? 'bg-blue-500' : 'bg-neutral-700'}`}
+                            style={{
+                              width: `${pkg.total_sessions > 0 ? (completedCount / pkg.total_sessions) * 100 : 0}%`,
+                            }}
+                          />
+                        </div>
+                        <div>
+                          {isExpanded ? (
+                            <ChevronUp className="w-3.5 h-3.5 text-neutral-600" />
+                          ) : (
+                            <ChevronDown className="w-3.5 h-3.5 text-neutral-600" />
+                          )}
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* Sessions list */}
+                    <div className={`space-y-1.5 px-4 pb-4 lg:px-5 lg:pb-5 ${isExpanded ? 'block' : 'hidden'}`}>
 
                 {/* Upcoming sessions */}
                 {upcomingSessions.length > 0 && (
@@ -421,7 +473,10 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                   </>
                 )}
               </div>
-            )}
+            </div>
+          );
+        })}
+            </div>
           </div>
         );
       })}

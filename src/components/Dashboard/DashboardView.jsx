@@ -413,7 +413,7 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
 
   return (
     <div className="app-screen-shell relative z-10 flex h-screen flex-col overflow-hidden lg:h-full">
-      <div className="flex shrink-0 items-center justify-between px-5 pt-5 pb-4 lg:px-8 lg:pt-7 lg:pb-5">
+      <div className="flex shrink-0 items-center justify-between px-5 pt-5 pb-4 lg:hidden">
         <div onClick={onOpenProfile} className="flex items-center gap-3 cursor-pointer active:scale-95 transition-all">
           {coachProfile?.avatar_url ? (
             <img src={coachProfile.avatar_url} className="w-10 h-10 rounded-full border border-white/10 object-cover" alt="avatar" />

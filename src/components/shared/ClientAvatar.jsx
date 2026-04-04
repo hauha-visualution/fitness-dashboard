@@ -27,7 +27,7 @@ const ClientAvatar = ({
     <div className={`relative overflow-hidden rounded-full flex items-center justify-center ${sizeClassName} ${ringClassName} ${className}`}>
       {showInnerRing && <div className={innerRingClassName} />}
       {avatarUrl ? (
-        <img src={avatarUrl} alt={name || 'client avatar'} className="h-full w-full object-cover" />
+        <img src={avatarUrl} alt={name || 'trainee avatar'} className="h-full w-full object-cover" />
       ) : (
         <span className={textClassName}>{initials}</span>
       )}

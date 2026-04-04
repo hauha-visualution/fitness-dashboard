@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Home, Library, Users, Wallet } from 'lucide-react';
+import { Bell, Home, Library, LogOut, Users, Wallet } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
 // Import các thành phần chính
@@ -70,11 +70,11 @@ const CoachNavigation = ({ coachTabs, activeTab, onSelectTab, onOpenQuickLog, de
   <div
     className={
       desktop
-        ? 'app-nav-shell hidden lg:flex lg:h-full lg:w-[104px] lg:flex-col lg:justify-center lg:rounded-[34px] lg:p-2.5 lg:shadow-2xl'
+        ? 'app-nav-shell hidden lg:flex lg:h-full lg:w-[64px] lg:flex-col lg:justify-center lg:rounded-[28px] lg:p-2 lg:shadow-2xl'
         : 'app-nav-shell fixed bottom-6 left-1/2 z-50 grid w-[92%] max-w-[390px] -translate-x-1/2 grid-cols-5 gap-1 rounded-[30px] px-2 py-1.5 lg:hidden'
     }
   >
-    <div className={desktop ? 'flex flex-col gap-2' : 'contents'}>
+    <div className={desktop ? 'flex flex-col gap-1.5' : 'contents'}>
       {coachTabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = activeTab === tab.id;
@@ -88,6 +88,7 @@ const CoachNavigation = ({ coachTabs, activeTab, onSelectTab, onOpenQuickLog, de
           <button
             key={tab.id}
             type="button"
+            title={tab.label}
             onClick={() => {
               if (tab.isAction) {
                 onOpenQuickLog();
@@ -95,37 +96,60 @@ const CoachNavigation = ({ coachTabs, activeTab, onSelectTab, onOpenQuickLog, de
               }
               onSelectTab(tab.id);
             }}
-            className={`min-w-0 rounded-[24px] flex ${desktop ? 'flex-col px-2 py-3.5' : 'flex-col py-2.5'} items-center justify-center gap-1.5 transition-all active:scale-95 ${buttonClassName}`}
+            className={`min-w-0 rounded-[20px] flex flex-col ${desktop ? 'px-1 py-3' : 'py-2.5'} items-center justify-center gap-1 transition-all active:scale-95 ${buttonClassName}`}
           >
             <div
               className={`flex items-center justify-center transition-all ${
                 tab.isAction
                   ? desktop
-                    ? 'h-11 w-11 rounded-[18px]'
+                    ? 'h-10 w-10 rounded-[16px]'
                     : 'w-10 h-10 rounded-[16px]'
                   : desktop
-                    ? 'h-10 w-10 rounded-[18px]'
+                    ? 'h-9 w-9 rounded-[14px]'
                     : 'w-9 h-9 rounded-[16px]'
               }`}
             >
-              <Icon className={`${tab.isAction ? (desktop ? 'h-10 w-10' : 'w-9 h-9') : (desktop ? 'h-5 w-5' : 'w-4.5 h-4.5')}`} />
+              <Icon className={`${tab.isAction ? (desktop ? 'h-9 w-9' : 'w-9 h-9') : (desktop ? 'h-[18px] w-[18px]' : 'w-4.5 h-4.5')}`} />
             </div>
-            <span
-              className={`font-black uppercase tracking-tight text-center ${
-                tab.isAction
-                  ? desktop
-                    ? 'max-w-[72px] text-[7px] leading-[1.2]'
-                    : 'max-w-[64px] text-[6px] leading-[1.15]'
-                  : desktop
-                    ? 'text-[8px] leading-[1.2]'
-                    : 'text-[7px]'
-              }`}
-            >
-              {tab.label}
-            </span>
+            {/* Mobile only label */}
+            {!desktop && (
+              <span className="font-black uppercase tracking-tight text-center text-[7px]">{tab.label}</span>
+            )}
           </button>
         );
       })}
+    </div>
+  </div>
+);
+
+const CoachDesktopHeader = ({ coachProfile, session, onOpenProfile, onLogout }) => (
+  <div className="hidden lg:flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.04] bg-black/20 px-6 py-3 backdrop-blur-xl">
+    <button
+      type="button"
+      onClick={onOpenProfile}
+      className="flex items-center gap-3 cursor-pointer active:scale-95 transition-all"
+    >
+      {coachProfile?.avatar_url ? (
+        <img src={coachProfile.avatar_url} className="w-9 h-9 rounded-full border border-white/10 object-cover" alt="avatar" />
+      ) : (
+        <div className="w-9 h-9 rounded-full border border-[rgba(200,245,63,0.3)] bg-[linear-gradient(135deg,rgba(200,245,63,0.22),rgba(96,180,255,0.22))] flex items-center justify-center font-bold text-[var(--app-accent)] text-sm">
+          {coachProfile?.full_name?.charAt(0) || session?.user?.email?.charAt(0).toUpperCase() || 'C'}
+        </div>
+      )}
+      <div>
+        <p className="app-label text-[8px] font-black uppercase tracking-widest leading-none mb-0.5">Aesthetics Hub</p>
+        <p className="text-[15px] font-semibold text-white leading-tight">
+          {coachProfile?.full_name || session?.user?.user_metadata?.username || 'Coach'}
+        </p>
+      </div>
+    </button>
+    <div className="flex gap-2">
+      <button className="app-ghost-button p-2.5 border rounded-full active:scale-90 transition-all">
+        <Bell className="w-4 h-4" />
+      </button>
+      <button onClick={onLogout} className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-full text-[var(--app-danger)] active:scale-90 transition-all">
+        <LogOut className="w-4 h-4" />
+      </button>
     </div>
   </div>
 );
@@ -425,8 +449,8 @@ export default function App() {
   }
 
   return (
-    <div className="app-root-shell min-h-screen flex justify-center px-0 font-sans sm:px-4 lg:px-6 lg:py-6">
-      <div className="app-shell-frame relative flex h-dvh w-full max-w-[420px] flex-col overflow-hidden sm:max-w-[760px] lg:h-[min(920px,calc(100vh-3rem))] lg:max-w-[1380px] lg:flex-row lg:rounded-[40px] lg:border lg:border-white/[0.08]">
+    <div className="app-root-shell min-h-screen flex justify-center px-0 font-sans sm:px-4 lg:px-4 lg:py-4">
+      <div className="app-shell-frame relative flex h-dvh w-full max-w-[420px] flex-col overflow-hidden sm:max-w-[760px] lg:h-[min(960px,calc(100vh-2rem))] lg:max-w-none lg:w-full lg:flex-col lg:rounded-[36px] lg:border lg:border-white/[0.08]">
         <GlobalStyles />
 
         {showCoachProfile ? (
@@ -438,70 +462,77 @@ export default function App() {
           />
         ) : !selectedClient ? (
           <>
-            <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-5 lg:p-5">
-            <div className="relative flex min-h-0 flex-1 flex-col">
-            {activeTab === 'home' && (
-              <DashboardView
-                session={session}
-                coachProfile={coachProfile}
-                refreshKey={refreshKey}
-                onSelectClient={setSelectedClient}
-                onOpenQuickLog={openQuickLog}
-                onLogout={handleLogout}
-                onOpenProfile={() => setShowCoachProfile(true)}
-              />
-            )}
-            {/* Removed CalendarView */}
-
-            {activeTab === 'clients' && (
-              <ClientListView
-                clients={clients}
-                isLoading={isLoading}
-                onSelectClient={setSelectedClient}
-                onOpenAdd={() => setActiveTab('add_client')}
-              />
-            )}
-
-            {activeTab === 'templates' && (
-              <WorkoutTemplateManager
-                session={session}
-              />
-            )}
-
-            {activeTab === 'payments' && (
-              <CoachPaymentsView
-                clients={clients}
-              />
-            )}
-
-            {activeTab === 'add_client' && (
-              <AddClientView
-                onBack={() => setActiveTab('clients')}
-                onSave={fetchClients}
-                coachEmail={session?.user?.email}
-              />
-            )}
-            </div>
-
-            <CoachNavigation
-              coachTabs={coachTabs}
-              activeTab={activeTab}
-              onSelectTab={setActiveTab}
-              onOpenQuickLog={openQuickLog}
-              desktop
+            {/* Persistent desktop header — always visible across all tabs */}
+            <CoachDesktopHeader
+              coachProfile={coachProfile}
+              session={session}
+              onOpenProfile={() => setShowCoachProfile(true)}
+              onLogout={handleLogout}
             />
 
-            {/* Nav chính của Coach */}
-            {activeTab !== 'add_client' && (
+            <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-4 lg:p-4">
+              <div className="relative flex min-h-0 flex-1 flex-col">
+                {activeTab === 'home' && (
+                  <DashboardView
+                    session={session}
+                    coachProfile={coachProfile}
+                    refreshKey={refreshKey}
+                    onSelectClient={setSelectedClient}
+                    onOpenQuickLog={openQuickLog}
+                    onLogout={handleLogout}
+                    onOpenProfile={() => setShowCoachProfile(true)}
+                  />
+                )}
+
+                {activeTab === 'clients' && (
+                  <ClientListView
+                    clients={clients}
+                    isLoading={isLoading}
+                    onSelectClient={setSelectedClient}
+                    onOpenAdd={() => setActiveTab('add_client')}
+                  />
+                )}
+
+                {activeTab === 'templates' && (
+                  <WorkoutTemplateManager
+                    session={session}
+                  />
+                )}
+
+                {activeTab === 'payments' && (
+                  <CoachPaymentsView
+                    clients={clients}
+                  />
+                )}
+
+                {activeTab === 'add_client' && (
+                  <AddClientView
+                    onBack={() => setActiveTab('clients')}
+                    onSave={fetchClients}
+                    coachEmail={session?.user?.email}
+                  />
+                )}
+              </div>
+
+              {/* Desktop side nav (icon-only, 64px) */}
               <CoachNavigation
                 coachTabs={coachTabs}
                 activeTab={activeTab}
                 onSelectTab={setActiveTab}
                 onOpenQuickLog={openQuickLog}
+                desktop
               />
-            )}
-            </div>
 
+              {/* Mobile bottom nav */}
+              {activeTab !== 'add_client' && (
+                <CoachNavigation
+                  coachTabs={coachTabs}
+                  activeTab={activeTab}
+                  onSelectTab={setActiveTab}
+                  onOpenQuickLog={openQuickLog}
+                />
+              )}
+            </div>
           </>
         ) : (
           <ClientDetailView

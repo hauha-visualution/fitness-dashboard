@@ -1309,10 +1309,10 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
     return years.size > 1;
   }, [filteredChartRecords]);
 
+  // Tooltip is only opened on user tap — no auto-open on data change
   useEffect(() => {
-    const nextIndex = filteredChartRecords.length > 0 ? filteredChartRecords.length - 1 : null;
-    setActiveChartIndex((current) => (current === nextIndex ? current : nextIndex));
-  }, [filteredChartRecords, selectedMetricKey, timeFilter]);
+    setActiveChartIndex(null);
+  }, [timeFilter, selectedMetricKey]);
 
   const inbodyCardData = useMemo(() => {
     const latestMeasurementDate = filteredChartRecords.length > 0
@@ -1453,10 +1453,12 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
   }
 
   return (
-    <div className="relative isolate space-y-5 pb-6 pt-5 animate-slide-up">
-      <div className="pointer-events-none absolute left-1/2 top-2 h-40 w-40 -translate-x-1/2 rounded-full bg-blue-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute right-2 top-48 h-28 w-28 rounded-full bg-emerald-500/[0.08] blur-3xl" />
+    <div className="relative isolate pb-6 pt-5 animate-slide-up lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start space-y-5 lg:space-y-0">
+      <div className="pointer-events-none absolute left-1/2 top-2 h-40 w-40 -translate-x-1/2 rounded-full bg-blue-500/10 blur-3xl lg:hidden" />
+      <div className="pointer-events-none absolute right-2 top-48 h-28 w-28 rounded-full bg-emerald-500/[0.08] blur-3xl lg:hidden" />
 
+      {/* --- CỘT TRÁI (Avatar, Schedule, InBody) --- */}
+      <div className="space-y-5 flex flex-col w-full">
       <div className="relative text-center">
         <div className="relative mx-auto w-fit">
           <ClientAvatar
@@ -1549,7 +1551,7 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
         </div>
       ) : null}
 
-      <div className="space-y-3">
+        <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="app-label text-[9px] font-black uppercase tracking-widest">InBody Progress</p>
@@ -1628,7 +1630,35 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
         )}
       </div>
 
-      <div ref={progressSectionRef} className="space-y-3">
+      </div>
+
+      {/* --- CỘT PHẢI (Personal Info, Photos) --- */}
+      <div className="space-y-5 flex flex-col w-full">
+        <div className="space-y-3">
+        <p className="app-label text-[9px] font-black uppercase tracking-widest">Personal Information</p>
+        <div className="relative overflow-hidden rounded-[24px] border border-white/[0.05] bg-white/[0.02] shadow-xl shadow-black/20 backdrop-blur-sm">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-white/[0.03] to-transparent" />
+          <div className="grid grid-cols-2">
+            {personalInfoCells.map((item, index) => (
+              <InfoCell
+                key={item.label}
+                label={item.label}
+                value={item.value}
+                className={`${index % 2 === 0 ? 'border-r border-white/[0.05]' : ''} ${
+                  index < personalInfoCells.length - 2 ? 'border-b border-white/[0.05]' : ''
+                }`}
+              />
+            ))}
+
+            <InfoCell
+              label="DAILY DURATION"
+              value={client.trainingtime || '--'}
+              valueClassName="text-[11px] font-semibold text-blue-400"
+              className="col-span-2 border-t border-white/[0.05]"
+            />
+          </div>
+        </div>
+          <div ref={progressSectionRef} className="space-y-3">
         <p className="app-label text-[9px] font-black uppercase tracking-widest">Progress Photos</p>
 
         {uploadError && (
@@ -1683,31 +1713,8 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
         </div>
       </div>
 
-      <div className="space-y-3">
-        <p className="app-label text-[9px] font-black uppercase tracking-widest">Personal Information</p>
-        <div className="relative overflow-hidden rounded-[24px] border border-white/[0.05] bg-white/[0.02] shadow-xl shadow-black/20 backdrop-blur-sm">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-white/[0.03] to-transparent" />
-          <div className="grid grid-cols-2">
-            {personalInfoCells.map((item, index) => (
-              <InfoCell
-                key={item.label}
-                label={item.label}
-                value={item.value}
-                className={`${index % 2 === 0 ? 'border-r border-white/[0.05]' : ''} ${
-                  index < personalInfoCells.length - 2 ? 'border-b border-white/[0.05]' : ''
-                }`}
-              />
-            ))}
-
-            <InfoCell
-              label="DAILY DURATION"
-              value={client.trainingtime || '--'}
-              valueClassName="text-[11px] font-semibold text-blue-400"
-              className="col-span-2 border-t border-white/[0.05]"
-            />
-          </div>
-        </div>
       </div>
+    </div>
 
       {!readOnly && isModalOpen && ReactDOM.createPortal(
         <div className="fixed inset-0 z-[180] flex items-end justify-center bg-black/60 px-4 pb-10 backdrop-blur-sm">

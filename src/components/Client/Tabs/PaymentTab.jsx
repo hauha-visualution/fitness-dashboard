@@ -350,7 +350,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
             </p>
           </div>
         ) : (
-          <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 xl:grid-cols-4">
+          <div className="space-y-4 lg:grid lg:grid-cols-4 lg:gap-4 lg:space-y-0">
             {paymentGroups.map((group) => (
               <div key={group.id} className="space-y-2 lg:space-y-2.5">
                 <div className="flex items-center justify-between gap-3 px-1">

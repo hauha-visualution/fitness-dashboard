@@ -13,11 +13,11 @@ import ProfileTab from '../Client/Tabs/ProfileTab';
 import QuickLogSheet from '../Dashboard/QuickLogSheet';
 
 const PORTAL_HEADER_META = {
-  profile: { eyebrow: 'Client Profile', title: 'Profile' },
-  package: { eyebrow: 'Client Services', title: 'Services' },
-  sessions: { eyebrow: 'Client Sessions', title: 'Sessions' },
-  nutrition: { eyebrow: 'Client Nutrition', title: 'Nutrition' },
-  payment: { eyebrow: 'Client Payments', title: 'Payment' },
+  profile: { eyebrow: 'Trainee Profile', title: 'Profile' },
+  package: { eyebrow: 'Trainee Services', title: 'Services' },
+  sessions: { eyebrow: 'Trainee Sessions', title: 'Sessions' },
+  nutrition: { eyebrow: 'Trainee Nutrition', title: 'Nutrition' },
+  payment: { eyebrow: 'Trainee Payments', title: 'Payment' },
 };
 
 const ClientPortalNavigation = ({ tabs, activeTab, onSelectTab, desktop = false }) => (

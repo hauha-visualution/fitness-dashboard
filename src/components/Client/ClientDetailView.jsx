@@ -23,11 +23,11 @@ import NutritionTab from './Tabs/NutritionTab';
 import PaymentTab from './Tabs/PaymentTab';
 
 const DETAIL_HEADER_META = {
-  profile: { eyebrow: 'Client Profile', title: 'Profile' },
-  package: { eyebrow: 'Client Services', title: 'Services' },
-  sessions: { eyebrow: 'Client Sessions', title: 'Sessions' },
-  nutrition: { eyebrow: 'Client Nutrition', title: 'Nutrition' },
-  payment: { eyebrow: 'Client Payments', title: 'Payment' },
+  profile: { eyebrow: 'Trainee Profile', title: 'Profile' },
+  package: { eyebrow: 'Trainee Services', title: 'Services' },
+  sessions: { eyebrow: 'Trainee Sessions', title: 'Sessions' },
+  nutrition: { eyebrow: 'Trainee Nutrition', title: 'Nutrition' },
+  payment: { eyebrow: 'Trainee Payments', title: 'Payment' },
 };
 
 const ClientDetailNavigation = ({ activeSubTab, onSelectTab, desktop = false }) => {
@@ -47,16 +47,18 @@ const ClientDetailNavigation = ({ activeSubTab, onSelectTab, desktop = false }) 
           : 'relative z-20 shrink-0 px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-3 lg:hidden'
       }
     >
-      <div className={desktop ? 'flex flex-col gap-2' : 'app-nav-shell flex w-full justify-between rounded-[32px] p-1.5 shadow-2xl shadow-black/40'}>
+      <div className={desktop ? 'flex h-full flex-col gap-2' : 'app-nav-shell flex w-full rounded-[32px] p-1.5 shadow-2xl shadow-black/40'}>
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => onSelectTab(tab.id)}
             className={`flex flex-1 flex-col items-center justify-center gap-1 rounded-[26px] py-4 transition-all duration-300 lg:min-h-[80px] lg:gap-1.5 lg:px-2 lg:py-3 ${
-              activeSubTab === tab.id ? 'scale-100 app-nav-item-active shadow-inner shadow-white/5' : 'scale-90 text-neutral-600 opacity-50 lg:scale-100'
+              activeSubTab === tab.id
+                ? 'app-nav-item-active shadow-inner shadow-white/5'
+                : 'text-neutral-600 opacity-50'
             }`}
           >
-            <tab.icon className={`h-5 w-5 lg:h-5.5 lg:w-5.5 ${activeSubTab === tab.id ? 'app-accent-text' : 'text-neutral-700'}`} />
+            <tab.icon className={`h-5 w-5 lg:h-5 lg:w-5 ${activeSubTab === tab.id ? 'app-accent-text' : 'text-neutral-700'}`} />
             <span className="text-[7px] font-black uppercase tracking-widest lg:text-[8px] lg:leading-[1.2]">{tab.label}</span>
           </button>
         ))}
@@ -80,7 +82,9 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
 
   const renderTabShell = (content) => (
     <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
-      {content}
+      <div className="w-full lg:mx-auto lg:max-w-5xl">
+        {content}
+      </div>
     </div>
   );
 

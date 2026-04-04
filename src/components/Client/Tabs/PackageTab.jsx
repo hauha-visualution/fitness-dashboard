@@ -282,7 +282,7 @@ const PackageTab = ({ client, readOnly = false }) => {
 
       {/* Active Service Cards */}
       {activePackages.length > 0 && (
-        <div className="space-y-3">
+        <div className="space-y-3 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-4 lg:items-start">
           {activePackages.map((pkg) => {
             const pkgMetaRaw = parseServiceMeta(pkg.note);
             const pkgMeta = {
@@ -460,7 +460,7 @@ const PackageTab = ({ client, readOnly = false }) => {
       {completedPackages.length > 0 && (
         <div className="space-y-3">
           <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3 ml-1">Service History</p>
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid gap-3 lg:grid-cols-3">
             {completedPackages.map(pkg => {
               const cnt = sessionCounts[pkg.id] ?? {};
               const expanded = expandedPkg === pkg.id;
