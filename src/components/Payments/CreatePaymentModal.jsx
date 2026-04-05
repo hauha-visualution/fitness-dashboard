@@ -1,114 +1,110 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { Library, UserRound, Wallet, X } from 'lucide-react';
+import { UserRound, Wallet, X } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
+import { notifyPaymentCreated, fetchClientNotifInfo } from '../../utils/notificationUtils';
 import {
   PAYMENT_METHOD_OPTIONS,
-  PAYMENT_TYPE_OPTIONS,
   fmtVND,
 } from '../../utils/paymentUtils';
 
-const TYPE_DEFAULT_TITLES = {
-  package: 'Package Payment',
-  nutrition: 'Nutrition Service',
-  prep_meal: 'Prep Meal Service',
-  sketching: 'Sketching Service',
-  other: 'Additional Service',
-};
+// ─── Extra / standalone payment types only ────────────────────
+// Package payments are auto-created when a package is created.
+// This form is for additional charges OUTSIDE of a package.
+const EXTRA_PAYMENT_TYPE_OPTIONS = [
+  {
+    value: 'nutrition',
+    label: 'Nutrition',
+    description: 'Nutrition coaching or meal guidance.',
+    defaultTitle: 'Nutrition Service',
+  },
+  {
+    value: 'prep_meal',
+    label: 'Prep Meal',
+    description: 'Meal prep charge outside a package.',
+    defaultTitle: 'Prep Meal Service',
+  },
+  {
+    value: 'sketching',
+    label: 'Sketching',
+    description: 'Standalone sketching session.',
+    defaultTitle: 'Sketching Service',
+  },
+  {
+    value: 'other',
+    label: 'Other',
+    description: 'Any additional or custom charge.',
+    defaultTitle: 'Additional Service',
+  },
+];
 
 const DEFAULT_FORM = {
   clientId: '',
   paymentType: 'nutrition',
-  title: TYPE_DEFAULT_TITLES.nutrition,
+  title: 'Nutrition Service',
   amount: '',
   paymentMethod: 'bank_transfer',
   detailNote: '',
-  packageId: '',
-  packageNumber: null,
 };
 
 const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onCreated }) => {
   const [form, setForm] = useState({
     ...DEFAULT_FORM,
-    clientId: defaultClientId ? String(defaultClientId) : '',
+    clientId: defaultClientId
+      ? String(defaultClientId)
+      : clients.length === 1
+        ? String(clients[0].id)
+        : '',
   });
+  const [amountRaw, setAmountRaw] = useState(''); // raw text the user types
   const [isSaving, setIsSaving] = useState(false);
-  const [packages, setPackages] = useState([]);
-  const [loadingPackages, setLoadingPackages] = useState(false);
 
   const selectedClientId = form.clientId ? Number(form.clientId) : null;
   const selectedClient = useMemo(
-    () => clients.find((client) => Number(client.id) === selectedClientId) || null,
-    [clients, selectedClientId]
+    () => clients.find((c) => Number(c.id) === selectedClientId) || null,
+    [clients, selectedClientId],
   );
-
-  useEffect(() => {
-    if (!selectedClientId) {
-      const timeoutId = window.setTimeout(() => {
-        setPackages([]);
-      }, 0);
-      return () => window.clearTimeout(timeoutId);
-    }
-
-    const fetchPackages = async () => {
-      setLoadingPackages(true);
-      const { data, error } = await supabase
-        .from('packages')
-        .select('id, package_number, total_sessions, status')
-        .eq('client_id', selectedClientId)
-        .order('package_number', { ascending: false });
-
-      if (error) {
-        alert(`Unable to load packages: ${error.message}`);
-        setLoadingPackages(false);
-        return;
-      }
-
-      setPackages(data || []);
-      setLoadingPackages(false);
-    };
-
-    void fetchPackages();
-  }, [selectedClientId]);
 
   const updateField = (key, value) => {
     setForm((prev) => {
       const next = { ...prev, [key]: value };
 
-      if (key === 'paymentType' && !prev.title.trim()) {
-        next.title = TYPE_DEFAULT_TITLES[value] || TYPE_DEFAULT_TITLES.other;
-      }
-
-      if (key === 'clientId') {
-        next.packageId = '';
-        next.packageNumber = null;
-      }
-
-      if (key === 'packageId') {
-        const selectedPackage = packages.find((pkg) => pkg.id === value) || null;
-        next.packageNumber = selectedPackage?.package_number ?? null;
-      }
-
-      if (key === 'paymentType' && value !== 'package') {
-        next.packageId = '';
-        next.packageNumber = null;
+      if (key === 'paymentType') {
+        const meta = EXTRA_PAYMENT_TYPE_OPTIONS.find((o) => o.value === value);
+        const prevDefault = EXTRA_PAYMENT_TYPE_OPTIONS.find((o) => o.value === prev.paymentType)?.defaultTitle || '';
+        if (!prev.title.trim() || prev.title === prevDefault) {
+          next.title = meta?.defaultTitle || '';
+        }
       }
 
       return next;
     });
   };
 
+  // Parse Vietnamese number format: "300.000" → 300000, "1.500.000" → 1500000
+  const parseAmountInput = (raw) => {
+    // Strip all dots (used as thousands sep in VN), then parse
+    const stripped = raw.replace(/\./g, '').replace(/,/g, '.');
+    const parsed = parseFloat(stripped);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
+  const handleAmountChange = (raw) => {
+    setAmountRaw(raw);
+    const numeric = parseAmountInput(raw);
+    setForm((prev) => ({ ...prev, amount: numeric }));
+  };
+
   const canSubmit = selectedClientId && Number(form.amount) > 0 && form.title.trim();
 
   const handleCreate = async () => {
     if (!canSubmit || isSaving) return;
-
     setIsSaving(true);
 
     const payload = {
       client_id: selectedClientId,
-      package_id: form.packageId || null,
-      package_number: form.packageNumber ?? null,
+      package_id: null,
+      package_number: null,
       amount: Number(form.amount),
       status: 'pending',
       payment_type: form.paymentType,
@@ -128,51 +124,58 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
 
     onCreated?.();
     onClose?.();
+
+    // ─── Notify trainee (fire-and-forget) ───
+    void (async () => {
+      const clientInfo = await fetchClientNotifInfo(selectedClientId);
+      if (clientInfo?.auth_user_id) {
+        await notifyPaymentCreated({
+          clientAuthUserId: clientInfo.auth_user_id,
+          amount: Number(form.amount),
+          packageNumber: null,
+        });
+      }
+    })();
   };
 
   return ReactDOM.createPortal(
-    <div className="fixed inset-0 z-[600] bg-black/60 backdrop-blur-sm px-4 py-8">
-      <div className="mx-auto w-full max-w-[420px] max-h-full overflow-hidden rounded-[32px] border border-white/10 bg-[var(--app-bg-dialog)] shadow-2xl flex flex-col">
-        <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between gap-3">
+    <div className="fixed inset-0 z-[600] bg-black/60 backdrop-blur-sm px-4 py-8 animate-fade-in">
+      <div className="mx-auto w-full max-w-[420px] max-h-full overflow-hidden rounded-[32px] border border-white/10 bg-[var(--app-bg-dialog)] shadow-2xl flex flex-col animate-modal-in">
+
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between gap-3 shrink-0">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.32em] text-neutral-600 mb-1">
-              Payments
-            </p>
-            <h3 className="text-white text-lg font-semibold">Create Payment</h3>
+            <p className="text-[10px] font-black uppercase tracking-[0.32em] text-neutral-600 mb-1">Payments</p>
+            <h3 className="text-white text-lg font-semibold">Extra Payment</h3>
             <p className="text-neutral-500 text-xs mt-1">
-              Create a new payment request for a trainee or an additional service.
+              Charge for services outside of a package.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="app-ghost-button w-10 h-10 rounded-full border flex items-center justify-center active:scale-95 transition-all"
-            aria-label="Close"
-            title="Close"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto hide-scrollbar px-5 py-5 space-y-5">
-          {clients.length > 1 && (
+
+          {/* Trainee selector */}
+          {clients.length > 0 && (
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">
-                Trainee
-              </label>
+              <label className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">Trainee</label>
               <select
                 value={form.clientId}
-                onChange={(event) => updateField('clientId', event.target.value)}
+                onChange={(e) => updateField('clientId', e.target.value)}
                 className="w-full rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none"
               >
                 <option value="" className="bg-[#101010]">Select trainee</option>
-                {clients.map((client) => (
-                  <option key={client.id} value={client.id} className="bg-[#101010]">
-                    {client.name}
-                  </option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id} className="bg-[#101010]">{c.name}</option>
                 ))}
               </select>
-              <p className="text-neutral-500 text-xs">Choose which trainee should receive this payment request.</p>
             </div>
           )}
 
@@ -183,17 +186,16 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
               </div>
               <div>
                 <p className="text-white font-medium">{selectedClient.name}</p>
-                <p className="text-neutral-500 text-xs">{selectedClient.goal || 'No goal note yet'}</p>
+                <p className="text-neutral-500 text-xs">{selectedClient.goal || 'No goal note'}</p>
               </div>
             </div>
           )}
 
+          {/* Service type */}
           <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">
-              Type
-            </label>
+            <label className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">Service Type</label>
             <div className="grid grid-cols-2 gap-2">
-              {PAYMENT_TYPE_OPTIONS.map((option) => {
+              {EXTRA_PAYMENT_TYPE_OPTIONS.map((option) => {
                 const isSelected = form.paymentType === option.value;
                 return (
                   <button
@@ -202,11 +204,13 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
                     onClick={() => updateField('paymentType', option.value)}
                     className={`rounded-[18px] border px-4 py-3 text-left transition-all ${
                       isSelected
-                        ? 'border-blue-400/30 bg-blue-500/[0.10]'
-                        : 'border-white/10 bg-white/[0.03]'
+                        ? 'border-[var(--app-accent)]/30 bg-[var(--app-accent)]/[0.08]'
+                        : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.05]'
                     }`}
                   >
-                    <p className="text-white text-sm font-semibold">{option.label}</p>
+                    <p className={`text-sm font-semibold ${isSelected ? 'text-[var(--app-accent)]' : 'text-white'}`}>
+                      {option.label}
+                    </p>
                     <p className="text-neutral-500 text-[11px] mt-1">{option.description}</p>
                   </button>
                 );
@@ -214,109 +218,84 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
             </div>
           </div>
 
-          {form.paymentType === 'package' && (
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">
-                Package
-              </label>
-              <select
-                value={form.packageId}
-                onChange={(event) => updateField('packageId', event.target.value)}
-                disabled={!selectedClientId || loadingPackages}
-                className="w-full rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none disabled:opacity-50"
-              >
-                <option value="" className="bg-[#101010]">
-                  {loadingPackages ? 'Loading packages...' : 'Optional package link'}
-                </option>
-                {packages.map((pkg) => (
-                  <option key={pkg.id} value={pkg.id} className="bg-[#101010]">
-                    {`Package #${String(pkg.package_number).padStart(2, '0')} · ${pkg.total_sessions} sessions`}
-                  </option>
-                ))}
-              </select>
-              <p className="text-neutral-500 text-xs">Link this payment to a package when it belongs to a specific training block.</p>
-            </div>
-          )}
-
+          {/* Title */}
           <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">
-              Title
-            </label>
+            <label className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">Title</label>
             <input
               type="text"
               value={form.title}
-              onChange={(event) => updateField('title', event.target.value)}
-              placeholder="Nutrition Service"
+              onChange={(e) => updateField('title', e.target.value)}
+              placeholder="e.g. Extra nutrition session"
               className="w-full rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none"
             />
-            <p className="text-neutral-500 text-xs">Use a short title so the client immediately understands the charge.</p>
           </div>
 
+          {/* Amount + Method */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">
-                Amount
-              </label>
+              <label className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">Amount</label>
               <input
-                type="number"
-                min="0"
-                value={form.amount}
-                onChange={(event) => updateField('amount', event.target.value)}
-                placeholder="0"
+                type="text"
+                inputMode="numeric"
+                value={amountRaw}
+                onChange={(e) => handleAmountChange(e.target.value)}
+                placeholder="300.000"
                 className="w-full rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none"
               />
-              <p className="text-neutral-500 text-xs">{Number(form.amount) > 0 ? fmtVND(form.amount) : 'Enter the amount to collect.'}</p>
+              <p className="text-neutral-500 text-xs">
+                {form.amount > 0 ? fmtVND(form.amount) : 'VND — gõ 300.000 = 300,000 ₫'}
+              </p>
             </div>
-
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">
-                Method
-              </label>
+              <label className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">Method</label>
               <select
                 value={form.paymentMethod}
-                onChange={(event) => updateField('paymentMethod', event.target.value)}
+                onChange={(e) => updateField('paymentMethod', e.target.value)}
                 className="w-full rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none"
               >
-                {PAYMENT_METHOD_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value} className="bg-[#101010]">
-                    {option.label}
-                  </option>
+                {PAYMENT_METHOD_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value} className="bg-[#101010]">{o.label}</option>
                 ))}
               </select>
               <p className="text-neutral-500 text-xs">
-                {PAYMENT_METHOD_OPTIONS.find((option) => option.value === form.paymentMethod)?.description}
+                {PAYMENT_METHOD_OPTIONS.find((o) => o.value === form.paymentMethod)?.description}
               </p>
             </div>
           </div>
 
+          {/* Detail note */}
           <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">
-              Details
-            </label>
+            <label className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">Details</label>
             <textarea
-              rows={4}
+              rows={3}
               value={form.detailNote}
-              onChange={(event) => updateField('detailNote', event.target.value)}
-              placeholder="Service details, due note, transfer instructions..."
+              onChange={(e) => updateField('detailNote', e.target.value)}
+              placeholder="Service details, notes, transfer instructions..."
               className="w-full rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-white outline-none resize-none"
             />
-            <p className="text-neutral-500 text-xs">Add supporting details so both coach and trainee can clearly recognize this charge.</p>
           </div>
 
+          {/* Summary preview */}
           <div className="rounded-[22px] border border-white/[0.08] bg-white/[0.03] px-4 py-4 flex items-start gap-3">
             <div className="w-10 h-10 rounded-2xl border border-white/10 bg-white/[0.05] text-neutral-300 flex items-center justify-center shrink-0">
-              {form.paymentType === 'package' ? <Library className="w-4 h-4" /> : <Wallet className="w-4 h-4" />}
+              <Wallet className="w-4 h-4" />
             </div>
-            <div>
-              <p className="text-white font-medium">{form.title || 'New payment'}</p>
-              <p className="text-neutral-500 text-sm mt-1">
-                Once created, the payment starts in pending status. The trainee can mark it as sent, or the coach can confirm it directly later.
+            <div className="min-w-0">
+              <p className="text-white font-medium truncate">{form.title || 'New payment'}</p>
+              <p className="text-neutral-500 text-xs mt-0.5">
+                {selectedClient ? selectedClient.name : 'No trainee selected'}
+                {Number(form.amount) > 0 ? ` · ${fmtVND(form.amount)}` : ''}
+              </p>
+              <p className="text-neutral-700 text-[10px] mt-1">
+                Starts as Pending → trainee marks Sent → coach confirms Paid.
               </p>
             </div>
           </div>
+
         </div>
 
-        <div className="px-5 py-4 border-t border-white/[0.06] flex items-center justify-end gap-3">
+        {/* Footer */}
+        <div className="px-5 py-4 border-t border-white/[0.06] flex items-center justify-end gap-3 shrink-0">
           <button
             type="button"
             onClick={onClose}
@@ -326,18 +305,17 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
           </button>
           <button
             type="button"
-            onClick={() => {
-              void handleCreate();
-            }}
+            onClick={() => { void handleCreate(); }}
             disabled={!canSubmit || isSaving}
             className="app-cta-button px-4 py-2.5 rounded-[14px] border text-[11px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all disabled:opacity-50"
           >
             {isSaving ? 'Saving...' : 'Create'}
           </button>
         </div>
+
       </div>
     </div>,
-    document.body
+    document.body,
   );
 };
 

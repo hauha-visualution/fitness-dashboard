@@ -528,8 +528,8 @@ const PackageTab = ({ client, readOnly = false }) => {
       )}
 
       {bookingPackage && ReactDOM.createPortal(
-        <div className="fixed inset-0 z-[240] flex items-end justify-center bg-black/70 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-[560px] rounded-t-[28px] border border-white/10 bg-[#111113] p-5 pb-8 animate-slide-up lg:rounded-[28px]">
+        <div className="fixed inset-0 z-[240] flex items-end justify-center bg-black/70 px-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-[560px] rounded-t-[28px] border border-white/10 bg-[#111113] p-5 pb-8 animate-modal-in lg:rounded-[28px]">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">
@@ -627,8 +627,8 @@ const PackageTab = ({ client, readOnly = false }) => {
       )}
 
       {packageToDelete && (
-        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-[360px] rounded-[28px] border border-red-500/20 bg-[#111113] p-6 shadow-2xl animate-slide-up">
+        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-[360px] rounded-[28px] border border-red-500/20 bg-[#111113] p-6 shadow-2xl animate-modal-in">
             <div className="flex items-center gap-3 mb-4">
               <div className="flex h-11 w-11 items-center justify-center rounded-full bg-red-500/10">
                 <AlertTriangle className="w-5 h-5 text-red-400" />
@@ -663,8 +663,8 @@ const PackageTab = ({ client, readOnly = false }) => {
       )}
 
       {mealPrepDetailPackage && ReactDOM.createPortal(
-        <div className="fixed inset-0 z-[240] flex items-end justify-center bg-black/70 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-[560px] rounded-t-[28px] border border-white/10 bg-[#111113] p-5 pb-8 animate-slide-up lg:rounded-[28px]">
+        <div className="fixed inset-0 z-[240] flex items-end justify-center bg-black/70 px-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-[560px] rounded-t-[28px] border border-white/10 bg-[#111113] p-5 pb-8 animate-modal-in lg:rounded-[28px]">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">

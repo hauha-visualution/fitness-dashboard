@@ -82,7 +82,7 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
 
   const renderTabShell = (content) => (
     <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
-      <div className="w-full lg:mx-auto lg:max-w-5xl">
+      <div className="w-full lg:mx-auto lg:max-w-5xl animate-tab-in">
         {content}
       </div>
     </div>
@@ -233,10 +233,10 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
             type="button"
             aria-label="Close profile menu"
             onClick={() => setIsProfileMenuOpen(false)}
-            className="fixed inset-0 z-[200] bg-black/50"
+            className="fixed inset-0 z-[200] bg-black/50 animate-fade-in"
           />
 
-          <div className="absolute top-[52px] right-4 z-[210] w-[200px] overflow-hidden rounded-[20px] border border-white/10 bg-[var(--app-bg-dialog)] shadow-2xl shadow-black/40 backdrop-blur-xl">
+          <div className="absolute top-[52px] right-4 z-[210] w-[200px] overflow-hidden rounded-[20px] border border-white/10 bg-[var(--app-bg-dialog)] shadow-2xl shadow-black/40 backdrop-blur-xl animate-modal-in">
             {menuItems.map((item, index) => (
               <button
                 key={item.key}
@@ -280,8 +280,8 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
       />
 
       {showDeleteModal && (
-        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-[360px] rounded-[32px] border border-red-500/20 bg-[var(--app-bg-dialog)] p-8 shadow-2xl animate-slide-up">
+        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-[360px] rounded-[32px] border border-red-500/20 bg-[var(--app-bg-dialog)] p-8 shadow-2xl animate-modal-in">
             <div className="mb-6 flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
                 <AlertTriangle className="w-6 h-6 text-red-500" />

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Bell, Home, Library, LogOut, Users, Wallet } from 'lucide-react';
+import { Home, Library, LogOut, Users, Wallet } from 'lucide-react';
+import NotificationBell from './components/shared/NotificationBell';
 import { supabase } from './supabaseClient';
 
 // Import các thành phần chính
@@ -123,7 +124,7 @@ const CoachNavigation = ({ coachTabs, activeTab, onSelectTab, onOpenQuickLog, de
 );
 
 const CoachDesktopHeader = ({ coachProfile, session, onOpenProfile, onLogout }) => (
-  <div className="hidden lg:flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.04] bg-black/20 px-6 py-3 backdrop-blur-xl">
+  <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.04] bg-black/20 px-5 py-3 backdrop-blur-xl lg:px-6">
     <button
       type="button"
       onClick={onOpenProfile}
@@ -143,10 +144,8 @@ const CoachDesktopHeader = ({ coachProfile, session, onOpenProfile, onLogout }) 
         </p>
       </div>
     </button>
-    <div className="flex gap-2">
-      <button className="app-ghost-button p-2.5 border rounded-full active:scale-90 transition-all">
-        <Bell className="w-4 h-4" />
-      </button>
+    <div className="flex gap-2 items-center">
+      <NotificationBell userId={session?.user?.id ?? null} />
       <button onClick={onLogout} className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-full text-[var(--app-danger)] active:scale-90 transition-all">
         <LogOut className="w-4 h-4" />
       </button>
@@ -216,6 +215,13 @@ export default function App() {
     if (coach) {
       setCoachProfile(coach);
       setUserRole('coach');
+      // Lưu auth_user_id để trainee có thể notify coach (fire-and-forget)
+      if (!coach.auth_user_id || coach.auth_user_id !== sess.user.id) {
+        void supabase
+          .from('coaches')
+          .update({ auth_user_id: sess.user.id })
+          .eq('email', sess.user.email);
+      }
       return;
     }
 

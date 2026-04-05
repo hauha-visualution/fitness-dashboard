@@ -21,6 +21,12 @@ import {
   Waves,
 } from 'lucide-react';
 import CreateTemplateModal from './CreateTemplateModal';
+import {
+  notifySessionCompleted,
+  notifySessionCancelled,
+  checkAndNotifyLowSessions,
+  fetchClientNotifInfo,
+} from '../../utils/notificationUtils';
 
 const toLocalISOString = (d) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -144,7 +150,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
   
   const [showCancelReason, setShowCancelReason] = useState(false);
   const [showCreateTemplate, setShowCreateTemplate] = useState(false);
-  const [cancelReason, setCancelReason] = useState('Unexpected conflict');
+  const [cancelReason, setCancelReason] = useState('💼 Work conflict');
   const [customReason, setCustomReason] = useState('');
   
   const [templates, setTemplates] = useState([]);
@@ -587,7 +593,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
       if (status === 'cancelled' && selectedSessionPackageId && selectedSessionKind === 'fixed') {
         const rpcResult = await supabase.rpc('cancel_and_shift_fixed_session', {
           p_session_id: selectedSessionId,
-          p_cancel_reason: cancelReason === 'Other reason' ? customReason : cancelReason,
+          p_cancel_reason: cancelReason === '📝 Other reason' ? customReason : cancelReason,
         });
         error = rpcResult.error;
 
@@ -604,7 +610,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
             notes: isSketchingSession ? (selectedSessionRecord?.notes ?? null) : notes,
             completed_at: status === 'completed' ? currTimeIso : null,
             cancelled_at: status === 'cancelled' ? currTimeIso : null,
-            cancel_reason: status === 'cancelled' ? (cancelReason === 'Other reason' ? customReason : cancelReason) : null,
+            cancel_reason: status === 'cancelled' ? (cancelReason === '📝 Other reason' ? customReason : cancelReason) : null,
             workout_template_id: isSketchingSession
               ? (selectedSessionRecord?.workout_template_id ?? null)
               : (selectedTemplateId ?? null),
@@ -650,6 +656,29 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
 
       onClose();
       if (onSaved) onSaved();
+
+      // ─── Notifications (fire-and-forget) ───────────────────
+      const coachAuthUserId = session?.user?.id ?? null;
+      const clientIdForNotif = selectedSessionRecord?.client_id ?? selectedClientId ?? null;
+      const pkgIdForNotif = selectedSessionPackageId;
+      const sessNum = selectedSessionRecord?.session_number ?? null;
+      const sessDate = selectedSessionRecord?.scheduled_date ?? null;
+
+      if (status === 'completed' || status === 'cancelled') {
+        void (async () => {
+          const clientInfo = await fetchClientNotifInfo(clientIdForNotif);
+          const clientAuthUserId = clientInfo?.auth_user_id ?? null;
+
+          if (status === 'completed') {
+            await notifySessionCompleted({ clientAuthUserId, sessionNumber: sessNum, scheduledDate: sessDate });
+            await checkAndNotifyLowSessions({ packageId: pkgIdForNotif, clientId: clientIdForNotif, coachAuthUserId });
+          } else {
+            const reason = cancelReason === '📝 Other reason' ? customReason : cancelReason;
+            await notifySessionCancelled({ clientAuthUserId, sessionNumber: sessNum, scheduledDate: sessDate, reason });
+          }
+        })();
+      }
+      // ───────────────────────────────────────────────────────
     } catch (error) {
       console.error('Quick log save error:', error.message);
       alert(`Unable to save session: ${error.message}`);
@@ -661,26 +690,42 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
   // --- RENDERS ---
   if (showCancelReason) {
     return (
-      <div className="fixed inset-0 z-[600] flex animate-slide-up">
+      <div className="fixed inset-0 z-[600] flex">
         {/* Transparent overlay blocks interactions below */}
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCancelReason(false)} />
-        <div className="absolute bottom-0 w-full bg-[var(--app-bg-dialog)] border-t border-white/10 rounded-t-[32px] p-6 pb-10 shadow-2xl flex flex-col gap-4">
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setShowCancelReason(false)} />
+        <div className="absolute bottom-0 w-full bg-[var(--app-bg-dialog)] border-t border-white/10 rounded-t-[32px] p-6 pb-10 shadow-2xl flex flex-col gap-4 animate-modal-in">
           <div className="flex justify-between items-center mb-2">
             <h2 className="text-white font-bold text-lg">Session Cancellation Reason</h2>
             <button onClick={() => setShowCancelReason(false)} className="app-ghost-button p-2 border rounded-full"><X className="w-5 h-5 text-neutral-400" /></button>
           </div>
           
-          {['Unexpected conflict', 'Feeling unwell', 'Coach requested rest', 'Other reason'].map(r => (
-             <button key={r} onClick={() => setCancelReason(r)} className={`p-4 rounded-[16px] border text-left font-medium transition-all ${cancelReason === r ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-white/[0.04] border-white/10 text-white'}`}>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              '🤒 Sick / Unwell',
+              '🏥 Injury / Medical',
+              '💼 Work conflict',
+              '👪 Family matter',
+              '✈️ Travel / Out of town',
+              '🚗 Transport issue',
+              '🌧️ Weather',
+              '😓 Coach sick',
+              '📅 Coach schedule conflict',
+              '🏋️ Facility unavailable',
+              '🔁 Rescheduled',
+              '⚠️ No show',
+              '📝 Other reason',
+            ].map(r => (
+              <button key={r} onClick={() => setCancelReason(r)} className={`p-3 rounded-[16px] border text-left text-[13px] font-medium transition-all ${cancelReason === r ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-white/[0.04] border-white/10 text-white'}`}>
                 {r}
-             </button>
-          ))}
+              </button>
+            ))}
+          </div>
           
-          {cancelReason === 'Other reason' && (
+          {cancelReason === '📝 Other reason' && (
              <input type="text" placeholder="Enter a reason..." value={customReason} onChange={e => setCustomReason(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-[14px] p-4 text-white outline-none focus:border-red-500/30" />
           )}
           
-          <button onClick={() => handleSave('cancelled')} disabled={saving || (cancelReason === 'Other reason' && !customReason)} className="mt-4 w-full py-4 bg-red-500 text-white font-bold rounded-[18px] active:scale-95 transition-all disabled:opacity-50">
+          <button onClick={() => handleSave('cancelled')} disabled={saving || (cancelReason === '📝 Other reason' && !customReason)} className="mt-4 w-full py-4 bg-red-500 text-white font-bold rounded-[18px] active:scale-95 transition-all disabled:opacity-50">
              Confirm Cancellation
           </button>
         </div>
@@ -691,10 +736,10 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
   return (
     <div className="fixed inset-0 z-[500] flex">
       {/* Overlay */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose} />
       
       {/* Sheet */}
-      <div className="absolute bottom-0 w-full bg-[var(--app-bg-dialog)] border-t border-white/10 rounded-t-[32px] flex flex-col p-6 pb-10 gap-5 animate-slide-up max-h-[90vh] overflow-y-auto hide-scrollbar">
+      <div className="absolute bottom-0 w-full bg-[var(--app-bg-dialog)] border-t border-white/10 rounded-t-[32px] flex flex-col p-6 pb-10 gap-5 max-h-[90vh] overflow-y-auto hide-scrollbar animate-modal-in">
         
         {/* Header */}
           <div className="flex justify-between items-center">

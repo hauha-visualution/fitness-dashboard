@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { Dumbbell, CheckCircle2, Clock, ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 import { getServiceTypeLabel, parseServiceBooking, parseServiceMeta } from '../../../utils/serviceUtils';
+import { notifyExtraSessionAdded, fetchClientNotifInfo } from '../../../utils/notificationUtils';
 
 // ─── Helpers ─────────────────────────────────────────────────
 const DAY_VI = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -151,6 +152,19 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
     setExtraPackage(null);
     setAddingExtra(false);
     void fetchData();
+
+    // ─── Notify trainee: extra session added (fire-and-forget) ──
+    void (async () => {
+      const clientInfo = await fetchClientNotifInfo(clientId);
+      if (clientInfo?.auth_user_id) {
+        await notifyExtraSessionAdded({
+          clientAuthUserId: clientInfo.auth_user_id,
+          scheduledDate: extraDate,
+          scheduledTime: extraTime,
+        });
+      }
+    })();
+    // ────────────────────────────────────────────────────────────
   };
 
   const serviceGroups = React.useMemo(() => {
@@ -481,8 +495,8 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
         );
       })}
       {showExtraModal && ReactDOM.createPortal(
-        <div className="fixed inset-0 z-[220] flex items-end justify-center px-4 bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-[560px] rounded-t-[28px] border border-white/10 bg-[#111113] p-5 pb-8 animate-slide-up lg:rounded-[28px]">
+        <div className="fixed inset-0 z-[220] flex items-end justify-center px-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-[560px] rounded-t-[28px] border border-white/10 bg-[#111113] p-5 pb-8 animate-modal-in lg:rounded-[28px]">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">

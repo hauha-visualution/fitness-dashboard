@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Bell, ChevronLeft, ChevronRight, LogOut, CheckCircle2, Dumbbell, RefreshCw, XCircle, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle2, Dumbbell, RefreshCw, XCircle, Clock } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import ClientAvatar from '../shared/ClientAvatar';
 import { parseServiceMeta } from '../../utils/serviceUtils';
@@ -413,31 +413,6 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
 
   return (
     <div className="app-screen-shell relative z-10 flex h-screen flex-col overflow-hidden lg:h-full">
-      <div className="flex shrink-0 items-center justify-between px-5 pt-5 pb-4 lg:hidden">
-        <div onClick={onOpenProfile} className="flex items-center gap-3 cursor-pointer active:scale-95 transition-all">
-          {coachProfile?.avatar_url ? (
-            <img src={coachProfile.avatar_url} className="w-10 h-10 rounded-full border border-white/10 object-cover" alt="avatar" />
-          ) : (
-            <div className="w-10 h-10 rounded-full border border-[rgba(200,245,63,0.3)] bg-[linear-gradient(135deg,rgba(200,245,63,0.22),rgba(96,180,255,0.22))] flex items-center justify-center font-bold text-[var(--app-accent)]">
-              {coachProfile?.full_name?.charAt(0) || session?.user?.email?.charAt(0).toUpperCase() || 'C'}
-            </div>
-          )}
-          <div>
-            <p className="app-label text-[8px] font-black uppercase tracking-widest">Aesthetics Hub</p>
-            <h1 className="text-base font-semibold text-white leading-tight">
-              {coachProfile?.full_name || session?.user?.user_metadata?.username || 'Coach'}
-            </h1>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <button className="app-ghost-button p-2.5 border rounded-full active:scale-90 transition-all">
-            <Bell className="w-4 h-4" />
-          </button>
-          <button onClick={onLogout} className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-full text-[var(--app-danger)] active:scale-90 transition-all">
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
 
       <div className="hide-scrollbar flex-1 overflow-y-auto px-5 pb-32 lg:px-8 lg:pb-8">
         <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">

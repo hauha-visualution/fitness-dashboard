@@ -6,12 +6,11 @@ const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading }) => {
   return (
     <div className="app-screen-shell h-screen flex flex-col relative z-10 overflow-hidden">
 
-      {/* HEADER */}
-      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.04] bg-black/30 px-5 py-4 backdrop-blur-xl lg:px-8 lg:py-4">
+      {/* PAGE TITLE */}
+      <div className="flex shrink-0 items-center justify-between gap-4 px-5 py-4">
         <div className="min-w-0">
-          <p className="text-[9px] font-black uppercase tracking-[0.28em] text-neutral-600">Coach</p>
-          <h1 className="mt-1 text-[17px] font-semibold tracking-[-0.01em] text-white">Trainee List</h1>
-          <p className="mt-1 text-[11px] text-neutral-500">Total: {clients.length} trainees</p>
+          <h1 className="text-[17px] font-semibold tracking-[-0.01em] text-white">Trainee List</h1>
+          <p className="mt-0.5 text-[11px] text-neutral-500">Total: {clients.length} trainees</p>
         </div>
         <button
           onClick={onOpenAdd}

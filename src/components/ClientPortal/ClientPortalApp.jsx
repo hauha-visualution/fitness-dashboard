@@ -3,6 +3,7 @@ import {
   User, Package, Dumbbell, Utensils, CreditCard, LogOut,
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
+import NotificationBell from '../shared/NotificationBell';
 
 // Import các tab sẵn có (read-only cho client)
 import PackageTab from '../Client/Tabs/PackageTab';
@@ -50,7 +51,7 @@ const ClientPortalNavigation = ({ tabs, activeTab, onSelectTab, desktop = false 
 // ============================================================
 // MAIN: ClientPortalApp
 // ============================================================
-const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
+const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) => {
   const [activeTab, setActiveTab] = useState('profile');
   const [client, setClient] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -159,12 +160,15 @@ const ClientPortalApp = ({ clientProfile: initialProfile, onLogout }) => {
           </h1>
           <p className="mt-1 truncate text-[11px] text-neutral-500">{client?.name}</p>
         </div>
-        <button
-          onClick={onLogout}
-          className="app-ghost-button shrink-0 p-2.5 border rounded-full text-neutral-600"
-        >
-          <LogOut className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <NotificationBell userId={session?.user?.id ?? null} />
+          <button
+            onClick={onLogout}
+            className="app-ghost-button shrink-0 p-2.5 border rounded-full text-neutral-600"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-5 lg:p-5">

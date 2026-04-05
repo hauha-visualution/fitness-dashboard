@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
+import { notifyPaymentConfirmed, fetchClientNotifInfo } from '../../utils/notificationUtils';
 import CreatePaymentModal from '../Payments/CreatePaymentModal';
 import {
   fmtDate,
@@ -136,6 +137,19 @@ const CoachPaymentsView = ({ clients = [] }) => {
       },
       'Unable to update payment'
     );
+
+    // ─── Notify trainee: payment confirmed (fire-and-forget) ─────────────
+    void (async () => {
+      const clientInfo = await fetchClientNotifInfo(payment.client_id);
+      if (clientInfo?.auth_user_id) {
+        await notifyPaymentConfirmed({
+          clientAuthUserId: clientInfo.auth_user_id,
+          amount: payment.amount,
+          paymentTitle: payment.title,
+        });
+      }
+    })();
+    // ───────────────────────────────────────────────────────
   };
 
   const handleVoid = async (payment) => {
@@ -230,11 +244,10 @@ const CoachPaymentsView = ({ clients = [] }) => {
     <>
       <div className="app-screen-shell flex flex-col flex-1 overflow-hidden animate-slide-up">
 
-      {/* HEADER */}
-      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.04] bg-black/30 px-5 py-4 backdrop-blur-xl lg:px-8 lg:py-4">
+      {/* PAGE TITLE */}
+      <div className="flex shrink-0 items-center justify-between gap-4 px-5 py-4">
         <div className="min-w-0">
-          <p className="text-[9px] font-black uppercase tracking-[0.28em] text-neutral-600">Payments</p>
-          <h1 className="mt-1 text-[17px] font-semibold tracking-[-0.01em] text-white">Service Payments</h1>
+          <h1 className="text-[17px] font-semibold tracking-[-0.01em] text-white">Service Payments</h1>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button

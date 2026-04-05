@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
+import { notifyPaymentSubmitted, notifyPaymentConfirmed, fetchCoachAuthUserId } from '../../../utils/notificationUtils';
 import CreatePaymentModal from '../../Payments/CreatePaymentModal';
 import {
   fmtDate,
@@ -114,6 +115,18 @@ const PaymentTab = ({ client, readOnly = false }) => {
       },
       'Unable to update payment'
     );
+
+    // ─── Notify trainee: payment confirmed (fire-and-forget) ─────────────
+    void (async () => {
+      if (client?.auth_user_id) {
+        await notifyPaymentConfirmed({
+          clientAuthUserId: client.auth_user_id,
+          amount: payment.amount,
+          paymentTitle: payment.title,
+        });
+      }
+    })();
+    // ───────────────────────────────────────────────────────
   };
 
   const handleVoid = async (payment) => {
@@ -142,6 +155,21 @@ const PaymentTab = ({ client, readOnly = false }) => {
 
     await fetchPayments();
     setActioningId(null);
+
+    // ─── Notify coach: trainee submitted payment (fire-and-forget) ───
+    void (async () => {
+      const coachAuthUserId = await fetchCoachAuthUserId(client?.coach_email);
+      if (coachAuthUserId) {
+        const payment = payments.find((p) => p.id === paymentId);
+        await notifyPaymentSubmitted({
+          coachAuthUserId,
+          clientName: client?.name,
+          amount: payment?.amount,
+          paymentTitle: payment?.title,
+        });
+      }
+    })();
+    // ─────────────────────────────────────────────────────────────────
   };
 
   const copyAccountNumber = async () => {
@@ -266,11 +294,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
             <p className="app-label text-[11px] font-black uppercase tracking-[0.24em] mb-0.5">
               Payments
             </p>
-            {!isCoachView && (
-              <p className="text-neutral-500 text-sm">
-                Track what you owe and let your coach know once the transfer has been sent.
-              </p>
-            )}
+
           </div>
 
           <div className="flex items-center gap-2">
@@ -535,25 +559,28 @@ const PaymentTab = ({ client, readOnly = false }) => {
       )}
 
       {showBankInfo && coachBankInfo && ReactDOM.createPortal(
-        <div className="fixed inset-0 z-[650] bg-black/65 backdrop-blur-sm px-4 py-8">
-          <div className="mx-auto flex w-full max-w-[420px] flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[var(--app-bg-dialog)] shadow-2xl">
-            <div className="flex items-start justify-between gap-3 border-b border-white/[0.06] px-5 py-4">
+        <div className="fixed inset-0 z-[650] bg-black/65 backdrop-blur-sm px-4 py-8 flex items-start justify-center overflow-y-auto animate-fade-in">
+          <div className="w-full max-w-[420px] flex flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[var(--app-bg-dialog)] shadow-2xl animate-modal-in">
+            {/* Header */}
+            <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-5 py-4">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.28em] text-neutral-600">Bank Details</p>
-                <h3 className="mt-1 text-lg font-semibold text-white">{coachBankInfo.bank_name || 'Coach Bank Account'}</h3>
-                <p className="mt-1 text-xs text-neutral-500">{coachBankInfo.full_name || 'Coach payment details'}</p>
+                <h3 className="mt-0.5 text-base font-semibold text-white leading-snug">
+                  {coachBankInfo.full_name || 'Coach Bank Account'}
+                </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowBankInfo(false)}
-                className="app-ghost-button h-10 w-10 rounded-full border flex items-center justify-center"
+                className="app-ghost-button h-9 w-9 shrink-0 rounded-full border flex items-center justify-center"
                 title="Close"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-4 px-5 py-5">
+            <div className="px-5 py-5 space-y-4">
+              {/* QR Code */}
               <div className="overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
                 <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-[20px] border border-white/8 bg-black/20">
                   {coachBankInfo.bank_qr_url ? (
@@ -564,37 +591,35 @@ const PaymentTab = ({ client, readOnly = false }) => {
                 </div>
               </div>
 
-              <div className="rounded-[24px] border border-white/8 bg-white/[0.03] px-4 py-4">
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-600">Bank</p>
-                    <p className="mt-1.5 text-[15px] font-medium text-white">{coachBankInfo.bank_name || 'Not set yet'}</p>
+              {/* Bank info — always render card, only show fields that have data */}
+              <div className="rounded-[20px] border border-white/8 bg-white/[0.03] divide-y divide-white/[0.06]">
+                {(coachBankInfo.bank_name?.trim() || coachBankInfo.bank_branch?.trim()) && (
+                  <div className="px-4 py-2">
+                    <p className="text-[13px] font-medium text-white">
+                      {[coachBankInfo.bank_name?.trim(), coachBankInfo.bank_branch?.trim()].filter(Boolean).join(' - ')}
+                    </p>
                   </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-600">Branch</p>
-                    <p className="mt-1.5 text-sm text-neutral-300">{coachBankInfo.bank_branch || 'Not set yet'}</p>
+                )}
+                {coachBankInfo.bank_account_name?.trim() && (
+                  <div className="px-4 py-2">
+                    <p className="text-[13px] text-neutral-300">{coachBankInfo.bank_account_name.trim()}</p>
                   </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-600">Account</p>
-                    <p className="mt-1.5 text-sm text-white">{coachBankInfo.bank_account_name || 'Not set yet'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-600">Number</p>
-                    <div className="mt-1.5 flex items-center justify-between gap-3 rounded-[18px] border border-white/8 bg-black/10 px-3 py-3">
-                      <p className="min-w-0 text-[17px] font-semibold tracking-[0.06em] text-white text-left">
-                        {coachBankInfo.bank_account_number || 'Not set yet'}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={copyAccountNumber}
-                        className="app-ghost-button h-10 w-10 shrink-0 rounded-full border flex items-center justify-center"
-                        title="Copy account number"
-                        disabled={!coachBankInfo.bank_account_number}
-                      >
-                        <Copy className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
+                )}
+                {/* Account number — always show, with copy button if value exists */}
+                <div className="px-4 py-2 flex items-center justify-between gap-3">
+                  <p className="min-w-0 text-[17px] font-semibold tracking-[0.08em] text-white tabular-nums">
+                    {coachBankInfo.bank_account_number?.trim() || '—'}
+                  </p>
+                  {coachBankInfo.bank_account_number?.trim() && (
+                    <button
+                      type="button"
+                      onClick={copyAccountNumber}
+                      className="app-ghost-button h-8 w-8 shrink-0 rounded-full border flex items-center justify-center"
+                      title="Copy account number"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

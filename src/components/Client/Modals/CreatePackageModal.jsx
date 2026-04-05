@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
+import { notifyPackageCreated, fetchClientNotifInfo } from '../../../utils/notificationUtils';
 import {
   MEAL_PREP_GROUP_OPTIONS,
   MEAL_PREP_UNIT_OPTIONS,
@@ -310,6 +311,21 @@ const CreatePackageModal = ({
 
       onCreated?.();
       onClose?.();
+
+      // ─── Notify trainee: package created (fire-and-forget) ──
+      if (!isEditing && pkg) {
+        void (async () => {
+          const clientInfo = await fetchClientNotifInfo(clientId);
+          if (clientInfo?.auth_user_id) {
+            await notifyPackageCreated({
+              clientAuthUserId: clientInfo.auth_user_id,
+              packageNumber: pkg.package_number,
+              totalSessions: pkg.total_sessions,
+            });
+          }
+        })();
+      }
+      // ────────────────────────────────────────────────────────
     } catch (error) {
       alert(`Error: ${error.message}`);
       setIsSaving(false);
@@ -317,10 +333,10 @@ const CreatePackageModal = ({
   };
 
   return ReactDOM.createPortal(
-    <div className="fixed inset-0 z-[500] bg-black/50 backdrop-blur-sm" style={{ paddingTop: 50 }}>
+    <div className="fixed inset-0 z-[500] bg-black/50 backdrop-blur-sm animate-fade-in" style={{ paddingTop: 50 }}>
       <div
         ref={scrollRef}
-        className="flex h-full w-full flex-col overflow-hidden rounded-t-[32px] border-t border-white/10 bg-[var(--app-bg-dialog)]"
+        className="flex h-full w-full flex-col overflow-hidden rounded-t-[32px] border-t border-white/10 bg-[var(--app-bg-dialog)] animate-modal-in"
       >
         <div className="sticky top-0 z-10 border-b border-white/[0.06] bg-[rgba(13,27,46,0.95)] px-5 pb-3 pt-4 backdrop-blur-xl">
           <div className="flex items-center gap-3">

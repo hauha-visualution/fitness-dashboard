@@ -17,6 +17,7 @@ import {
   Utensils,
 } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
+import { notifyNutritionUpdated } from '../../../utils/notificationUtils';
 import {
   NUTRITION_ARCHIVE_FIELDS,
   buildNutritionProfileFromSource,
@@ -401,6 +402,10 @@ const NutritionTab = ({ client, readOnly = false }) => {
 
     if (saved) {
       setIsEditingTargets(false);
+      // Notify trainee: nutrition updated (fire-and-forget)
+      if (!readOnly && client?.auth_user_id) {
+        void notifyNutritionUpdated({ clientAuthUserId: client.auth_user_id });
+      }
     }
   };
 
@@ -413,15 +418,25 @@ const NutritionTab = ({ client, readOnly = false }) => {
 
     if (saved) {
       setIsEditingPlan(false);
+      // Notify trainee: nutrition updated (fire-and-forget)
+      if (!readOnly && client?.auth_user_id) {
+        void notifyNutritionUpdated({ clientAuthUserId: client.auth_user_id });
+      }
     }
   };
 
   const handleSavePrep = () => {
-    void saveClientJsonFields(
-      { nutrition_prep: prep },
-      () => setPrep({ ...prep }),
-      setIsSavingPrep,
-    );
+    void (async () => {
+      const saved = await saveClientJsonFields(
+        { nutrition_prep: prep },
+        () => setPrep({ ...prep }),
+        setIsSavingPrep,
+      );
+      // Notify trainee: nutrition updated (fire-and-forget)
+      if (saved && !readOnly && client?.auth_user_id) {
+        await notifyNutritionUpdated({ clientAuthUserId: client.auth_user_id });
+      }
+    })();
   };
 
   const handleSaveCheckin = async () => {

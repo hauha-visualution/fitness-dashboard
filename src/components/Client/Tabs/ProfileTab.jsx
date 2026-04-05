@@ -1717,8 +1717,8 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
     </div>
 
       {!readOnly && isModalOpen && ReactDOM.createPortal(
-        <div className="fixed inset-0 z-[180] flex items-end justify-center bg-black/60 px-4 pb-10 backdrop-blur-sm">
-          <div className="w-full max-w-[360px] rounded-[32px] border border-white/10 bg-[#1a1a1c] p-6 shadow-2xl animate-slide-up">
+        <div className="fixed inset-0 z-[180] flex items-end justify-center bg-black/60 px-4 pb-10 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-[360px] rounded-[32px] border border-white/10 bg-[#1a1a1c] p-6 shadow-2xl animate-modal-in">
             <h3 className="mb-6 text-sm font-bold text-white">Add InBody Record</h3>
 
             <div className="mb-6 space-y-3">

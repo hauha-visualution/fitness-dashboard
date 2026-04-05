@@ -79,10 +79,10 @@ const WorkoutTemplateManager = ({ session }) => {
 
   return (
     <div className="app-screen-shell h-screen flex flex-col overflow-hidden">
-      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.04] bg-black/30 px-5 py-4 backdrop-blur-xl lg:px-8 lg:py-4">
+      {/* PAGE TITLE */}
+      <div className="flex shrink-0 items-center justify-between gap-4 px-5 py-4">
         <div className="min-w-0">
-          <p className="text-[9px] font-black uppercase tracking-[0.28em] text-neutral-600">Quản lý</p>
-          <h1 className="mt-1 text-[17px] font-semibold tracking-[-0.01em] text-white">Workout Templates</h1>
+          <h1 className="text-[17px] font-semibold tracking-[-0.01em] text-white">Workout Templates</h1>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
