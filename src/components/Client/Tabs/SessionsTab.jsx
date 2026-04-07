@@ -110,7 +110,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
 
     let error = null;
 
-    if (extraServiceType === 'sketching') {
+    if (extraServiceType === 'stretching') {
       const packageSessions = sessions.filter((sessionItem) => sessionItem.package_id === extraPackage.id);
       const activeNonCancelledCount = packageSessions.filter((sessionItem) => sessionItem.status !== 'cancelled').length;
 
@@ -143,7 +143,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
     }
 
     if (error) {
-      alert(`Unable to add ${extraServiceType === 'sketching' ? 'session' : 'extra session'}: ${error.message}`);
+      alert(`Unable to add ${extraServiceType === 'stretching' ? 'session' : 'extra session'}: ${error.message}`);
       setAddingExtra(false);
       return;
     }
@@ -263,7 +263,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                           <span className="shrink-0">
                             {completedCount}/{pkg.total_sessions} used
                           </span>
-                          {serviceType === 'sketching' ? (
+                          {serviceType === 'stretching' ? (
                             <>
                               <span className="text-neutral-700">•</span>
                               <span className="truncate">{remainingCount} left to book</span>
@@ -307,13 +307,13 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                         <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">
                           Upcoming · {upcomingSessions.length} sessions
                         </p>
-                        {!readOnly && ((serviceType === 'training' && nextSession) || serviceType === 'sketching') && (
+                        {!readOnly && ((serviceType === 'training' && nextSession) || serviceType === 'stretching') && (
                           <button
                             onClick={() => openExtraModal(pkg, pkgSessions, serviceType)}
                             className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-[10px] font-black uppercase transition-all active:scale-90 bg-white/[0.05] border border-white/[0.08] text-white"
                           >
                             <Plus className="w-3 h-3" />
-                            {serviceType === 'sketching' ? 'Schedule' : 'Add Extra Session'}
+                            {serviceType === 'stretching' ? 'Schedule' : 'Add Extra Session'}
                           </button>
                         )}
                       </div>
@@ -382,7 +382,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                   </>
                 )}
 
-                {isActive && serviceType === 'sketching' && upcomingSessions.length === 0 && doneSessions.length === 0 && (
+                {isActive && serviceType === 'stretching' && upcomingSessions.length === 0 && doneSessions.length === 0 && (
                   <div className="rounded-[16px] border border-white/[0.06] bg-white/[0.02] px-4 py-4 text-center">
                     <p className="text-[10px] font-black uppercase tracking-widest text-neutral-600">No bookings yet</p>
                     <p className="mt-2 text-[11px] text-neutral-500">Set the first booking when needed.</p>
@@ -500,7 +500,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">
-                  {extraServiceType === 'sketching' ? 'Schedule Booking' : 'Extra Session'}
+                  {extraServiceType === 'stretching' ? 'Schedule Booking' : 'Extra Session'}
                 </p>
                 <h3 className="text-white font-semibold text-lg">
                   Package #{String(extraPackage?.package_number || '').padStart(2, '0')}
@@ -514,8 +514,8 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
             <div className="space-y-4">
               <div className="bg-white/[0.03] border border-white/[0.06] rounded-[14px] px-4 py-3">
                 <p className="text-[10px] text-neutral-400 leading-relaxed">
-                  {extraServiceType === 'sketching'
-                    ? 'Choose the date and time for this sketching booking. Each booking is added manually when needed.'
+                  {extraServiceType === 'stretching'
+                    ? 'Choose the date and time for this stretching booking. Each booking is added manually when needed.'
                     : 'Choose the date and time for a session outside the fixed schedule. The system will place it after the nearest previous session and shift the following ones forward.'}
                 </p>
               </div>
@@ -561,7 +561,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                 disabled={addingExtra || !extraDate || !extraTime}
                 className="flex-1 py-3.5 rounded-[16px] bg-white text-black font-bold text-sm disabled:opacity-50"
               >
-                {addingExtra ? 'Adding...' : extraServiceType === 'sketching' ? 'Schedule' : 'Add Session'}
+                {addingExtra ? 'Adding...' : extraServiceType === 'stretching' ? 'Schedule' : 'Add Session'}
               </button>
             </div>
           </div>

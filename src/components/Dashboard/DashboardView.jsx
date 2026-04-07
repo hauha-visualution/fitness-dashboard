@@ -137,8 +137,8 @@ const getSessionServiceLabel = (sessionItem) => {
   const sessionNumber = sessionItem.session_number ?? '--';
 
   switch (serviceType) {
-    case 'sketching':
-      return `Sketching #${sessionNumber}`;
+    case 'stretching':
+      return `Stretching #${sessionNumber}`;
     case 'meal_prep':
       return `Meal Prep #${sessionNumber}`;
     case 'training':

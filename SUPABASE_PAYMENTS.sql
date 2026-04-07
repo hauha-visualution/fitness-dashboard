@@ -102,7 +102,7 @@ BEGIN
   ) THEN
     ALTER TABLE payments
       ADD CONSTRAINT payments_type_check_v2
-      CHECK (payment_type IN ('package', 'nutrition', 'prep_meal', 'sketching', 'other'));
+      CHECK (payment_type IN ('package', 'nutrition', 'prep_meal', 'stretching', 'other'));
   END IF;
 END $$;
 

@@ -2,7 +2,7 @@ export const PAYMENT_TYPE_OPTIONS = [
   { value: 'package', label: 'Package', description: 'Payment for a training package.' },
   { value: 'nutrition', label: 'Nutrition', description: 'Nutrition coaching or meal guidance.' },
   { value: 'prep_meal', label: 'Prep Meal', description: 'Prepared meals or meal-prep service.' },
-  { value: 'sketching', label: 'Sketching', description: 'Body planning or sketching service.' },
+  { value: 'stretching', label: 'Stretching', description: 'Body planning or stretching service.' },
   { value: 'other', label: 'Other', description: 'Any additional custom service.' },
 ];
 
@@ -102,8 +102,8 @@ export const getPaymentDisplayTitle = (payment) => {
       return `Package${indexLabel}`;
     case 'prep_meal':
       return `Meal Prep${indexLabel}`;
-    case 'sketching':
-      return `Sketching${indexLabel}`;
+    case 'stretching':
+      return `Stretching${indexLabel}`;
     case 'nutrition':
       return payment?.title?.trim() || `Nutrition${indexLabel}`;
     case 'other':

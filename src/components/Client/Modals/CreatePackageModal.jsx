@@ -142,7 +142,7 @@ const CreatePackageModal = ({
 
   const selectedServiceType = getServiceTypeConfig(serviceType);
   const isTraining = serviceType === 'training';
-  const isSketching = serviceType === 'sketching';
+  const isStretching = serviceType === 'stretching';
   const isMealPrep = serviceType === 'meal_prep';
 
   const hasMealPrepRows = mealPrepItems.some(
@@ -167,7 +167,7 @@ const CreatePackageModal = ({
     : sessionCount >= 1 && sessionCount <= 200;
   const step2Valid = isTraining
     ? Boolean(startDate) && schedule.length > 0 && previewSessions.length === totalSessions
-    : isSketching
+    : isStretching
       ? sessionCount >= 1
       : hasMealPrepRows;
 
@@ -210,7 +210,7 @@ const CreatePackageModal = ({
     bonus_sessions: bonusSessions,
     total_sessions: totalSessions,
     price: priceVND,
-    start_date: isTraining || isSketching ? startDate : null,
+    start_date: isTraining || isStretching ? startDate : null,
     weekly_schedule: isTraining ? schedule : [],
     note: serializeServiceMeta({
       serviceType,
@@ -305,7 +305,7 @@ const CreatePackageModal = ({
         }
       }
 
-      if (!isEditing && (isTraining || isSketching)) {
+      if (!isEditing && (isTraining || isStretching)) {
         await createLinkedPayment(pkg);
       }
 
@@ -478,7 +478,7 @@ const CreatePackageModal = ({
                 disabled={!step1Valid}
                 className="mt-2 flex w-full items-center justify-center gap-2 rounded-[18px] bg-white py-4 font-bold text-black shadow-lg transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {isMealPrep ? 'Build Checklist' : isSketching ? 'Review Flow' : 'Set Schedule'}
+                {isMealPrep ? 'Build Checklist' : isStretching ? 'Review Flow' : 'Set Schedule'}
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
@@ -640,7 +640,7 @@ const CreatePackageModal = ({
                 </>
               )}
 
-              {isSketching && (
+              {isStretching && (
                 <div className="space-y-3">
                   <FieldBlock label="Service Start">
                     <input
@@ -653,7 +653,7 @@ const CreatePackageModal = ({
                   <div className="rounded-[16px] border border-white/[0.06] bg-white/[0.03] px-4 py-3">
                     <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">Manual Review Flow</p>
                       <p className="mt-2 text-[11px] leading-relaxed text-neutral-400">
-                      This service will not create a fixed schedule now. After saving, use the Sessions tab to add each sketching session manually, similar to an extra session.
+                      This service will not create a fixed schedule now. After saving, use the Sessions tab to add each stretching session manually, similar to an extra session.
                     </p>
                   </div>
                 </div>

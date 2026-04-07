@@ -97,8 +97,8 @@ const normalizeQuickLogSelection = (selection = null) => {
 const isMissingWorkoutTemplateColumnError = (error) =>
   String(error?.message || '').toLowerCase().includes('workout_template_id');
 
-const createEmptySketchingRecord = () => ({
-  record_type: 'sketching_therapy',
+const createEmptyStretchingRecord = () => ({
+  record_type: 'stretching_therapy',
   focusArea: '',
   painBefore: '',
   restrictedMovement: '',
@@ -112,15 +112,15 @@ const createEmptySketchingRecord = () => ({
   nextSessionFocus: '',
 });
 
-const normalizeSketchingRecord = (raw) => {
+const normalizeStretchingRecord = (raw) => {
   if (!raw || Array.isArray(raw) || typeof raw !== 'object') {
-    return createEmptySketchingRecord();
+    return createEmptyStretchingRecord();
   }
 
   return {
-    ...createEmptySketchingRecord(),
+    ...createEmptyStretchingRecord(),
     ...raw,
-    record_type: 'sketching_therapy',
+    record_type: 'stretching_therapy',
   };
 };
 
@@ -160,7 +160,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
   const [previousWorkoutSource, setPreviousWorkoutSource] = useState(null);
   const [saveFeedback, setSaveFeedback] = useState('');
   const [selectedPackageMeta, setSelectedPackageMeta] = useState(null);
-  const [sketchingRecord, setSketchingRecord] = useState(createEmptySketchingRecord());
+  const [stretchingRecord, setStretchingRecord] = useState(createEmptyStretchingRecord());
 
   const fetchTemplates = useCallback(async () => {
     const coachEmail = session?.user?.email;
@@ -293,7 +293,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
   const selectedSessionKind = selectedSessionRecord?.session_kind ?? selectedSessionRecord?.sessionKind ?? 'fixed';
   const isReviewMode = selectedSessionRecord?.status === 'completed';
   const selectedServiceType = selectedPackageMeta?.serviceType || 'training';
-  const isSketchingSession = selectedServiceType === 'sketching';
+  const isStretchingSession = selectedServiceType === 'stretching';
   const visibleClientSessions = showAllClientSessions ? clientSessions : clientSessions.slice(0, 8);
   const activeClientId = selectedSessionRecord?.client_id ?? selectedClientId ?? normalizedInitialSelection?.clientId ?? null;
   const sortedTemplates = [...templates].sort((a, b) => {
@@ -316,12 +316,12 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
         : initialSession?.scheduledDate
           ? `${initialSession.scheduledDate} • ${initialSession.scheduledTime?.slice(0, 5)}`
           : initialSession?.scheduledTime?.slice(0, 5));
-  const hasWorkoutData = isSketchingSession
+  const hasWorkoutData = isStretchingSession
     ? Boolean(
-        sketchingRecord.focusArea.trim() ||
-        sketchingRecord.targetTissues.trim() ||
-        sketchingRecord.techniquesUsed.trim() ||
-        sketchingRecord.coachNotes.trim()
+        stretchingRecord.focusArea.trim() ||
+        stretchingRecord.targetTissues.trim() ||
+        stretchingRecord.techniquesUsed.trim() ||
+        stretchingRecord.coachNotes.trim()
       )
     : exercises.some(ex => ex.name.trim());
   const activeTemplate = templates.find(template => template.id === selectedTemplateId);
@@ -405,7 +405,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
     let isCancelled = false;
 
     const hydrateExercises = async () => {
-      if (isSketchingSession) {
+      if (isStretchingSession) {
         if (!isCancelled) {
           setExercises([createExerciseDraft('exercise-0')]);
           setPreviousWorkoutSource(null);
@@ -465,18 +465,18 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
     return () => {
       isCancelled = true;
     };
-  }, [fetchLatestTemplateWorkoutData, isSketchingSession, selectedSessionRecord, selectedTemplateId, templates]);
+  }, [fetchLatestTemplateWorkoutData, isStretchingSession, selectedSessionRecord, selectedTemplateId, templates]);
 
   useEffect(() => {
     setSelectedTemplateId(selectedSessionRecord?.workout_template_id ?? selectedSessionRecord?.workoutTemplateId ?? null);
     setFeeling(selectedSessionRecord?.feeling ?? null);
     setNotes(selectedSessionRecord?.notes ?? '');
-    setSketchingRecord(normalizeSketchingRecord(selectedSessionRecord?.workout_data));
+    setStretchingRecord(normalizeStretchingRecord(selectedSessionRecord?.workout_data));
     setSaveFeedback('');
   }, [selectedSessionRecord]);
 
-  const updateSketchingRecord = (field, value) => {
-    setSketchingRecord((prev) => ({ ...prev, [field]: value }));
+  const updateStretchingRecord = (field, value) => {
+    setStretchingRecord((prev) => ({ ...prev, [field]: value }));
   };
 
   const updateExercise = (id, field, value) => {
@@ -573,8 +573,8 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
     setSaving(true);
 
     try {
-      const finalWorkoutData = isSketchingSession
-        ? normalizeSketchingRecord(sketchingRecord)
+      const finalWorkoutData = isStretchingSession
+        ? normalizeStretchingRecord(stretchingRecord)
         : exercises
             .filter(ex => ex.name.trim())
             .map((ex, idx) => ({
@@ -606,12 +606,12 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
       } else {
         const updates = { 
             status, 
-            feeling: isSketchingSession ? null : feeling,
-            notes: isSketchingSession ? (selectedSessionRecord?.notes ?? null) : notes,
+            feeling: isStretchingSession ? null : feeling,
+            notes: isStretchingSession ? (selectedSessionRecord?.notes ?? null) : notes,
             completed_at: status === 'completed' ? currTimeIso : null,
             cancelled_at: status === 'cancelled' ? currTimeIso : null,
             cancel_reason: status === 'cancelled' ? (cancelReason === '📝 Other reason' ? customReason : cancelReason) : null,
-            workout_template_id: isSketchingSession
+            workout_template_id: isStretchingSession
               ? (selectedSessionRecord?.workout_template_id ?? null)
               : (selectedTemplateId ?? null),
             ...(finalWorkoutData ? { workout_data: finalWorkoutData } : {})
@@ -746,7 +746,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
            <div>
               <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Aesthetics Hub</p>
               <h2 className="text-xl font-bold text-white">
-                {isSketchingSession ? (isReviewMode ? 'Therapy Record' : 'Start Therapy') : (isReviewMode ? 'Workout Log' : 'Start Workout')}
+                {isStretchingSession ? (isReviewMode ? 'Therapy Record' : 'Start Therapy') : (isReviewMode ? 'Workout Log' : 'Start Workout')}
               </h2>
            </div>
            <button onClick={onClose} className="app-ghost-button p-2 border rounded-full"><X className="w-5 h-5 text-neutral-400" /></button>
@@ -754,7 +754,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
 
         {isReviewMode && (
           <div className="rounded-[16px] border border-[rgba(200,245,63,0.18)] bg-[rgba(200,245,63,0.08)] px-4 py-3 text-[11px] text-[rgba(235,255,190,0.88)]">
-            This session is already completed. You are viewing the saved {isSketchingSession ? 'therapy record' : 'workout log'} in read-only mode.
+            This session is already completed. You are viewing the saved {isStretchingSession ? 'therapy record' : 'workout log'} in read-only mode.
           </div>
         )}
 
@@ -882,7 +882,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
               <CalendarDays className="w-3.5 h-3.5 text-neutral-500" />
               <span>{selectedSessionTime || '--:--'}</span>
             </div>
-            {isSketchingSession ? (
+            {isStretchingSession ? (
               <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/15 bg-emerald-500/8 px-3 py-2 text-[11px] font-semibold text-emerald-300">
                 <HeartPulse className="w-3.5 h-3.5 text-emerald-300/80" />
                 <span>Therapy Session</span>
@@ -891,7 +891,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
           </div>
         )}
 
-        {!isSketchingSession ? (
+        {!isStretchingSession ? (
         <div className="flex flex-col gap-3">
           <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.03] overflow-hidden">
             <div className="flex items-center gap-2 p-2">
@@ -1071,8 +1071,8 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
               <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">Session Focus</p>
               <input
                 type="text"
-                value={sketchingRecord.focusArea}
-                onChange={(e) => updateSketchingRecord('focusArea', e.target.value)}
+                value={stretchingRecord.focusArea}
+                onChange={(e) => updateStretchingRecord('focusArea', e.target.value)}
                 readOnly={isReviewMode}
                 placeholder="Example: Hip flexors · post-match tightness"
                 className="mt-3 w-full rounded-[12px] border border-white/[0.08] bg-black/20 px-3 py-2.5 text-sm text-white outline-none focus:border-white/20"
@@ -1086,8 +1086,8 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                       type="number"
                       min="0"
                       max="10"
-                      value={sketchingRecord.painBefore}
-                      onChange={(e) => updateSketchingRecord('painBefore', e.target.value)}
+                      value={stretchingRecord.painBefore}
+                      onChange={(e) => updateStretchingRecord('painBefore', e.target.value)}
                       readOnly={isReviewMode}
                       placeholder="0-10"
                       className="w-full bg-transparent text-sm text-white outline-none"
@@ -1102,8 +1102,8 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                       type="number"
                       min="0"
                       max="10"
-                      value={sketchingRecord.painAfter}
-                      onChange={(e) => updateSketchingRecord('painAfter', e.target.value)}
+                      value={stretchingRecord.painAfter}
+                      onChange={(e) => updateStretchingRecord('painAfter', e.target.value)}
                       readOnly={isReviewMode}
                       placeholder="0-10"
                       className="w-full bg-transparent text-sm text-white outline-none"
@@ -1114,8 +1114,8 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
               <div className="mt-3">
                 <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">Restricted Movement</p>
                 <textarea
-                  value={sketchingRecord.restrictedMovement}
-                  onChange={(e) => updateSketchingRecord('restrictedMovement', e.target.value)}
+                  value={stretchingRecord.restrictedMovement}
+                  onChange={(e) => updateStretchingRecord('restrictedMovement', e.target.value)}
                   readOnly={isReviewMode}
                   placeholder="Example: Limited hip internal rotation on the left side"
                   className="mt-2 h-20 w-full resize-none rounded-[12px] border border-white/[0.08] bg-black/20 px-3 py-2.5 text-sm text-white outline-none focus:border-white/20"
@@ -1132,8 +1132,8 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                     <Move className="h-4 w-4 text-blue-300/80" />
                     <input
                       type="text"
-                      value={sketchingRecord.targetTissues}
-                      onChange={(e) => updateSketchingRecord('targetTissues', e.target.value)}
+                      value={stretchingRecord.targetTissues}
+                      onChange={(e) => updateStretchingRecord('targetTissues', e.target.value)}
                       readOnly={isReviewMode}
                       placeholder="Example: Hip flexor, adductor, TFL"
                       className="w-full bg-transparent text-sm text-white outline-none"
@@ -1143,8 +1143,8 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                 <div>
                   <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">Technique Used</p>
                   <textarea
-                    value={sketchingRecord.techniquesUsed}
-                    onChange={(e) => updateSketchingRecord('techniquesUsed', e.target.value)}
+                    value={stretchingRecord.techniquesUsed}
+                    onChange={(e) => updateStretchingRecord('techniquesUsed', e.target.value)}
                     readOnly={isReviewMode}
                     placeholder="Example: PNF stretch, myofascial release, breathing reset"
                     className="mt-2 h-20 w-full resize-none rounded-[12px] border border-white/[0.08] bg-black/20 px-3 py-2.5 text-sm text-white outline-none focus:border-white/20"
@@ -1156,8 +1156,8 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                     <Waves className="h-4 w-4 text-purple-300/80" />
                     <input
                       type="text"
-                      value={sketchingRecord.dosage}
-                      onChange={(e) => updateSketchingRecord('dosage', e.target.value)}
+                      value={stretchingRecord.dosage}
+                      onChange={(e) => updateStretchingRecord('dosage', e.target.value)}
                       readOnly={isReviewMode}
                       placeholder="Example: 3 x 45s each side · 20 min release"
                       className="w-full bg-transparent text-sm text-white outline-none"
@@ -1173,8 +1173,8 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                 <div>
                   <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">ROM / Response</p>
                   <textarea
-                    value={sketchingRecord.romAfter}
-                    onChange={(e) => updateSketchingRecord('romAfter', e.target.value)}
+                    value={stretchingRecord.romAfter}
+                    onChange={(e) => updateStretchingRecord('romAfter', e.target.value)}
                     readOnly={isReviewMode}
                     placeholder="Example: Improved overhead reach and less hip pinch"
                     className="mt-2 h-20 w-full resize-none rounded-[12px] border border-white/[0.08] bg-black/20 px-3 py-2.5 text-sm text-white outline-none focus:border-white/20"
@@ -1183,8 +1183,8 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                 <div>
                   <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">Coach Notes</p>
                   <textarea
-                    value={sketchingRecord.coachNotes}
-                    onChange={(e) => updateSketchingRecord('coachNotes', e.target.value)}
+                    value={stretchingRecord.coachNotes}
+                    onChange={(e) => updateStretchingRecord('coachNotes', e.target.value)}
                     readOnly={isReviewMode}
                     placeholder="Example: Left side still guarding under fatigue"
                     className="mt-2 h-20 w-full resize-none rounded-[12px] border border-white/[0.08] bg-black/20 px-3 py-2.5 text-sm text-white outline-none focus:border-white/20"
@@ -1199,8 +1199,8 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                 <div>
                   <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">Home Protocol</p>
                   <textarea
-                    value={sketchingRecord.homeProtocol}
-                    onChange={(e) => updateSketchingRecord('homeProtocol', e.target.value)}
+                    value={stretchingRecord.homeProtocol}
+                    onChange={(e) => updateStretchingRecord('homeProtocol', e.target.value)}
                     readOnly={isReviewMode}
                     placeholder="Example: 90/90 breathing + couch stretch daily"
                     className="mt-2 h-20 w-full resize-none rounded-[12px] border border-white/[0.08] bg-black/20 px-3 py-2.5 text-sm text-white outline-none focus:border-white/20"
@@ -1209,8 +1209,8 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                 <div>
                   <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">Next Session Focus</p>
                   <textarea
-                    value={sketchingRecord.nextSessionFocus}
-                    onChange={(e) => updateSketchingRecord('nextSessionFocus', e.target.value)}
+                    value={stretchingRecord.nextSessionFocus}
+                    onChange={(e) => updateStretchingRecord('nextSessionFocus', e.target.value)}
                     readOnly={isReviewMode}
                     placeholder="Example: Recheck hip IR and add ankle mobility progression"
                     className="mt-2 h-20 w-full resize-none rounded-[12px] border border-white/[0.08] bg-black/20 px-3 py-2.5 text-sm text-white outline-none focus:border-white/20"
@@ -1221,7 +1221,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
           </div>
         )}
 
-        {!isSketchingSession && (
+        {!isStretchingSession && (
         <div>
            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Trainee Condition</p>
            <div className="grid grid-cols-4 gap-2">
@@ -1235,7 +1235,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
         </div>
         )}
 
-        {!isSketchingSession && (
+        {!isStretchingSession && (
         <div>
            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Extra Notes (Optional)</p>
            <textarea value={notes} onChange={e => setNotes(e.target.value)} readOnly={isReviewMode} placeholder="Add a note..." className="w-full bg-white/[0.04] border border-white/[0.08] rounded-[14px] py-2.5 px-4 text-white text-sm outline-none focus:border-white/30 resize-none h-20" />

@@ -149,7 +149,7 @@ const PackageTab = ({ client, readOnly = false }) => {
     void fetchData();
   };
 
-  const openSketchingBooking = (pkg) => {
+  const openStretchingBooking = (pkg) => {
     const today = new Date();
     const isoDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     setBookingPackage(pkg);
@@ -160,7 +160,7 @@ const PackageTab = ({ client, readOnly = false }) => {
     setBookingNote('');
   };
 
-  const handleCreateSketchingBooking = async () => {
+  const handleCreateStretchingBooking = async () => {
     if (!bookingPackage || !bookingDate || !bookingStartTime || !bookingEndTime) return;
     setIsCreatingBooking(true);
 
@@ -227,7 +227,7 @@ const PackageTab = ({ client, readOnly = false }) => {
               : 'Create the first service for this trainee.'}
           </p>
           <p className="text-neutral-700 text-[11px] mt-2">
-            Training, sketching, and meal prep services can all live here.
+            Training, stretching, and meal prep services can all live here.
           </p>
         </div>
         {!readOnly && (
@@ -264,7 +264,7 @@ const PackageTab = ({ client, readOnly = false }) => {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">Services</p>
-            <p className="mt-1 text-[11px] text-neutral-500">Training packages, sketching sessions, and meal prep support.</p>
+            <p className="mt-1 text-[11px] text-neutral-500">Training packages, stretching sessions, and meal prep support.</p>
           </div>
           <button
             onClick={() => {
@@ -421,14 +421,14 @@ const PackageTab = ({ client, readOnly = false }) => {
                     </button>
                   </div>
                 )}
-                {!readOnly && pkgMeta.type === 'sketching' && (
+                {!readOnly && pkgMeta.type === 'stretching' && (
                   <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/[0.06] pt-3">
                     <div className="flex items-center gap-2 text-[10px] text-neutral-500">
                       <Clock3 className="h-3.5 w-3.5" />
-                      <span>Book your next sketching session</span>
+                      <span>Book your next stretching session</span>
                     </div>
                     <button
-                      onClick={() => openSketchingBooking(pkg)}
+                      onClick={() => openStretchingBooking(pkg)}
                       className="inline-flex items-center gap-2 rounded-[14px] border border-blue-500/20 bg-blue-500/10 px-4 py-2.5 text-[11px] font-black uppercase tracking-wide text-blue-300"
                     >
                       <Calendar className="h-3.5 w-3.5" />
@@ -535,7 +535,7 @@ const PackageTab = ({ client, readOnly = false }) => {
                 <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">
                   Service #{String(bookingPackage.package_number).padStart(2, '0')}
                 </p>
-                <h3 className="text-lg font-semibold text-white">Schedule Sketching Session</h3>
+                <h3 className="text-lg font-semibold text-white">Schedule Stretching Session</h3>
               </div>
               <button
                 onClick={() => setBookingPackage(null)}
@@ -613,7 +613,7 @@ const PackageTab = ({ client, readOnly = false }) => {
               </button>
               <button
                 onClick={() => {
-                  void handleCreateSketchingBooking();
+                  void handleCreateStretchingBooking();
                 }}
                 disabled={isCreatingBooking || !bookingDate || !bookingStartTime || !bookingEndTime}
                 className="flex-1 rounded-[16px] bg-white py-3.5 text-sm font-bold text-black disabled:opacity-50"

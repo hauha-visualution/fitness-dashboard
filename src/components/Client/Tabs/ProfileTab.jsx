@@ -187,8 +187,8 @@ const formatSessionDayLabel = (value) => new Intl.DateTimeFormat('en-GB', {
 
 const getPortalSessionLabel = (serviceType, sessionNumber) => {
   switch (serviceType) {
-    case 'sketching':
-      return `Sketching #${sessionNumber}`;
+    case 'stretching':
+      return `Stretching #${sessionNumber}`;
     case 'meal_prep':
       return `Meal Prep #${sessionNumber}`;
     case 'training':

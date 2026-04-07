@@ -25,10 +25,10 @@ const EXTRA_PAYMENT_TYPE_OPTIONS = [
     defaultTitle: 'Prep Meal Service',
   },
   {
-    value: 'sketching',
-    label: 'Sketching',
-    description: 'Standalone sketching session.',
-    defaultTitle: 'Sketching Service',
+    value: 'stretching',
+    label: 'Stretching',
+    description: 'Standalone stretching session.',
+    defaultTitle: 'Stretching Service',
   },
   {
     value: 'other',

@@ -14,17 +14,17 @@ export const SERVICE_TYPE_CONFIG = {
     previewLabel: 'sessions',
     paymentType: 'package',
   },
-  sketching: {
-    id: 'sketching',
-    label: 'Sketching',
-    shortLabel: 'Sketching',
-    helper: 'Flexible sketching package without a fixed schedule. Add each session manually later.',
+  stretching: {
+    id: 'stretching',
+    label: 'Stretching',
+    shortLabel: 'Stretching',
+    helper: 'Flexible stretching package without a fixed schedule. Add each session manually later.',
     detailPlaceholder: 'Example: Posing line check · Front / Back',
     quantityLabel: 'Sessions',
     bonusLabel: 'Bonus',
     totalLabel: 'Total',
     previewLabel: 'sessions',
-    paymentType: 'sketching',
+    paymentType: 'stretching',
   },
   meal_prep: {
     id: 'meal_prep',
