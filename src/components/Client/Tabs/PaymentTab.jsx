@@ -18,6 +18,7 @@ import {
 import { supabase } from '../../../supabaseClient';
 import { notifyPaymentSubmitted, notifyPaymentConfirmed, fetchCoachAuthUserId } from '../../../utils/notificationUtils';
 import CreatePaymentModal from '../../Payments/CreatePaymentModal';
+import { toast } from '../../../utils/toast';
 import {
   fmtDate,
   fmtVNDAbridged,
@@ -50,7 +51,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
       .order('created_at', { ascending: false });
 
     if (error) {
-      alert(`Unable to load payments: ${error.message}`);
+      toast.error(`Unable to load payments: ${error.message}`);
       setLoading(false);
       return;
     }
@@ -96,7 +97,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
       .eq('id', paymentId);
 
     if (error) {
-      alert(`${errorPrefix}: ${error.message}`);
+      toast.error(`${errorPrefix}: ${error.message}`);
       setActioningId(null);
       return;
     }
@@ -148,7 +149,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
     });
 
     if (error) {
-      alert(`Unable to submit transfer: ${error.message}`);
+      toast.error(`Unable to submit transfer: ${error.message}`);
       setActioningId(null);
       return;
     }
@@ -176,9 +177,9 @@ const PaymentTab = ({ client, readOnly = false }) => {
     if (!coachBankInfo?.bank_account_number?.trim()) return;
     try {
       await navigator.clipboard.writeText(coachBankInfo.bank_account_number.trim());
-      alert('Copied account number');
+      toast.success('Copied account number');
     } catch {
-      alert('Unable to copy account number');
+      toast.error('Unable to copy account number');
     }
   };
 

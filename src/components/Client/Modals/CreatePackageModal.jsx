@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 import { notifyPackageCreated, fetchClientNotifInfo } from '../../../utils/notificationUtils';
+import { toast } from '../../../utils/toast';
 import {
   MEAL_PREP_GROUP_OPTIONS,
   MEAL_PREP_UNIT_OPTIONS,
@@ -264,7 +265,7 @@ const CreatePackageModal = ({
           .single();
 
         if (error) {
-          alert(`Unable to update service: ${error.message}`);
+          toast.error(`Unable to update service: ${error.message}`);
           setIsSaving(false);
           return;
         }
@@ -277,7 +278,7 @@ const CreatePackageModal = ({
           .single();
 
         if (error) {
-          alert(`Unable to create service: ${error.message}`);
+          toast.error(`Unable to create service: ${error.message}`);
           setIsSaving(false);
           return;
         }
@@ -298,7 +299,7 @@ const CreatePackageModal = ({
         if (rows.length > 0) {
           const { error } = await supabase.from('sessions').insert(rows);
           if (error) {
-            alert(`Unable to create schedule: ${error.message}`);
+            toast.error(`Unable to create schedule: ${error.message}`);
             setIsSaving(false);
             return;
           }
@@ -327,7 +328,7 @@ const CreatePackageModal = ({
       }
       // ────────────────────────────────────────────────────────
     } catch (error) {
-      alert(`Error: ${error.message}`);
+      toast.error(`Error: ${error.message}`);
       setIsSaving(false);
     }
   };

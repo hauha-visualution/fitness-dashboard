@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { UserRound, Wallet, X } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { notifyPaymentCreated, fetchClientNotifInfo } from '../../utils/notificationUtils';
+import { toast } from '../../utils/toast';
 import {
   PAYMENT_METHOD_OPTIONS,
   fmtVND,
@@ -117,7 +118,7 @@ const CreatePaymentModal = ({ clients = [], defaultClientId = null, onClose, onC
     const { error } = await supabase.from('payments').insert([payload]);
 
     if (error) {
-      alert(`Unable to create payment: ${error.message}`);
+      toast.error(`Unable to create payment: ${error.message}`);
       setIsSaving(false);
       return;
     }

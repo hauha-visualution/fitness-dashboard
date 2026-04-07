@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { Package, Zap, Plus, ChevronDown, ChevronUp, Calendar, Trash2, AlertTriangle, WalletCards, PencilLine, Clock3, MapPin, X } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 import CreatePackageModal from '../Modals/CreatePackageModal';
+import { toast } from '../../../utils/toast';
 import {
   buildMealPrepPaymentDetail,
   getServiceTotalLabel,
@@ -108,7 +109,7 @@ const PackageTab = ({ client, readOnly = false }) => {
       .eq('id', packageToDelete.id);
 
     if (error) {
-      alert(`Unable to delete package: ${error.message}`);
+      toast.error(`Unable to delete package: ${error.message}`);
       setDeletingPackage(false);
       return;
     }
@@ -140,7 +141,7 @@ const PackageTab = ({ client, readOnly = false }) => {
     }]);
 
     if (error) {
-      alert(`Unable to create meal prep payment: ${error.message}`);
+      toast.error(`Unable to create meal prep payment: ${error.message}`);
       setCreatingPaymentFor(null);
       return;
     }
@@ -170,14 +171,14 @@ const PackageTab = ({ client, readOnly = false }) => {
       .eq('package_id', bookingPackage.id);
 
     if (packageSessions.error) {
-      alert(`Unable to load existing sessions: ${packageSessions.error.message}`);
+      toast.error(`Unable to load existing sessions: ${packageSessions.error.message}`);
       setIsCreatingBooking(false);
       return;
     }
 
     const activeNonCancelledCount = (packageSessions.data || []).filter((item) => item.status !== 'cancelled').length;
     if (activeNonCancelledCount >= bookingPackage.total_sessions) {
-      alert('All included sessions have already been scheduled for this service.');
+      toast.error('All included sessions have already been scheduled for this service.');
       setIsCreatingBooking(false);
       return;
     }
@@ -199,7 +200,7 @@ const PackageTab = ({ client, readOnly = false }) => {
     }]);
 
     if (error) {
-      alert(`Unable to create booking: ${error.message}`);
+      toast.error(`Unable to create booking: ${error.message}`);
       setIsCreatingBooking(false);
       return;
     }

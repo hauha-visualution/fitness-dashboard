@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    name: Lint · Test · Build
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Node.js ───────────────────────────────────────────────────────────
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # ── 3. Install dependencies ───────────────────────────────────────────────
+      - name: Install dependencies
+        run: npm ci
+
+      # ── 4. Lint ───────────────────────────────────────────────────────────────
+      - name: Lint
+        run: npm run lint
+
+      # ── 5. Unit tests ─────────────────────────────────────────────────────────
+      - name: Run unit tests
+        run: npm test
+        env:
+          # Dummy values — tests run in node env, no real Supabase calls
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_ANON_KEY: placeholder_anon_key
+
+      # ── 6. Production build ───────────────────────────────────────────────────
+      - name: Build
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      # ── 7. Upload build artifact (optional, for inspection) ───────────────────
+      - name: Upload build artifacts
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7

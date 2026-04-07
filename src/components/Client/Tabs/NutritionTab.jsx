@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 import { notifyNutritionUpdated } from '../../../utils/notificationUtils';
+import { toast } from '../../../utils/toast';
 import {
   NUTRITION_ARCHIVE_FIELDS,
   buildNutritionProfileFromSource,
@@ -319,15 +320,15 @@ const NutritionTab = ({ client, readOnly = false }) => {
     if (error) {
       const message = String(error.message || '');
       if (message.includes('nutrition_')) {
-        alert('Thiếu cột nutrition mới trong bảng clients. Hãy chạy migration SQL phần nutrition trước.');
+        toast.error('Thiếu cột nutrition mới trong bảng clients. Hãy chạy migration SQL phần nutrition trước.');
       } else {
-        alert(`Không thể lưu: ${message}`);
+        toast.error(`Không thể lưu: ${message}`);
       }
       return false;
     }
 
     onSuccess?.();
-    alert('Đã lưu thay đổi.');
+    toast.success('Đã lưu thay đổi.');
     return true;
   };
 
@@ -347,7 +348,7 @@ const NutritionTab = ({ client, readOnly = false }) => {
 
       const matchedRow = (data || [])[0];
       if (!matchedRow) {
-        alert('Không tìm thấy dữ liệu form theo số điện thoại hiện tại.');
+        toast.error('Không tìm thấy dữ liệu form theo số điện thoại hiện tại.');
         setIsSyncingIntake(false);
         return;
       }
@@ -358,7 +359,7 @@ const NutritionTab = ({ client, readOnly = false }) => {
       const hasNutritionColumns = hasNutritionColumnsInSurveyRow(matchedRow);
 
       if (filledNutritionFields === 0) {
-        alert(
+        toast.error(
           hasNutritionColumns
             ? 'Đã tìm thấy response mới nhất, nhưng phần nutrition trong form hiện đang trống.'
             : 'Đã tìm thấy response nhưng chưa map được field nutrition từ form.',
@@ -385,9 +386,9 @@ const NutritionTab = ({ client, readOnly = false }) => {
 
       setArchive((prev) => ({ ...prev, ...payload }));
       setNutritionSyncedAt(syncedAt);
-      alert(`Đã đồng bộ lại ${filledNutritionFields}/9 trường intake từ form.`);
+      toast.success(`Đã đồng bộ lại ${filledNutritionFields}/9 trường intake từ form.`);
     } catch (error) {
-      alert(`Không thể đồng bộ hồ sơ intake: ${error.message || 'Thử lại nhé'}`);
+      toast.success(`Không thể đồng bộ hồ sơ intake: ${error.message || 'Thử lại nhé'}`);
     }
 
     setIsSyncingIntake(false);
@@ -466,14 +467,14 @@ const NutritionTab = ({ client, readOnly = false }) => {
     setIsSavingCheckin(false);
 
     if (error) {
-      alert(`Không thể lưu check-in: ${error.message}`);
+      toast.error(`Không thể lưu check-in: ${error.message}`);
       return;
     }
 
     setCheckinForm(createDefaultNutritionCheckin());
     await fetchCheckins();
     setIsEditingCheckin(false);
-    alert('Đã lưu nutrition check-in.');
+    toast.success('Đã lưu nutrition check-in.');
   };
 
   const latestCheckin = checkins[0] || null;

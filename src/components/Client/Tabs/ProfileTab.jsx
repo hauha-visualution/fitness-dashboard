@@ -4,6 +4,7 @@ import { CalendarDays, Camera, MapPin, Plus, RefreshCw, Save, X } from 'lucide-r
 import { supabase } from '../../../supabaseClient';
 import ClientAvatar from '../../shared/ClientAvatar';
 import { parseServiceBooking, parseServiceMeta } from '../../../utils/serviceUtils';
+import { toast } from '../../../utils/toast';
 
 const EditableField = ({ label, value, onChange, type = 'text' }) => (
   <div className="space-y-1.5">
@@ -1116,9 +1117,9 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
       if (updateError) throw updateError;
 
       setAvatarUrl(versionedAvatarUrl);
-      alert('Avatar updated successfully.');
+      toast.success('Avatar updated successfully.');
     } catch (err) {
-      alert('Avatar upload failed: ' + err.message);
+      toast.error('Avatar upload failed: ' + err.message);
     } finally {
       setIsUploadingAvatar(false);
     }
@@ -1134,10 +1135,10 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
 
     if (!error) {
       setIsEditMode(false);
-      alert('Profile updated successfully.');
+      toast.success('Profile updated successfully.');
       window.location.reload();
     } else {
-      alert('Error: ' + error.message);
+      toast.error('Error: ' + error.message);
     }
 
     setIsSavingProfile(false);
@@ -1161,7 +1162,7 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
       await fetchProgressPhotos();
     } catch (err) {
       setUploadError(`Upload failed: ${err.message}`);
-      alert(`Upload failed: ${err.message}`);
+      toast.error(`Upload failed: ${err.message}`);
     } finally {
       setIsUploadingProgress(false);
     }
@@ -1169,7 +1170,7 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
 
   const handleSaveInBody = async () => {
     if (!newInbodyRecord.weight) {
-      alert('Weight is required.');
+      toast.error('Weight is required.');
       return;
     }
 
@@ -1243,7 +1244,7 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
         recorded_at: '',
       });
     } else {
-      alert('Error: ' + error.message);
+      toast.error('Error: ' + error.message);
     }
 
     setIsSavingInbody(false);

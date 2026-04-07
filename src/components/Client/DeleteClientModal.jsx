@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, AlertTriangle, Lock, Trash2, RefreshCw } from 'lucide-react';
+import { toast } from '../../utils/toast';
 
 const DeleteClientModal = ({ client, onClose, onConfirm }) => {
   const [password, setPassword] = useState('');
@@ -10,7 +11,7 @@ const DeleteClientModal = ({ client, onClose, onConfirm }) => {
     const MASTER_PASS = '123456'; 
 
     if (password !== MASTER_PASS) {
-      alert("Mật khẩu PT không chính xác!");
+      toast.error("Mật khẩu PT không chính xác!");
       return;
     }
 

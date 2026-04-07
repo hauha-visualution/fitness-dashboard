@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Camera, Lock, Calendar, Save, RefreshCw, Building2, Copy, QrCode } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
+import { toast } from '../../utils/toast';
 
 const CoachProfileView = ({ session, coachProfile, onBack, onProfileUpdated }) => {
   const [coachData, setCoachData] = useState({
@@ -61,7 +62,7 @@ const CoachProfileView = ({ session, coachProfile, onBack, onProfileUpdated }) =
       setCoachData(prev => ({ ...prev, avatar_url: data.publicUrl }));
 
     } catch (error) {
-      alert('Lỗi upload ảnh: ' + error.message);
+      toast.error('Lỗi upload ảnh: ' + error.message);
     } finally {
       setIsUploading(false);
     }
@@ -69,7 +70,7 @@ const CoachProfileView = ({ session, coachProfile, onBack, onProfileUpdated }) =
 
   const handleSave = async () => {
     if (!coachEmail) {
-      alert('Không xác định được email coach. Thử đăng nhập lại nhé!');
+      toast.error('Không xác định được email coach. Thử đăng nhập lại nhé!');
       return;
     }
 
@@ -99,7 +100,7 @@ const CoachProfileView = ({ session, coachProfile, onBack, onProfileUpdated }) =
       onProfileUpdated();
       onBack();
     } else {
-      alert('Lỗi lưu profile: ' + error.message);
+      toast.error('Lỗi lưu profile: ' + error.message);
     }
   };
 
@@ -122,7 +123,7 @@ const CoachProfileView = ({ session, coachProfile, onBack, onProfileUpdated }) =
       const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
       setCoachData((prev) => ({ ...prev, bank_qr_url: data.publicUrl }));
     } catch (error) {
-      alert('Lỗi upload QR ngân hàng: ' + error.message);
+      toast.error('Lỗi upload QR ngân hàng: ' + error.message);
     } finally {
       setIsUploading(false);
     }
@@ -132,9 +133,9 @@ const CoachProfileView = ({ session, coachProfile, onBack, onProfileUpdated }) =
     if (!coachData.bank_account_number?.trim()) return;
     try {
       await navigator.clipboard.writeText(coachData.bank_account_number.trim());
-      alert('Đã copy số tài khoản');
+      toast.success('Đã copy số tài khoản');
     } catch {
-      alert('Không thể copy số tài khoản');
+      toast.error('Không thể copy số tài khoản');
     }
   };
 

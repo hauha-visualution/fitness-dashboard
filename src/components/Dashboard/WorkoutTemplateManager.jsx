@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../../supabaseClient';
 import { ChevronDown, ChevronUp, Dumbbell, Plus, RefreshCw, Trash2, UserRound, AlertTriangle, Pencil } from 'lucide-react';
 import CreateTemplateModal from './CreateTemplateModal';
+import { toast } from '../../utils/toast';
 
 const WorkoutTemplateManager = ({ session }) => {
   const [templates, setTemplates] = useState([]);
@@ -32,7 +33,7 @@ const WorkoutTemplateManager = ({ session }) => {
     ]);
 
     if (templatesError) {
-      alert(`Không tải được gói bài tập: ${templatesError.message}`);
+      toast.error(`Không tải được gói bài tập: ${templatesError.message}`);
       setTemplates([]);
       setClients(clientsData ?? []);
       setLoading(false);
@@ -62,7 +63,7 @@ const WorkoutTemplateManager = ({ session }) => {
       .eq('id', templateToDelete.id);
 
     if (error) {
-      alert(`Không thể xóa gói bài tập: ${error.message}`);
+      toast.error(`Không thể xóa gói bài tập: ${error.message}`);
       setDeletingTemplate(false);
       return;
     }

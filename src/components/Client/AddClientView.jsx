@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, RefreshCw, User, Target, Utensils, HeartPulse, ChevronDown, CheckCircle2, Clock, Mail, Calendar as CalendarIcon, KeyRound, ShieldCheck } from 'lucide-react';
 import { supabase, createClientAuthAccount } from '../../supabaseClient';
+import { toast } from '../../utils/toast';
 import {
   buildNutritionProfileFromSource,
   buildNutritionSyncAudit,
@@ -68,7 +69,7 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
   );
 
   const handleSyncAPI = async () => {
-    if (!formData.phone) return alert('Enter a phone number before syncing.');
+    if (!formData.phone) toast.error('Enter a phone number before syncing.'); return;
     setIsSyncing(true);
     try {
       const phoneCandidates = buildPhoneCandidates(formData.phone);
@@ -97,12 +98,12 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
 
         if (filledNutritionFields === 0) {
           if (hasNutritionColumns) {
-            alert(
+            toast.info(
               'A matching survey response was found, but the nutrition fields are still empty.\n\n' +
               'Sync worked correctly. The linked Google Form row simply does not include nutrition details yet.'
             );
           } else {
-            alert(
+            toast.info(
               'A survey response was found, but the nutrition fields could not be mapped.\n\n' +
               'The Google Form column names likely differ from the current schema. Check the console and extend the alias mapping if needed.'
             );
@@ -116,7 +117,7 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
           mappedNutritionProfile,
         );
 
-        alert(
+        toast.success(
           `Sync complete.\n\n` +
           `Nutrition profile:\n` +
           `• Matched: ${audit.counts.synced}\n` +
@@ -125,25 +126,25 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
           `Review the Goals, Lifestyle, and Nutrition sections below.`
         );
       } else {
-        alert('No survey data was found for this phone number yet.');
+        toast.info('No survey data was found for this phone number yet.');
       }
     } catch (e) {
       console.error('Sync error:', e);
-      alert('Sync connection failed.');
+      toast.error('Sync connection failed.');
     }
     setIsSyncing(false);
   };
 
   const handleSave = async () => {
-    if (!formData.name || !formData.phone) return alert('Full name and phone number are required.');
-    if (!clientPassword || clientPassword.length < 6) return alert('Trainee password must be at least 6 characters.');
+    if (!formData.name || !formData.phone) toast.error('Full name and phone number are required.'); return;
+    if (!clientPassword || clientPassword.length < 6) toast.error('Trainee password must be at least 6 characters.'); return;
 
     setIsSaving(true);
 
     const { userId, error: authError } = await createClientAuthAccount(formData.phone, clientPassword);
 
     if (authError) {
-      alert('Account creation failed: ' + authError);
+      toast.error('Account creation failed: ' + authError);
       setIsSaving(false);
       return;
     }
@@ -164,7 +165,7 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
 
     setIsSaving(false);
     if (!dbError) {
-      alert(
+      toast.success(
         `Trainee created successfully.\n\n` +
         `Portal:\n• ${traineePortalUrl}\n\n` +
         `Login details:\n• Username: ${formData.phone}\n• Password: ${clientPassword}\n\n` +
@@ -173,7 +174,7 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
       onSave();
       onBack();
     } else {
-      alert('Save failed: ' + dbError.message);
+      toast.error('Save failed: ' + dbError.message);
     }
   };
 

@@ -4,6 +4,7 @@ import { Dumbbell, CheckCircle2, Clock, ChevronDown, ChevronUp, Plus, X } from '
 import { supabase } from '../../../supabaseClient';
 import { getServiceTypeLabel, parseServiceBooking, parseServiceMeta } from '../../../utils/serviceUtils';
 import { notifyExtraSessionAdded, fetchClientNotifInfo } from '../../../utils/notificationUtils';
+import { toast } from '../../../utils/toast';
 
 // ─── Helpers ─────────────────────────────────────────────────
 const DAY_VI = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -90,7 +91,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
       .sort((a, b) => a.session_number - b.session_number || a.scheduled_date.localeCompare(b.scheduled_date) || a.scheduled_time.localeCompare(b.scheduled_time));
 
     if (serviceType === 'training' && activeSessions.length === 0) {
-      alert('There are no active sessions left in this package to insert an extra one.');
+      toast.info('There are no active sessions left in this package to insert an extra one.');
       return;
     }
 
@@ -115,7 +116,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
       const activeNonCancelledCount = packageSessions.filter((sessionItem) => sessionItem.status !== 'cancelled').length;
 
       if (activeNonCancelledCount >= extraPackage.total_sessions) {
-        alert('All included sessions have already been scheduled for this service.');
+        toast.error('All included sessions have already been scheduled for this service.');
         setAddingExtra(false);
         return;
       }
@@ -143,7 +144,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
     }
 
     if (error) {
-      alert(`Unable to add ${extraServiceType === 'stretching' ? 'session' : 'extra session'}: ${error.message}`);
+      toast.error(`Unable to add ${extraServiceType === 'stretching' ? 'session' : 'extra session'}: ${error.message}`);
       setAddingExtra(false);
       return;
     }

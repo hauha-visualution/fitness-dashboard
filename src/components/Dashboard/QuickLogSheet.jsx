@@ -21,6 +21,7 @@ import {
   Waves,
 } from 'lucide-react';
 import CreateTemplateModal from './CreateTemplateModal';
+import { toast } from '../../utils/toast';
 import {
   notifySessionCompleted,
   notifySessionCancelled,
@@ -231,7 +232,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
       console.error('Load client sessions error:', error.message);
       setClientSessions([]);
       setLoadingClientSessions(false);
-      alert(`Unable to load sessions: ${error.message}`);
+      toast.error(`Unable to load sessions: ${error.message}`);
       return [];
     }
 
@@ -681,7 +682,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
       // ───────────────────────────────────────────────────────
     } catch (error) {
       console.error('Quick log save error:', error.message);
-      alert(`Unable to save session: ${error.message}`);
+      toast.error(`Unable to save session: ${error.message}`);
     } finally {
       setSaving(false);
     }

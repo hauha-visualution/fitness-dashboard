@@ -1,19 +1,32 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { Home, Library, LogOut, Users, Wallet } from 'lucide-react';
 import NotificationBell from './components/shared/NotificationBell';
+import ToastContainer from './components/shared/ToastContainer';
+import Skeleton from './components/shared/Skeleton';
+import { toast } from './utils/toast';
+import { useAuth } from './hooks/useAuth';
 import { supabase } from './supabaseClient';
 
-// Import các thành phần chính
+// Always-loaded (auth / shell)
 import AuthScreen from './components/Auth/AuthScreen';
-import DashboardView from './components/Dashboard/DashboardView';
-import ClientListView from './components/Client/ClientListView';
-import AddClientView from './components/Client/AddClientView';
-import CoachProfileView from './components/Dashboard/CoachProfileView';
-import QuickLogSheet from './components/Dashboard/QuickLogSheet';
-import ClientDetailView from './components/Client/ClientDetailView';
-import ClientPortalApp from './components/ClientPortal/ClientPortalApp';
-import WorkoutTemplateManager from './components/Dashboard/WorkoutTemplateManager';
-import CoachPaymentsView from './components/Dashboard/CoachPaymentsView';
+
+// Lazy-loaded heavy views — split into separate JS chunks
+const DashboardView        = lazy(() => import('./components/Dashboard/DashboardView'));
+const ClientListView       = lazy(() => import('./components/Client/ClientListView'));
+const AddClientView        = lazy(() => import('./components/Client/AddClientView'));
+const CoachProfileView     = lazy(() => import('./components/Dashboard/CoachProfileView'));
+const QuickLogSheet        = lazy(() => import('./components/Dashboard/QuickLogSheet'));
+const ClientDetailView     = lazy(() => import('./components/Client/ClientDetailView'));
+const ClientPortalApp      = lazy(() => import('./components/ClientPortal/ClientPortalApp'));
+const WorkoutTemplateManager = lazy(() => import('./components/Dashboard/WorkoutTemplateManager'));
+const CoachPaymentsView    = lazy(() => import('./components/Dashboard/CoachPaymentsView'));
+
+// Suspense fallback
+const ViewFallback = () => (
+  <div className="flex-1 overflow-hidden p-4">
+    <Skeleton.Page />
+  </div>
+);
 
 // --- STYLES ---
 const GlobalStyles = () => (
@@ -154,20 +167,20 @@ const CoachDesktopHeader = ({ coachProfile, session, onOpenProfile, onLogout }) 
 );
 
 export default function App() {
-  const [session, setSession] = useState(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const {
+    session,
+    userRole,
+    coachProfile,
+    clientProfile,
+    isAuthLoading,
+    login: handleLogin,
+    logout: handleLogoutBase,
+    refreshProfile: handleProfileUpdated,
+  } = useAuth();
+
   const [routeContext, setRouteContext] = useState(() => (
     typeof window === 'undefined' ? 'main' : getRouteContextFromPath(window.location.pathname)
   ));
-
-  // Role: 'coach' | 'client' | 'unknown' | null
-  const [userRole, setUserRole] = useState(null);
-
-  // Coach profile (từ bảng coaches)
-  const [coachProfile, setCoachProfile] = useState(null);
-
-  // Client profile (từ bảng clients, dùng cho client portal)
-  const [clientProfile, setClientProfile] = useState(null);
 
   const [activeTab, setActiveTab] = useState('home');
   const [selectedClient, setSelectedClient] = useState(null);
@@ -199,86 +212,10 @@ export default function App() {
     setRouteContext(context);
   }, []);
 
-  // ============================================================
-  // Phát hiện role sau khi đăng nhập
-  // ============================================================
-  const detectRole = async (sess) => {
-    if (!sess?.user) return;
-
-    // 1. Kiểm tra bảng coaches
-    const { data: coach } = await supabase
-      .from('coaches')
-      .select('*')
-      .eq('email', sess.user.email)
-      .maybeSingle();
-
-    if (coach) {
-      setCoachProfile(coach);
-      setUserRole('coach');
-      // Lưu auth_user_id để trainee có thể notify coach (fire-and-forget)
-      if (!coach.auth_user_id || coach.auth_user_id !== sess.user.id) {
-        void supabase
-          .from('coaches')
-          .update({ auth_user_id: sess.user.id })
-          .eq('email', sess.user.email);
-      }
-      return;
-    }
-
-    // 2. Kiểm tra bảng clients (theo auth_user_id)
-    const { data: client } = await supabase
-      .from('clients')
-      .select('*')
-      .eq('auth_user_id', sess.user.id)
-      .maybeSingle();
-
-    if (client) {
-      setClientProfile(client);
-      setUserRole('client');
-      return;
-    }
-
-    // 3. Lần đầu client đăng nhập → thử link bằng username từ metadata
-    const metaUsername = sess.user.user_metadata?.username;
-    if (metaUsername) {
-      const { data: clientByUsername } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('username', metaUsername)
-        .is('auth_user_id', null)
-        .maybeSingle();
-
-      if (clientByUsername) {
-        // Gắn auth_user_id vào client record
-        await supabase
-          .from('clients')
-          .update({ auth_user_id: sess.user.id })
-          .eq('id', clientByUsername.id);
-
-        setClientProfile({ ...clientByUsername, auth_user_id: sess.user.id });
-        setUserRole('client');
-        return;
-      }
-    }
-
-    setUserRole('unknown');
-  };
-
-  // Lắng nghe auth state từ Supabase
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) detectRole(session);
-      setIsAuthLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) detectRole(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  const handleLogout = useCallback(async () => {
+    await handleLogoutBase();
+    navigateToContext('main', { replace: true });
+  }, [handleLogoutBase, navigateToContext]);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -293,25 +230,6 @@ export default function App() {
     if (!session || !userRole || userRole === 'unknown') return;
     navigateToContext(userRole === 'client' ? 'client' : 'coach', { isAuthenticated: true, replace: true });
   }, [navigateToContext, session, userRole]);
-
-  const handleLogin = (supabaseSession) => {
-    setSession(supabaseSession);
-    detectRole(supabaseSession);
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setSession(null);
-    setCoachProfile(null);
-    setClientProfile(null);
-    setUserRole(null);
-    navigateToContext('main', { replace: true });
-  };
-
-  // Gọi lại sau khi CoachProfileView lưu thành công → refresh
-  const handleProfileUpdated = () => {
-    if (session) detectRole(session);
-  };
 
   const fetchClients = useCallback(async () => {
     if (!session) return;
@@ -365,7 +283,7 @@ export default function App() {
     if (!error) {
       fetchClients();
       setSelectedClient(null);
-    } else alert("Lỗi khi xóa: " + error.message);
+    } else toast.error("Lỗi khi xóa: " + error.message);
   };
 
   const openQuickLog = (selection = null) => {
@@ -426,11 +344,13 @@ export default function App() {
       <div className="app-root-shell min-h-screen flex justify-center px-0 font-sans sm:px-4 lg:px-6 lg:py-6">
         <div className="app-shell-frame relative flex h-dvh w-full max-w-[420px] flex-col overflow-hidden sm:max-w-[680px] lg:h-[min(920px,calc(100vh-3rem))] lg:max-w-[1280px] lg:rounded-[40px] lg:border lg:border-white/[0.08]">
           <GlobalStyles />
+          <Suspense fallback={<ViewFallback />}>
           <ClientPortalApp
             session={session}
             clientProfile={clientProfile}
             onLogout={handleLogout}
           />
+          </Suspense>
         </div>
       </div>
     );
@@ -460,12 +380,14 @@ export default function App() {
         <GlobalStyles />
 
         {showCoachProfile ? (
-          <CoachProfileView
-            session={session}
-            coachProfile={coachProfile}
-            onBack={() => setShowCoachProfile(false)}
-            onProfileUpdated={handleProfileUpdated}
-          />
+          <Suspense fallback={<ViewFallback />}>
+            <CoachProfileView
+              session={session}
+              coachProfile={coachProfile}
+              onBack={() => setShowCoachProfile(false)}
+              onProfileUpdated={handleProfileUpdated}
+            />
+          </Suspense>
         ) : !selectedClient ? (
           <>
             {/* Persistent desktop header — always visible across all tabs */}
@@ -478,46 +400,48 @@ export default function App() {
 
             <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-4 lg:p-4">
               <div className="relative flex min-h-0 flex-1 flex-col">
-                {activeTab === 'home' && (
-                  <DashboardView
-                    session={session}
-                    coachProfile={coachProfile}
-                    refreshKey={refreshKey}
-                    onSelectClient={setSelectedClient}
-                    onOpenQuickLog={openQuickLog}
-                    onLogout={handleLogout}
-                    onOpenProfile={() => setShowCoachProfile(true)}
-                  />
-                )}
+                <Suspense fallback={<ViewFallback />}>
+                  {activeTab === 'home' && (
+                    <DashboardView
+                      session={session}
+                      coachProfile={coachProfile}
+                      refreshKey={refreshKey}
+                      onSelectClient={setSelectedClient}
+                      onOpenQuickLog={openQuickLog}
+                      onLogout={handleLogout}
+                      onOpenProfile={() => setShowCoachProfile(true)}
+                    />
+                  )}
 
-                {activeTab === 'clients' && (
-                  <ClientListView
-                    clients={clients}
-                    isLoading={isLoading}
-                    onSelectClient={setSelectedClient}
-                    onOpenAdd={() => setActiveTab('add_client')}
-                  />
-                )}
+                  {activeTab === 'clients' && (
+                    <ClientListView
+                      clients={clients}
+                      isLoading={isLoading}
+                      onSelectClient={setSelectedClient}
+                      onOpenAdd={() => setActiveTab('add_client')}
+                    />
+                  )}
 
-                {activeTab === 'templates' && (
-                  <WorkoutTemplateManager
-                    session={session}
-                  />
-                )}
+                  {activeTab === 'templates' && (
+                    <WorkoutTemplateManager
+                      session={session}
+                    />
+                  )}
 
-                {activeTab === 'payments' && (
-                  <CoachPaymentsView
-                    clients={clients}
-                  />
-                )}
+                  {activeTab === 'payments' && (
+                    <CoachPaymentsView
+                      clients={clients}
+                    />
+                  )}
 
-                {activeTab === 'add_client' && (
-                  <AddClientView
-                    onBack={() => setActiveTab('clients')}
-                    onSave={fetchClients}
-                    coachEmail={session?.user?.email}
-                  />
-                )}
+                  {activeTab === 'add_client' && (
+                    <AddClientView
+                      onBack={() => setActiveTab('clients')}
+                      onSave={fetchClients}
+                      coachEmail={session?.user?.email}
+                    />
+                  )}
+                </Suspense>
               </div>
 
               {/* Desktop side nav (icon-only, 64px) */}
@@ -541,24 +465,29 @@ export default function App() {
             </div>
           </>
         ) : (
-          <ClientDetailView
-            client={selectedClient}
-            onBack={() => setSelectedClient(null)}
-            onDelete={handleDeleteClient}
-            onOpenQuickLog={openQuickLog}
-            refreshKey={refreshKey}
-          />
+          <Suspense fallback={<ViewFallback />}>
+            <ClientDetailView
+              client={selectedClient}
+              onBack={() => setSelectedClient(null)}
+              onDelete={handleDeleteClient}
+              onOpenQuickLog={openQuickLog}
+              refreshKey={refreshKey}
+            />
+          </Suspense>
         )}
 
         {showQuickLog && (
-          <QuickLogSheet
-            session={session}
-            initialSelection={quickLogSelection}
-            onClose={closeQuickLog}
-            onSaved={() => setRefreshKey(k => k + 1)}
-          />
+          <Suspense fallback={null}>
+            <QuickLogSheet
+              session={session}
+              initialSelection={quickLogSelection}
+              onClose={closeQuickLog}
+              onSaved={() => setRefreshKey(k => k + 1)}
+            />
+          </Suspense>
         )}
       </div>
+      <ToastContainer />
     </div>
   );
 }

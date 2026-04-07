@@ -1,6 +1,7 @@
 import React from 'react';
-import { UserPlus, ChevronRight, Users, RefreshCw, Package } from 'lucide-react';
+import { UserPlus, ChevronRight, Users, Package } from 'lucide-react';
 import ClientAvatar from '../shared/ClientAvatar';
+import Skeleton from '../shared/Skeleton';
 
 const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading }) => {
   return (
@@ -22,10 +23,7 @@ const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading }) => {
 
       <div className="flex-1 overflow-y-auto hide-scrollbar px-6 py-6 pb-32">
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center h-64 mt-10">
-          <RefreshCw className="w-8 h-8 mb-4 app-blue-text animate-spin" />
-          <p className="text-sm app-subtle-text">Loading data...</p>
-        </div>
+        <Skeleton.ClientList rows={6} />
       ) : clients.length === 0 ? (
          <div className="flex flex-col items-center justify-center h-64 text-center mt-10">
            <Users className="w-12 h-12 mb-4 text-white/15" />

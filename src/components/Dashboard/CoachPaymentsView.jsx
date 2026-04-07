@@ -14,6 +14,7 @@ import {
 import { supabase } from '../../supabaseClient';
 import { notifyPaymentConfirmed, fetchClientNotifInfo } from '../../utils/notificationUtils';
 import CreatePaymentModal from '../Payments/CreatePaymentModal';
+import { toast } from '../../utils/toast';
 import {
   fmtDate,
   fmtVNDAbridged,
@@ -92,7 +93,7 @@ const CoachPaymentsView = ({ clients = [] }) => {
       .order('created_at', { ascending: false });
 
     if (error) {
-      alert(`Unable to load payments: ${error.message}`);
+      toast.error(`Unable to load payments: ${error.message}`);
       setLoading(false);
       return;
     }
@@ -118,7 +119,7 @@ const CoachPaymentsView = ({ clients = [] }) => {
       .eq('id', paymentId);
 
     if (error) {
-      alert(`${errorPrefix}: ${error.message}`);
+      toast.error(`${errorPrefix}: ${error.message}`);
       setActioningId(null);
       return;
     }
