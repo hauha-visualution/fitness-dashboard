@@ -8,6 +8,7 @@ import {
   serializeServiceBooking,
   parseServiceBooking,
   buildMealPrepPaymentDetail,
+  normalizeServiceType,
   SERVICE_NOTE_PREFIX,
   SERVICE_BOOKING_PREFIX,
 } from '../serviceUtils';
@@ -56,6 +57,25 @@ describe('parseServiceMeta edge cases', () => {
     expect(result.coachNote).toBe('Just a plain note');
   });
 
+  it('normalizes legacy trainning typo', () => {
+    expect(normalizeServiceType('trainning')).toBe('training');
+    expect(parseServiceMeta('trainning package')).toMatchObject({
+      serviceType: 'training',
+      coachNote: '',
+    });
+  });
+
+  it('parses legacy stretching labels without metadata prefix', () => {
+    expect(parseServiceMeta('stretching')).toMatchObject({
+      serviceType: 'stretching',
+      coachNote: '',
+    });
+    expect(parseServiceMeta('stretching: Hip mobility')).toMatchObject({
+      serviceType: 'stretching',
+      serviceDetail: 'Hip mobility',
+    });
+  });
+
   it('handles malformed JSON after prefix', () => {
     const bad = `${SERVICE_NOTE_PREFIX}{broken json`;
     const result = parseServiceMeta(bad);
@@ -75,6 +95,11 @@ describe('getServiceTypeConfig', () => {
     const config = getServiceTypeConfig('stretching');
     expect(config.id).toBe('stretching');
     expect(config.paymentType).toBe('stretching');
+  });
+
+  it('normalizes aliased training config', () => {
+    const config = getServiceTypeConfig('trainning');
+    expect(config.id).toBe('training');
   });
 
   it('returns meal_prep config', () => {

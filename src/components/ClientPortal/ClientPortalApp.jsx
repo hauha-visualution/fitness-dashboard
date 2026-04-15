@@ -26,7 +26,7 @@ const ClientPortalNavigation = ({ tabs, activeTab, onSelectTab, desktop = false 
     className={
       desktop
         ? 'app-nav-shell hidden lg:flex lg:h-full lg:w-[104px] lg:flex-col lg:justify-center lg:rounded-[34px] lg:p-2.5 lg:shadow-2xl'
-        : 'app-nav-shell absolute bottom-6 left-1/2 z-50 flex w-[94%] -translate-x-1/2 justify-between rounded-[32px] p-1.5 shadow-2xl lg:hidden'
+        : 'app-mobile-nav-offset app-nav-shell absolute left-1/2 z-50 flex w-[94%] -translate-x-1/2 justify-between rounded-[32px] p-1.5 shadow-2xl lg:hidden'
     }
   >
     <div className={desktop ? 'flex flex-col gap-2' : 'contents'}>
@@ -96,7 +96,7 @@ const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) =
 
   if (isLoading) {
     return (
-      <div className="app-screen-shell h-screen flex items-center justify-center">
+      <div className="app-screen-shell h-dvh flex items-center justify-center lg:h-full">
         <div className="w-10 h-10 border-2 border-white/10 border-t-white/40 rounded-full animate-spin" />
       </div>
     );
@@ -114,40 +114,46 @@ const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) =
   const renderContent = () => {
     switch (activeTab) {
       case 'profile':   return (
-        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
-          <ProfileTab client={client} readOnly={true} />
+        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pt-4 app-mobile-nav-spacing lg:px-8 lg:pb-8">
+          <ProfileTab client={client} readOnly={true} allowStretchingBooking={true} />
         </div>
       );
       case 'package':   return (
-        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
-          <PackageTab client={client} readOnly={true} />
+        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pt-4 app-mobile-nav-spacing lg:px-8 lg:pb-8">
+          <PackageTab client={client} readOnly={true} allowStretchingBooking={true} />
         </div>
       );
       case 'sessions':  return (
-        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
-          <SessionsTab clientId={client?.id} client={client} readOnly={true} onOpenQuickLog={setQuickLogSelection} />
+        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pt-4 app-mobile-nav-spacing lg:px-8 lg:pb-8">
+          <SessionsTab
+            clientId={client?.id}
+            client={client}
+            readOnly={true}
+            allowStretchingBooking={true}
+            onOpenQuickLog={setQuickLogSelection}
+          />
         </div>
       );
       case 'nutrition': return (
-        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
+        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pt-4 app-mobile-nav-spacing lg:px-8 lg:pb-8">
           <NutritionTab client={client} readOnly={true} />
         </div>
       );
       case 'payment':   return (
-        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
+        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pt-4 app-mobile-nav-spacing lg:px-8 lg:pb-8">
           <PaymentTab client={client} readOnly={true} />
         </div>
       );
       default:          return (
-        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pb-32 pt-4 lg:px-8 lg:pb-8">
-          <ProfileTab client={client} readOnly={true} />
+        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pt-4 app-mobile-nav-spacing lg:px-8 lg:pb-8">
+          <ProfileTab client={client} readOnly={true} allowStretchingBooking={true} />
         </div>
       );
     }
   };
 
   return (
-    <div className="app-screen-shell relative flex h-screen flex-col lg:h-full">
+    <div className="app-screen-shell relative flex h-dvh flex-col lg:h-full">
 
       {/* Top bar — luôn hiển thị trên mọi tab, kể cả Profile */}
       <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.04] bg-black/30 px-5 py-4 backdrop-blur-xl lg:px-8 lg:py-4">

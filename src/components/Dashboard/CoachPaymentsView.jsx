@@ -272,7 +272,7 @@ const CoachPaymentsView = ({ clients = [] }) => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pt-6 pb-28">
+      <div className="flex-1 overflow-y-auto hide-scrollbar px-5 pt-6 app-mobile-nav-spacing lg:pb-8">
 
         {/* SUMMARY CARDS */}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 mb-5">

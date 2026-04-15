@@ -23,6 +23,10 @@
   --app-text-secondary: rgba(255, 255, 255, 0.45);
   --app-text-muted: rgba(255, 255, 255, 0.3);
   --app-text-disabled: rgba(255, 255, 255, 0.2);
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --app-mobile-nav-offset: calc(var(--app-safe-bottom) + 1rem);
+  --app-mobile-nav-height: 72px;
+  --app-mobile-nav-clearance: calc(var(--app-mobile-nav-height) + var(--app-mobile-nav-offset) + 1rem);
 }
 
 /* ── Global font: Nunito ─────────────────────────────── */
@@ -137,6 +141,14 @@ h1, h2, h3, h4, h5, h6 {
     inset 0 1px 0 rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
+}
+
+.app-mobile-nav-offset {
+  bottom: var(--app-mobile-nav-offset);
+}
+
+.app-mobile-nav-spacing {
+  padding-bottom: var(--app-mobile-nav-clearance);
 }
 
 .app-nav-item {

@@ -26,7 +26,7 @@ const formatCreatedDate = (iso) => {
   return `${String(value.getDate()).padStart(2, '0')}/${String(value.getMonth() + 1).padStart(2, '0')}/${value.getFullYear()}`;
 };
 
-const PackageTab = ({ client, readOnly = false }) => {
+const PackageTab = ({ client, readOnly = false, allowStretchingBooking = false }) => {
   const clientId = client?.id;
   const [packages, setPackages] = useState([]);
   const [sessionCounts, setSessionCounts] = useState({});
@@ -122,6 +122,7 @@ const PackageTab = ({ client, readOnly = false }) => {
   const activePackages = packages.filter(p => p.status === 'active');
   const completedPackages = packages.filter(p => p.status === 'completed');
   const nextPackageNumber = packages.length + 1;
+  const canScheduleStretching = !readOnly || allowStretchingBooking;
   
   const handleCreateMealPrepPayment = async (pkg, pkgMetaRaw, pkgMeta) => {
     if (!pkg || !pkgMeta || creatingPaymentFor) return;
@@ -163,6 +164,11 @@ const PackageTab = ({ client, readOnly = false }) => {
 
   const handleCreateStretchingBooking = async () => {
     if (!bookingPackage || !bookingDate || !bookingStartTime || !bookingEndTime) return;
+    if (bookingEndTime <= bookingStartTime) {
+      toast.error('End time must be later than the start time.');
+      return;
+    }
+
     setIsCreatingBooking(true);
 
     const packageSessions = await supabase
@@ -207,6 +213,7 @@ const PackageTab = ({ client, readOnly = false }) => {
 
     setIsCreatingBooking(false);
     setBookingPackage(null);
+    toast.success('Stretching booking created.');
     void fetchData();
   };
 
@@ -422,7 +429,7 @@ const PackageTab = ({ client, readOnly = false }) => {
                     </button>
                   </div>
                 )}
-                {!readOnly && pkgMeta.type === 'stretching' && (
+                {canScheduleStretching && pkgMeta.type === 'stretching' && (
                   <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/[0.06] pt-3">
                     <div className="flex items-center gap-2 text-[10px] text-neutral-500">
                       <Clock3 className="h-3.5 w-3.5" />
@@ -616,7 +623,7 @@ const PackageTab = ({ client, readOnly = false }) => {
                 onClick={() => {
                   void handleCreateStretchingBooking();
                 }}
-                disabled={isCreatingBooking || !bookingDate || !bookingStartTime || !bookingEndTime}
+                disabled={isCreatingBooking || !bookingDate || !bookingStartTime || !bookingEndTime || bookingEndTime <= bookingStartTime}
                 className="flex-1 rounded-[16px] bg-white py-3.5 text-sm font-bold text-black disabled:opacity-50"
               >
                 {isCreatingBooking ? 'Scheduling...' : 'Create Booking'}

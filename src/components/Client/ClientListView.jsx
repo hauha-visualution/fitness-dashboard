@@ -5,7 +5,7 @@ import Skeleton from '../shared/Skeleton';
 
 const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading }) => {
   return (
-    <div className="app-screen-shell h-screen flex flex-col relative z-10 overflow-hidden">
+    <div className="app-screen-shell relative z-10 flex h-dvh flex-col overflow-hidden lg:h-full">
 
       {/* PAGE TITLE */}
       <div className="flex shrink-0 items-center justify-between gap-4 px-5 py-4">
@@ -21,7 +21,7 @@ const ClientListView = ({ clients, onSelectClient, onOpenAdd, isLoading }) => {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto hide-scrollbar px-6 py-6 pb-32">
+      <div className="flex-1 overflow-y-auto hide-scrollbar px-6 py-6 app-mobile-nav-spacing lg:pb-8">
       {isLoading ? (
         <Skeleton.ClientList rows={6} />
       ) : clients.length === 0 ? (

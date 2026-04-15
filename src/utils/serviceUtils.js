@@ -68,6 +68,58 @@ export const MEAL_PREP_PRODUCT_OPTIONS = {
   Khác: ['Khác'],
 };
 
+const SERVICE_TYPE_ALIASES = {
+  training: 'training',
+  trainning: 'training',
+  training_package: 'training',
+  trainning_package: 'training',
+  workout: 'training',
+  stretching: 'stretching',
+  stretching_package: 'stretching',
+  meal_prep: 'meal_prep',
+  mealprep: 'meal_prep',
+  meal_prep_package: 'meal_prep',
+  mealprep_package: 'meal_prep',
+  prep_meal: 'meal_prep',
+};
+
+export const normalizeServiceType = (serviceType) => {
+  const normalized = String(serviceType || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
+
+  return SERVICE_TYPE_ALIASES[normalized] || '';
+};
+
+const parseLegacyServiceMeta = (note) => {
+  const raw = String(note || '').trim();
+  if (!raw) return null;
+
+  const directType = normalizeServiceType(raw);
+  if (directType) {
+    return {
+      ...defaultMeta,
+      serviceType: directType,
+      coachNote: '',
+    };
+  }
+
+  const prefixedMatch = raw.match(/^(trainning|training|stretching|meal[\s_-]?prep|prep[\s_-]?meal)(?:\s+package)?\s*[:|-]\s*(.+)$/i);
+  if (!prefixedMatch) return null;
+
+  const [, legacyType, detail] = prefixedMatch;
+  const normalizedType = normalizeServiceType(legacyType);
+  if (!normalizedType) return null;
+
+  return {
+    ...defaultMeta,
+    serviceType: normalizedType,
+    serviceDetail: detail?.trim() || '',
+    coachNote: '',
+  };
+};
+
 export const getMealPrepProductOptions = (foodGroup) => {
   if (!foodGroup) {
     return Array.from(new Set(Object.values(MEAL_PREP_PRODUCT_OPTIONS).flat()));
@@ -84,13 +136,13 @@ const defaultMeta = {
 };
 
 export const getServiceTypeConfig = (serviceType) =>
-  SERVICE_TYPE_CONFIG[serviceType] || SERVICE_TYPE_CONFIG.training;
+  SERVICE_TYPE_CONFIG[normalizeServiceType(serviceType)] || SERVICE_TYPE_CONFIG.training;
 
 export const serializeServiceMeta = (meta = {}) => {
   const payload = {
     ...defaultMeta,
     ...meta,
-    serviceType: meta.serviceType || 'training',
+    serviceType: normalizeServiceType(meta.serviceType) || 'training',
     serviceDetail: meta.serviceDetail?.trim() || '',
     coachNote: meta.coachNote?.trim() || '',
     mealPrepItems: Array.isArray(meta.mealPrepItems)
@@ -109,6 +161,9 @@ export const serializeServiceMeta = (meta = {}) => {
 
 export const parseServiceMeta = (note) => {
   if (!note || typeof note !== 'string' || !note.startsWith(SERVICE_NOTE_PREFIX)) {
+    const legacyMeta = parseLegacyServiceMeta(note);
+    if (legacyMeta) return legacyMeta;
+
     return {
       ...defaultMeta,
       serviceType: 'training',
@@ -118,12 +173,13 @@ export const parseServiceMeta = (note) => {
 
   try {
     const parsed = JSON.parse(note.slice(SERVICE_NOTE_PREFIX.length));
+    const normalizedType = normalizeServiceType(parsed.serviceType || parsed.type);
     return {
       ...defaultMeta,
       ...parsed,
-      serviceType: parsed.serviceType || 'training',
-      serviceDetail: parsed.serviceDetail || '',
-      coachNote: parsed.coachNote || '',
+      serviceType: normalizedType || 'training',
+      serviceDetail: parsed.serviceDetail || parsed.detail || '',
+      coachNote: parsed.coachNote || parsed.note || '',
       mealPrepItems: Array.isArray(parsed.mealPrepItems) ? parsed.mealPrepItems : [],
     };
   } catch {

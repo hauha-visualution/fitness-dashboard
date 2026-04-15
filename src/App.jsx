@@ -3,6 +3,7 @@ import { Home, Library, LogOut, Users, Wallet } from 'lucide-react';
 import NotificationBell from './components/shared/NotificationBell';
 import ToastContainer from './components/shared/ToastContainer';
 import Skeleton from './components/shared/Skeleton';
+import PushNotificationPrompt from './components/shared/PushNotificationPrompt';
 import { toast } from './utils/toast';
 import { useAuth } from './hooks/useAuth';
 import { supabase } from './supabaseClient';
@@ -85,7 +86,7 @@ const CoachNavigation = ({ coachTabs, activeTab, onSelectTab, onOpenQuickLog, de
     className={
       desktop
         ? 'app-nav-shell hidden lg:flex lg:h-full lg:w-[64px] lg:flex-col lg:justify-center lg:rounded-[28px] lg:p-2 lg:shadow-2xl'
-        : 'app-nav-shell fixed bottom-6 left-1/2 z-50 grid w-[92%] max-w-[390px] -translate-x-1/2 grid-cols-5 gap-1 rounded-[30px] px-2 py-1.5 lg:hidden'
+        : 'app-mobile-nav-offset app-nav-shell fixed left-1/2 z-50 grid w-[92%] max-w-[390px] -translate-x-1/2 grid-cols-5 gap-1 rounded-[30px] px-2 py-1.5 lg:hidden'
     }
   >
     <div className={desktop ? 'flex flex-col gap-1.5' : 'contents'}>
@@ -352,6 +353,8 @@ export default function App() {
           />
           </Suspense>
         </div>
+        <PushNotificationPrompt userId={session?.user?.id} />
+        <ToastContainer />
       </div>
     );
   }
@@ -487,6 +490,7 @@ export default function App() {
           </Suspense>
         )}
       </div>
+      <PushNotificationPrompt userId={session?.user?.id} />
       <ToastContainer />
     </div>
   );

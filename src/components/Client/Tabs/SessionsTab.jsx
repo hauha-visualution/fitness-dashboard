@@ -45,7 +45,14 @@ const formatBookingWindow = (sessionItem) => {
 };
 
 // ─── SessionsTab ─────────────────────────────────────────────
-const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refreshKey = 0 }) => {
+const SessionsTab = ({
+  clientId,
+  client,
+  readOnly = false,
+  allowStretchingBooking = false,
+  onOpenQuickLog,
+  refreshKey = 0,
+}) => {
   const [packages, setPackages] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +64,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
   const [extraTime, setExtraTime] = useState('');
   const [extraNote, setExtraNote] = useState('');
   const [addingExtra, setAddingExtra] = useState(false);
+  const canScheduleStretching = !readOnly || allowStretchingBooking;
 
   const fetchData = useCallback(async () => {
     if (!clientId) return;
@@ -308,7 +316,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                         <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">
                           Upcoming · {upcomingSessions.length} sessions
                         </p>
-                        {!readOnly && ((serviceType === 'training' && nextSession) || serviceType === 'stretching') && (
+                        {((!readOnly && serviceType === 'training' && nextSession) || (canScheduleStretching && serviceType === 'stretching')) && (
                           <button
                             onClick={() => openExtraModal(pkg, pkgSessions, serviceType)}
                             className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-[10px] font-black uppercase transition-all active:scale-90 bg-white/[0.05] border border-white/[0.08] text-white"
@@ -387,7 +395,7 @@ const SessionsTab = ({ clientId, client, readOnly = false, onOpenQuickLog, refre
                   <div className="rounded-[16px] border border-white/[0.06] bg-white/[0.02] px-4 py-4 text-center">
                     <p className="text-[10px] font-black uppercase tracking-widest text-neutral-600">No bookings yet</p>
                     <p className="mt-2 text-[11px] text-neutral-500">Set the first booking when needed.</p>
-                    {!readOnly && remainingCount > 0 && (
+                    {canScheduleStretching && remainingCount > 0 && (
                       <button
                         onClick={() => openExtraModal(pkg, pkgSessions, serviceType)}
                         className="mt-3 inline-flex items-center gap-1.5 rounded-[12px] border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase text-white"

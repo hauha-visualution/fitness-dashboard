@@ -31,8 +31,10 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
     "postcss": "^8.5.8",
+    "sharp-cli": "^5.2.0",
     "tailwindcss": "^4.2.2",
     "vite": "^8.0.1",
+    "vite-plugin-pwa": "^1.2.0",
     "vitest": "^3.0.0"
   }
 }

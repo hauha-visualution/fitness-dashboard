@@ -946,7 +946,7 @@ const InBodyProgressChart = ({ records, selectedMetricKey, activeIndex, onActive
   );
 };
 
-const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
+const ProfileTab = ({ client, onRegisterActions, readOnly = false, allowStretchingBooking = false }) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingInbody, setIsSavingInbody] = useState(false);
@@ -1545,7 +1545,9 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false }) => {
               <div className="px-5 py-6 text-center">
                 <CalendarDays className="mx-auto h-5 w-5 text-white/18" />
                 <p className="mt-3 text-sm font-semibold text-white">No upcoming sessions yet</p>
-                <p className="mt-1 text-[11px] text-white/42">Your coach will add the next booking here.</p>
+                <p className="mt-1 text-[11px] text-white/42">
+                  {allowStretchingBooking ? 'Book your next stretching session from the Services tab.' : 'Your next booking will appear here.'}
+                </p>
               </div>
             )}
           </div>

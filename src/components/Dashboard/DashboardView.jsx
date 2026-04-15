@@ -412,9 +412,9 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
   ];
 
   return (
-    <div className="app-screen-shell relative z-10 flex h-screen flex-col overflow-hidden lg:h-full">
+    <div className="app-screen-shell relative z-10 flex h-dvh flex-col overflow-hidden lg:h-full">
 
-      <div className="hide-scrollbar flex-1 overflow-y-auto px-5 pb-32 lg:px-8 lg:pb-8">
+      <div className="hide-scrollbar flex-1 overflow-y-auto px-5 app-mobile-nav-spacing lg:px-8 lg:pb-8">
         <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
           {metricCards.map((card) => (
             <div

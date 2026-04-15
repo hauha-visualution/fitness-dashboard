@@ -79,7 +79,7 @@ const WorkoutTemplateManager = ({ session }) => {
   }, {});
 
   return (
-    <div className="app-screen-shell h-screen flex flex-col overflow-hidden">
+    <div className="app-screen-shell flex h-dvh flex-col overflow-hidden lg:h-full">
       {/* PAGE TITLE */}
       <div className="flex shrink-0 items-center justify-between gap-4 px-5 py-4">
         <div className="min-w-0">
@@ -95,7 +95,7 @@ const WorkoutTemplateManager = ({ session }) => {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-5 hide-scrollbar">
+      <div className="flex-1 overflow-y-auto px-5 py-5 hide-scrollbar app-mobile-nav-spacing lg:pb-8">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <RefreshCw className="w-5 h-5 text-neutral-500 animate-spin" />
