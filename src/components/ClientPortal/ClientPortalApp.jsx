@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import NotificationBell from '../shared/NotificationBell';
+import PushNotificationToggle from '../shared/PushNotificationToggle';
 
 // Import các tab sẵn có (read-only cho client)
 import PackageTab from '../Client/Tabs/PackageTab';
@@ -116,6 +117,11 @@ const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) =
       case 'profile':   return (
         <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pt-4 app-mobile-nav-spacing lg:px-8 lg:pb-8">
           <ProfileTab client={client} readOnly={true} allowStretchingBooking={true} />
+          {/* Notification toggle — cuối profile tab */}
+          <div style={{ marginTop: '24px', marginBottom: '32px' }}>
+            <p style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: 'rgba(255,255,255,0.25)', marginBottom: '8px', marginLeft: '4px' }}>Notifications</p>
+            <PushNotificationToggle userId={session?.user?.id} />
+          </div>
         </div>
       );
       case 'package':   return (

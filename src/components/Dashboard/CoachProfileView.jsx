@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Camera, Lock, Calendar, Save, RefreshCw, Building2, Copy, QrCode } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { toast } from '../../utils/toast';
+import PushNotificationToggle from '../shared/PushNotificationToggle';
 
 const CoachProfileView = ({ session, coachProfile, onBack, onProfileUpdated }) => {
   const [coachData, setCoachData] = useState({
@@ -315,6 +316,12 @@ const CoachProfileView = ({ session, coachProfile, onBack, onProfileUpdated }) =
               </div>
             </div>
           </div>
+          {/* Notifications */}
+          <div className="space-y-2" style={{ marginTop: '32px' }}>
+            <label className="text-[10px] font-black uppercase text-neutral-500 ml-4 tracking-widest">Notifications</label>
+            <PushNotificationToggle userId={session?.user?.id} />
+          </div>
+
         </div>
 
         <button

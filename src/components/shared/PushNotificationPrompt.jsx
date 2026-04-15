@@ -22,10 +22,15 @@ export default function PushNotificationPrompt({ userId }) {
   useEffect(() => {
     if (!userId || !isPushSupported()) return;
 
+    const permission = getPushPermission();
+
+    // Nếu permission vẫn là 'default' (chưa bao giờ grant/deny) → reset dismissed để re-show
+    if (permission === 'default') {
+      localStorage.removeItem('push_prompt_dismissed');
+    }
+
     const dismissed = localStorage.getItem('push_prompt_dismissed');
     if (dismissed) return;
-
-    const permission = getPushPermission();
     if (permission === 'granted') {
       // Có thể đã subscribed — kiểm tra
       isAlreadySubscribed().then((already) => setSubscribed(already));
