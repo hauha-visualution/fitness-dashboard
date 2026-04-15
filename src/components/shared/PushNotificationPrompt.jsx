@@ -4,7 +4,6 @@ import {
   isPushSupported,
   getPushPermission,
   subscribeToPush,
-  unsubscribeFromPush,
   isAlreadySubscribed,
 } from '../../utils/pushNotificationUtils';
 

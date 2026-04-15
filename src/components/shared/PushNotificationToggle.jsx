@@ -19,20 +19,26 @@ export default function PushNotificationToggle({ userId }) {
   useEffect(() => {
     if (!userId) return;
 
-    if (!isPushSupported()) {
-      setStatus('unsupported');
-      return;
-    }
+    let cancelled = false;
 
-    const perm = getPushPermission();
-    if (perm === 'denied') {
-      setStatus('denied');
-      return;
-    }
+    const init = async () => {
+      if (!isPushSupported()) {
+        if (!cancelled) setStatus('unsupported');
+        return;
+      }
 
-    isAlreadySubscribed().then((already) => {
-      setStatus(already ? 'subscribed' : 'unsubscribed');
-    });
+      const perm = getPushPermission();
+      if (perm === 'denied') {
+        if (!cancelled) setStatus('denied');
+        return;
+      }
+
+      const already = await isAlreadySubscribed();
+      if (!cancelled) setStatus(already ? 'subscribed' : 'unsubscribed');
+    };
+
+    void init();
+    return () => { cancelled = true; };
   }, [userId]);
 
   const handleToggle = async () => {
