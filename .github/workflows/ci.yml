@@ -39,18 +39,5 @@ jobs:
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder_anon_key
 
-      # ── 6. Production build ───────────────────────────────────────────────────
-      - name: Build
-        run: npm run build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-
-      # ── 7. Upload build artifact (optional, for inspection) ───────────────────
-      - name: Upload build artifacts
-        if: github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist/
-          retention-days: 7
+      # NOTE: Production build is handled by Vercel (with real env vars).
+      # No need to build here — avoids supabaseUrl errors from missing secrets.
