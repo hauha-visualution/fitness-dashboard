@@ -25,7 +25,7 @@ jobs:
 
       # ── 3. Install dependencies ───────────────────────────────────────────────
       - name: Install dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       # ── 4. Lint ───────────────────────────────────────────────────────────────
       - name: Lint
