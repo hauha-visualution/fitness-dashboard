@@ -15,9 +15,56 @@ import {
  * @param {{ userId: string }} props
  */
 export default function PushNotificationPrompt({ userId }) {
+  const DISMISSED_KEY = 'push_prompt_dismissed';
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
+  const [promptStyle, setPromptStyle] = useState(null);
+
+  useEffect(() => {
+    if (!visible) return;
+
+    const updatePromptPosition = () => {
+      const shell = document.querySelector('.app-shell-frame');
+      if (!shell) {
+        setPromptStyle({
+          left: '16px',
+          right: '16px',
+          width: 'auto',
+          bottom: 'calc(var(--app-mobile-nav-clearance) - 0.5rem)',
+          transform: 'none',
+        });
+        return;
+      }
+
+      const rect = shell.getBoundingClientRect();
+      const viewportInset = 16;
+      const maxWidth = 380;
+      const horizontalInset = 16;
+      const availableWidth = Math.max(Math.min(rect.width - horizontalInset * 2, window.innerWidth - viewportInset * 2), 0);
+      const width = Math.min(maxWidth, availableWidth);
+      const centeredLeft = rect.left + (rect.width - width) / 2;
+      const minLeft = viewportInset;
+      const maxLeft = Math.max(viewportInset, window.innerWidth - width - viewportInset);
+      const left = Math.min(Math.max(centeredLeft, minLeft), maxLeft);
+
+      setPromptStyle({
+        left: `${Math.round(left)}px`,
+        width: `${Math.round(width)}px`,
+        bottom: 'calc(var(--app-mobile-nav-clearance) - 0.5rem)',
+        transform: 'none',
+      });
+    };
+
+    updatePromptPosition();
+    window.addEventListener('resize', updatePromptPosition);
+    window.addEventListener('scroll', updatePromptPosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updatePromptPosition);
+      window.removeEventListener('scroll', updatePromptPosition, true);
+    };
+  }, [visible]);
 
   useEffect(() => {
     if (!userId || !isPushSupported()) return;
@@ -27,10 +74,10 @@ export default function PushNotificationPrompt({ userId }) {
 
     // Nếu permission vẫn là 'default' (chưa bao giờ grant/deny) → reset dismissed để re-show
     if (permission === 'default') {
-      localStorage.removeItem('push_prompt_dismissed');
+      localStorage.removeItem(DISMISSED_KEY);
     }
 
-    const dismissed = localStorage.getItem('push_prompt_dismissed');
+    const dismissed = localStorage.getItem(DISMISSED_KEY);
     if (dismissed) return;
     if (permission === 'granted') {
       // Permission đã grant nhưng subscription có thể chưa được lưu / đã bị mất ở server
@@ -64,6 +111,8 @@ export default function PushNotificationPrompt({ userId }) {
   }, [userId]);
 
   const handleEnable = async () => {
+    localStorage.setItem(DISMISSED_KEY, '1');
+    setVisible(false);
     setLoading(true);
     const { success, error } = await subscribeToPush(userId);
     setLoading(false);
@@ -71,13 +120,14 @@ export default function PushNotificationPrompt({ userId }) {
       setSubscribed(true);
       setVisible(false);
     } else {
+      localStorage.removeItem(DISMISSED_KEY);
       console.warn('[PushPrompt] subscribe failed:', error);
       setVisible(getPushPermission() !== 'denied');
     }
   };
 
   const handleDismiss = () => {
-    localStorage.setItem('push_prompt_dismissed', '1');
+    localStorage.setItem(DISMISSED_KEY, '1');
     setVisible(false);
   };
 
@@ -89,13 +139,15 @@ export default function PushNotificationPrompt({ userId }) {
       aria-live="polite"
       style={{
         position: 'fixed',
-        bottom: '90px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        width: 'calc(100% - 32px)',
-        maxWidth: '380px',
         zIndex: 9999,
         animation: 'slideUp 0.35s ease-out forwards',
+        ...(promptStyle || {
+          left: '16px',
+          right: '16px',
+          width: 'auto',
+          bottom: 'calc(var(--app-mobile-nav-clearance) - 0.5rem)',
+          transform: 'none',
+        }),
       }}
     >
       <div
