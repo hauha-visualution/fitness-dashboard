@@ -22,6 +22,23 @@ const PORTAL_HEADER_META = {
   payment: { eyebrow: 'Trainee Payments', title: 'Payment' },
 };
 
+const PORTAL_TABS = ['profile', 'package', 'sessions', 'nutrition', 'payment'];
+
+const getRequestedPortalTab = () => {
+  if (typeof window === 'undefined') return 'profile';
+  const requestedTab = new URLSearchParams(window.location.search).get('tab');
+  return PORTAL_TABS.includes(requestedTab) ? requestedTab : 'profile';
+};
+
+const clearConsumedTabParam = () => {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has('tab')) return;
+  url.searchParams.delete('tab');
+  const next = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState({}, '', next || '/portal');
+};
+
 const ClientPortalNavigation = ({ tabs, activeTab, onSelectTab, desktop = false }) => (
   <div
     className={
@@ -53,7 +70,7 @@ const ClientPortalNavigation = ({ tabs, activeTab, onSelectTab, desktop = false 
 // MAIN: ClientPortalApp
 // ============================================================
 const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) => {
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab, setActiveTab] = useState(() => getRequestedPortalTab());
   const [client, setClient] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [quickLogSelection, setQuickLogSelection] = useState(null);
@@ -94,6 +111,10 @@ const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) =
 
     return () => window.clearTimeout(timeoutId);
   }, [fetchClientData]);
+
+  useEffect(() => {
+    clearConsumedTabParam();
+  }, []);
 
   if (isLoading) {
     return (

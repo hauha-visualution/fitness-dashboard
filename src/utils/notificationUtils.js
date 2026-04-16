@@ -61,6 +61,11 @@ const fmtVND = (amount) => {
 };
 
 const pkgLabel = (num) => `Gói #${String(num).padStart(2, '0')}`;
+const buildNotificationLinkMeta = (url, targetTab, extra = {}) => ({
+  ...extra,
+  url,
+  targetTab,
+});
 
 // ─── Event notification helpers ───────────────────────────────
 
@@ -71,7 +76,7 @@ export const notifySessionCompleted = async ({ clientAuthUserId, sessionNumber, 
     type: NOTIFICATION_TYPES.SESSION_COMPLETED,
     title: 'Buổi tập hoàn thành 💪',
     body: `Buổi #${String(sessionNumber).padStart(2, '0')} ngày ${formatDate(scheduledDate)} đã được coach ghi nhận hoàn thành.`,
-    metadata: { sessionNumber, scheduledDate },
+    metadata: buildNotificationLinkMeta('/portal?tab=sessions', 'sessions', { sessionNumber, scheduledDate }),
   });
 };
 
@@ -82,7 +87,7 @@ export const notifySessionCancelled = async ({ clientAuthUserId, sessionNumber, 
     type: NOTIFICATION_TYPES.SESSION_CANCELLED,
     title: 'Buổi tập bị hủy',
     body: `Buổi #${String(sessionNumber).padStart(2, '0')} ngày ${formatDate(scheduledDate)} đã bị hủy.${reason ? ` Lý do: ${reason}.` : ''}`,
-    metadata: { sessionNumber, scheduledDate, reason },
+    metadata: buildNotificationLinkMeta('/portal?tab=sessions', 'sessions', { sessionNumber, scheduledDate, reason }),
   });
 };
 
@@ -94,7 +99,7 @@ export const notifyExtraSessionAdded = async ({ clientAuthUserId, scheduledDate,
     type: NOTIFICATION_TYPES.SESSION_EXTRA,
     title: 'Buổi tập mới được thêm 📅',
     body: `Coach vừa thêm buổi tập vào ngày ${formatDate(scheduledDate)}${timeLabel}.`,
-    metadata: { scheduledDate, scheduledTime },
+    metadata: buildNotificationLinkMeta('/portal?tab=sessions', 'sessions', { scheduledDate, scheduledTime }),
   });
 };
 
@@ -108,7 +113,7 @@ export const notifyLowSessions = async ({ clientAuthUserId, coachAuthUserId, cli
       type: NOTIFICATION_TYPES.LOW_SESSIONS,
       title: `⚠️ Sắp hết buổi — còn ${remaining} buổi`,
       body: `${pkgLabel(packageNumber)} của ${clientName || 'trainee'} chỉ còn ${remaining} buổi. Cần gia hạn sớm.`,
-      metadata: { clientName, remaining, packageNumber },
+      metadata: buildNotificationLinkMeta('/?tab=clients', 'clients', { clientName, remaining, packageNumber }),
     }));
   }
 
@@ -119,7 +124,7 @@ export const notifyLowSessions = async ({ clientAuthUserId, coachAuthUserId, cli
       type: NOTIFICATION_TYPES.LOW_SESSIONS,
       title: `⚠️ Gói tập sắp hết — còn ${remaining} buổi`,
       body: `${pkgLabel(packageNumber)} của bạn chỉ còn ${remaining} buổi tập. Hãy liên hệ coach để gia hạn.`,
-      metadata: { remaining, packageNumber },
+      metadata: buildNotificationLinkMeta('/portal?tab=package', 'package', { remaining, packageNumber }),
     }));
   }
 
@@ -133,7 +138,7 @@ export const notifyPackageCreated = async ({ clientAuthUserId, packageNumber, to
     type: NOTIFICATION_TYPES.PACKAGE_CREATED,
     title: 'Gói tập mới được tạo 🎯',
     body: `Coach vừa tạo ${pkgLabel(packageNumber)} cho bạn với ${totalSessions} buổi tập.`,
-    metadata: { packageNumber, totalSessions },
+    metadata: buildNotificationLinkMeta('/portal?tab=package', 'package', { packageNumber, totalSessions }),
   });
 };
 
@@ -144,7 +149,7 @@ export const notifyNutritionUpdated = async ({ clientAuthUserId }) => {
     type: NOTIFICATION_TYPES.NUTRITION_UPDATED,
     title: 'Kế hoạch dinh dưỡng cập nhật 🥗',
     body: 'Coach vừa cập nhật kế hoạch dinh dưỡng của bạn. Kiểm tra tab Nutrition ngay nhé.',
-    metadata: {},
+    metadata: buildNotificationLinkMeta('/portal?tab=nutrition', 'nutrition'),
   });
 };
 
@@ -157,7 +162,7 @@ export const notifyPaymentCreated = async ({ clientAuthUserId, amount, packageNu
     type: NOTIFICATION_TYPES.PAYMENT_CREATED,
     title: 'Ghi nhận thanh toán mới 💳',
     body: `Coach vừa ghi nhận thanh toán${pkgStr}${amountLabel}.`,
-    metadata: { amount, packageNumber },
+    metadata: buildNotificationLinkMeta('/portal?tab=payment', 'payment', { amount, packageNumber }),
   });
 };
 
@@ -247,7 +252,7 @@ export const notifyPaymentSubmitted = async ({ coachAuthUserId, clientName, amou
     type: NOTIFICATION_TYPES.PAYMENT_SUBMITTED,
     title: `💸 ${clientName || 'Trainee'} đã chuyển khoản`,
     body: `${clientName || 'Trainee'} báo đã chuyển khoản cho "${paymentTitle || 'payment'}"${amountLabel}. Vui lòng xác nhận.`,
-    metadata: { clientName, amount, paymentTitle },
+    metadata: buildNotificationLinkMeta('/?tab=payments', 'payments', { clientName, amount, paymentTitle }),
   });
 };
 
@@ -259,6 +264,6 @@ export const notifyPaymentConfirmed = async ({ clientAuthUserId, amount, payment
     type: NOTIFICATION_TYPES.PAYMENT_CONFIRMED,
     title: 'Thanh toán đã được xác nhận ✅',
     body: `Coach đã xác nhận thanh toán "${paymentTitle || 'payment'}"${amountLabel} thành công.`,
-    metadata: { amount, paymentTitle },
+    metadata: buildNotificationLinkMeta('/portal?tab=payment', 'payment', { amount, paymentTitle }),
   });
 };

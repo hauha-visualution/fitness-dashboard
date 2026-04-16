@@ -8,9 +8,36 @@ import webpush from 'npm:web-push';
 const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY') || '';
 const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY') || '';
 const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') || 'mailto:admin@aestheticshub.app';
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
 // Cấu hình VAPID một lần khi khởi tạo
-webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+}
+
+const FALLBACK_TARGETS: Record<string, { url: string; targetTab?: string }> = {
+  session_completed: { url: '/portal?tab=sessions', targetTab: 'sessions' },
+  session_cancelled: { url: '/portal?tab=sessions', targetTab: 'sessions' },
+  session_extra: { url: '/portal?tab=sessions', targetTab: 'sessions' },
+  low_sessions: { url: '/portal?tab=package', targetTab: 'package' },
+  package_created: { url: '/portal?tab=package', targetTab: 'package' },
+  nutrition_updated: { url: '/portal?tab=nutrition', targetTab: 'nutrition' },
+  payment_created: { url: '/portal?tab=payment', targetTab: 'payment' },
+  payment_submitted: { url: '/?tab=payments', targetTab: 'payments' },
+  payment_confirmed: { url: '/portal?tab=payment', targetTab: 'payment' },
+};
+
+const resolveTarget = (type: string, metadata: Record<string, unknown>) => {
+  const url = typeof metadata.url === 'string' && metadata.url.startsWith('/')
+    ? metadata.url
+    : (FALLBACK_TARGETS[type]?.url || '/');
+  const targetTab = typeof metadata.targetTab === 'string'
+    ? metadata.targetTab
+    : (FALLBACK_TARGETS[type]?.targetTab || '');
+
+  return { url, targetTab };
+};
 
 // ─── Main Handler ─────────────────────────────────────────────
 Deno.serve(async (req: Request) => {
@@ -30,6 +57,7 @@ Deno.serve(async (req: Request) => {
     // Webhook từ Supabase DB → payload là record INSERT
     const notification = payload.record || payload;
     const recipientUserId = notification.recipient_user_id;
+    const type = notification.type || '';
     const title = notification.title || 'Thông báo mới';
     const body = notification.body || '';
     const metadata = notification.metadata || {};
@@ -39,10 +67,16 @@ Deno.serve(async (req: Request) => {
     }
 
     // Khởi tạo Supabase admin client
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    );
+    if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+      return new Response(JSON.stringify({ error: 'Missing VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY secret' }), { status: 500 });
+    }
+
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      return new Response(JSON.stringify({ error: 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY secret' }), { status: 500 });
+    }
+
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const target = resolveTarget(type, metadata);
 
     // Lấy tất cả subscriptions của user
     const { data: subscriptions, error: subError } = await supabaseAdmin
@@ -68,8 +102,10 @@ Deno.serve(async (req: Request) => {
       badge: '/icons/badge-72.png',
       data: {
         ...metadata,
+        type,
         notificationId: notification.id,
-        url: '/',
+        url: target.url,
+        targetTab: target.targetTab,
       },
     });
 

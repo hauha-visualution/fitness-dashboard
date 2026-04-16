@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, BellOff, X } from 'lucide-react';
+import { Bell, X } from 'lucide-react';
 import {
   isPushSupported,
   getPushPermission,
   subscribeToPush,
   isAlreadySubscribed,
+  syncPushSubscription,
 } from '../../utils/pushNotificationUtils';
 
 /**
@@ -20,6 +21,7 @@ export default function PushNotificationPrompt({ userId }) {
 
   useEffect(() => {
     if (!userId || !isPushSupported()) return;
+    let cancelled = false;
 
     const permission = getPushPermission();
 
@@ -31,8 +33,23 @@ export default function PushNotificationPrompt({ userId }) {
     const dismissed = localStorage.getItem('push_prompt_dismissed');
     if (dismissed) return;
     if (permission === 'granted') {
-      // Có thể đã subscribed — kiểm tra
-      isAlreadySubscribed().then((already) => setSubscribed(already));
+      // Permission đã grant nhưng subscription có thể chưa được lưu / đã bị mất ở server
+      void (async () => {
+        const already = await isAlreadySubscribed();
+        if (already) {
+          const syncResult = await syncPushSubscription(userId);
+          if (!syncResult.success) {
+            if (cancelled) return;
+            setSubscribed(false);
+            setVisible(true);
+            return;
+          }
+        }
+
+        if (cancelled) return;
+        setSubscribed(already);
+        setVisible(!already);
+      })();
       return;
     }
 
@@ -40,7 +57,10 @@ export default function PushNotificationPrompt({ userId }) {
 
     // default → hiện banner sau 3s
     const timer = setTimeout(() => setVisible(true), 3000);
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [userId]);
 
   const handleEnable = async () => {
@@ -52,7 +72,7 @@ export default function PushNotificationPrompt({ userId }) {
       setVisible(false);
     } else {
       console.warn('[PushPrompt] subscribe failed:', error);
-      setVisible(false);
+      setVisible(getPushPermission() !== 'denied');
     }
   };
 

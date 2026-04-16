@@ -6,6 +6,7 @@ import {
   subscribeToPush,
   unsubscribeFromPush,
   isAlreadySubscribed,
+  syncPushSubscription,
 } from '../../utils/pushNotificationUtils';
 
 /**
@@ -34,6 +35,14 @@ export default function PushNotificationToggle({ userId }) {
       }
 
       const already = await isAlreadySubscribed();
+      if (already) {
+        const syncResult = await syncPushSubscription(userId);
+        if (!syncResult.success) {
+          if (!cancelled) setStatus('unsubscribed');
+          return;
+        }
+      }
+
       if (!cancelled) setStatus(already ? 'subscribed' : 'unsubscribed');
     };
 
@@ -58,6 +67,7 @@ export default function PushNotificationToggle({ userId }) {
       } else if (getPushPermission() === 'denied') {
         setStatus('denied');
       } else {
+        setStatus('unsubscribed');
         console.warn('[PushToggle]', error);
       }
     }

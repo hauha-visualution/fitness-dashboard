@@ -81,6 +81,21 @@ const getPathForContext = (context, isAuthenticated = false) => {
   return '/';
 };
 
+const getRequestedTab = (allowedTabs, fallbackTab) => {
+  if (typeof window === 'undefined') return fallbackTab;
+  const requestedTab = new URLSearchParams(window.location.search).get('tab');
+  return allowedTabs.includes(requestedTab) ? requestedTab : fallbackTab;
+};
+
+const clearConsumedTabParam = () => {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has('tab')) return;
+  url.searchParams.delete('tab');
+  const next = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState({}, '', next || '/');
+};
+
 const CoachNavigation = ({ coachTabs, activeTab, onSelectTab, onOpenQuickLog, desktop = false }) => (
   <div
     className={
@@ -183,7 +198,7 @@ export default function App() {
     typeof window === 'undefined' ? 'main' : getRouteContextFromPath(window.location.pathname)
   ));
 
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState(() => getRequestedTab(['home', 'templates', 'clients', 'payments', 'add_client'], 'home'));
   const [selectedClient, setSelectedClient] = useState(null);
   const [clients, setClients] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -231,6 +246,11 @@ export default function App() {
     if (!session || !userRole || userRole === 'unknown') return;
     navigateToContext(userRole === 'client' ? 'client' : 'coach', { isAuthenticated: true, replace: true });
   }, [navigateToContext, session, userRole]);
+
+  useEffect(() => {
+    if (userRole !== 'coach') return;
+    clearConsumedTabParam();
+  }, [userRole]);
 
   const fetchClients = useCallback(async () => {
     if (!session) return;
