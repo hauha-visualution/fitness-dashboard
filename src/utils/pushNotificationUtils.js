@@ -20,7 +20,15 @@ function urlBase64ToUint8Array(base64String) {
 const getServiceWorkerRegistration = async () => {
   const directRegistration = await navigator.serviceWorker.getRegistration();
   if (directRegistration) return directRegistration;
-  return navigator.serviceWorker.ready;
+
+  // Ensure we always have a SW registration before using PushManager.
+  // Some environments don't auto-register, which makes toggle look "stuck".
+  try {
+    return await navigator.serviceWorker.register('/sw.js');
+  } catch {
+    // Fallback for setups serving only the custom push worker directly.
+    return navigator.serviceWorker.register('/sw-push.js');
+  }
 };
 
 const persistSubscription = async (userId, subscription) => {

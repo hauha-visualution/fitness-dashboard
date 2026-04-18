@@ -8,6 +8,9 @@ import {
   isAlreadySubscribed,
   syncPushSubscription,
 } from '../../utils/pushNotificationUtils';
+import { toast } from '../../utils/toast';
+
+const DISMISSED_KEY = 'push_prompt_dismissed';
 
 /**
  * Toggle bật/tắt push notification — dùng trong trang Profile.
@@ -56,18 +59,25 @@ export default function PushNotificationToggle({ userId }) {
 
     if (status === 'subscribed') {
       // Tắt thông báo
-      const { success } = await unsubscribeFromPush(userId);
-      if (success) setStatus('unsubscribed');
+      const { success, error } = await unsubscribeFromPush(userId);
+      if (success) {
+        setStatus('unsubscribed');
+      } else {
+        toast.error(error || 'Không thể tắt thông báo lúc này');
+      }
     } else {
-      // Bật thông báo — xoá dismissed flag để cho phép re-subscribe
-      localStorage.removeItem('push_prompt_dismissed');
       const { success, error } = await subscribeToPush(userId);
       if (success) {
+        // Once enabled from inline toggle, keep prompt hidden.
+        localStorage.setItem(DISMISSED_KEY, '1');
         setStatus('subscribed');
+        toast.success('Đã bật thông báo');
       } else if (getPushPermission() === 'denied') {
         setStatus('denied');
+        toast.warning('Quyền thông báo đang bị chặn trong trình duyệt');
       } else {
         setStatus('unsubscribed');
+        toast.error(error || 'Bật thông báo chưa thành công');
         console.warn('[PushToggle]', error);
       }
     }

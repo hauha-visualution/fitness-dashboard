@@ -72,11 +72,6 @@ export default function PushNotificationPrompt({ userId }) {
 
     const permission = getPushPermission();
 
-    // Nếu permission vẫn là 'default' (chưa bao giờ grant/deny) → reset dismissed để re-show
-    if (permission === 'default') {
-      localStorage.removeItem(DISMISSED_KEY);
-    }
-
     const dismissed = localStorage.getItem(DISMISSED_KEY);
     if (dismissed) return;
     if (permission === 'granted') {

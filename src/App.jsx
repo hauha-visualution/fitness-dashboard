@@ -373,7 +373,6 @@ export default function App() {
           />
           </Suspense>
         </div>
-        <PushNotificationPrompt userId={session?.user?.id} />
         <ToastContainer />
       </div>
     );
