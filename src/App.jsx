@@ -3,7 +3,6 @@ import { Home, Library, LogOut, Users, Wallet } from 'lucide-react';
 import NotificationBell from './components/shared/NotificationBell';
 import ToastContainer from './components/shared/ToastContainer';
 import Skeleton from './components/shared/Skeleton';
-import PushNotificationPrompt from './components/shared/PushNotificationPrompt';
 import { toast } from './utils/toast';
 import { useAuth } from './hooks/useAuth';
 import { supabase } from './supabaseClient';
@@ -153,7 +152,7 @@ const CoachNavigation = ({ coachTabs, activeTab, onSelectTab, onOpenQuickLog, de
 );
 
 const CoachDesktopHeader = ({ coachProfile, session, onOpenProfile, onLogout }) => (
-  <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.04] bg-black/20 px-5 py-3 backdrop-blur-xl lg:px-6">
+  <div className="app-safe-top-header flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.04] bg-black/20 px-5 backdrop-blur-xl lg:px-6 lg:py-3">
     <button
       type="button"
       onClick={onOpenProfile}
@@ -510,7 +509,6 @@ export default function App() {
           </Suspense>
         )}
       </div>
-      <PushNotificationPrompt userId={session?.user?.id} />
       <ToastContainer />
     </div>
   );

@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  --app-safe-top: env(safe-area-inset-top, 0px);
   --app-bg: #060d18;
   --app-bg-dialog: #0d1b2e;
   --app-surface: rgba(255, 255, 255, 0.03);
@@ -149,6 +150,11 @@ h1, h2, h3, h4, h5, h6 {
 
 .app-mobile-nav-spacing {
   padding-bottom: var(--app-mobile-nav-clearance);
+}
+
+.app-safe-top-header {
+  padding-top: calc(var(--app-safe-top) + 0.7rem);
+  padding-bottom: 0.75rem;
 }
 
 .app-nav-item {

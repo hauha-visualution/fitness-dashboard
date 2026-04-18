@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useNotifications } from '../../hooks/useNotifications';
 import { NOTIFICATION_TYPES } from '../../utils/notificationUtils';
+import PushNotificationToggle from './PushNotificationToggle';
 
 // ─── Icon per notification type ──────────────────────────────
 const NotifIcon = ({ type }) => {
@@ -93,7 +94,7 @@ const NotifRow = ({ notif, onMarkRead, index = 0 }) => (
 );
 
 // ─── Portal dropdown ──────────────────────────────────────────
-const NotifPanel = ({ anchorRef, onClose, notifications, unreadCount, loading, markRead, markAllRead }) => {
+const NotifPanel = ({ anchorRef, onClose, notifications, unreadCount, loading, markRead, markAllRead, userId }) => {
   const panelRef = useRef(null);
 
   // Calculate position from the anchor button
@@ -213,6 +214,13 @@ const NotifPanel = ({ anchorRef, onClose, notifications, unreadCount, loading, m
         </div>
       </div>
 
+      {/* Push setting */}
+      {userId ? (
+        <div className="border-b border-white/[0.06] px-3 py-3">
+          <PushNotificationToggle userId={userId} />
+        </div>
+      ) : null}
+
       {/* Notification list */}
       <div className="max-h-[min(420px,calc(100dvh-120px))] overflow-y-auto divide-y divide-white/[0.04]"
         style={{ scrollbarWidth: 'none' }}>
@@ -294,6 +302,7 @@ const NotificationBell = ({ userId, className = '' }) => {
           loading={loading}
           markRead={markRead}
           markAllRead={markAllRead}
+          userId={userId}
         />
       )}
     </div>

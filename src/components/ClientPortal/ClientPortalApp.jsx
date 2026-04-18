@@ -4,7 +4,6 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import NotificationBell from '../shared/NotificationBell';
-import PushNotificationToggle from '../shared/PushNotificationToggle';
 
 // Import các tab sẵn có (read-only cho client)
 import PackageTab from '../Client/Tabs/PackageTab';
@@ -138,11 +137,6 @@ const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) =
       case 'profile':   return (
         <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pt-4 app-mobile-nav-spacing lg:px-8 lg:pb-8">
           <ProfileTab client={client} readOnly={true} allowStretchingBooking={true} />
-          {/* Notification toggle — cuối profile tab */}
-          <div style={{ marginTop: '24px', marginBottom: '32px' }}>
-            <p style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: 'rgba(255,255,255,0.25)', marginBottom: '8px', marginLeft: '4px' }}>Notifications</p>
-            <PushNotificationToggle userId={session?.user?.id} />
-          </div>
         </div>
       );
       case 'package':   return (
@@ -183,7 +177,7 @@ const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) =
     <div className="app-screen-shell relative flex h-dvh flex-col lg:h-full">
 
       {/* Top bar — luôn hiển thị trên mọi tab, kể cả Profile */}
-      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.04] bg-black/30 px-5 py-4 backdrop-blur-xl lg:px-8 lg:py-4">
+      <div className="app-safe-top-header flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.04] bg-black/30 px-5 backdrop-blur-xl lg:px-8 lg:py-4">
         <div className="min-w-0">
           <p className="text-[9px] font-black uppercase tracking-[0.28em] text-neutral-600">
             {activeHeader.eyebrow}
