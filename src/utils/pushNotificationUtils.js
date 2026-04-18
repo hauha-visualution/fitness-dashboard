@@ -4,6 +4,8 @@ import { supabase } from '../supabaseClient';
 // Generated via: npx web-push generate-vapid-keys
 // Replace this with your actual VAPID public key from Supabase Edge Function secrets
 export const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
+const PUSH_SUBSCRIPTIONS_TABLE = 'push_subscriptions';
+const PUSH_BACKEND_UNAVAILABLE_CODE = 'push_backend_unavailable';
 
 // ─── Helpers ─────────────────────────────────────────────────
 function urlBase64ToUint8Array(base64String) {
@@ -49,10 +51,32 @@ const persistSubscription = async (userId, subscription) => {
 
   if (error) {
     console.error('[Push] upsert error:', error.message);
-    return { success: false, error: error.message };
+    return mapPushPersistenceError(error);
   }
 
   return { success: true };
+};
+
+const isPushTableMissingError = (message = '') => {
+  const normalized = String(message || '').toLowerCase();
+  return (
+    (normalized.includes('could not find the table') && normalized.includes(PUSH_SUBSCRIPTIONS_TABLE))
+    || normalized.includes(`relation "public.${PUSH_SUBSCRIPTIONS_TABLE}" does not exist`)
+    || normalized.includes(`relation "${PUSH_SUBSCRIPTIONS_TABLE}" does not exist`)
+  );
+};
+
+const mapPushPersistenceError = (error) => {
+  const message = error?.message || 'Không thể đồng bộ đăng ký thông báo';
+  if (isPushTableMissingError(message)) {
+    return {
+      success: false,
+      code: PUSH_BACKEND_UNAVAILABLE_CODE,
+      error: 'Tính năng thông báo đang được cập nhật trên hệ thống, vui lòng thử lại sau.',
+    };
+  }
+
+  return { success: false, error: message };
 };
 
 // ─── Check support ────────────────────────────────────────────
@@ -99,7 +123,13 @@ export const subscribeToPush = async (userId) => {
 
     // 4. Upsert vào Supabase (tránh duplicate / resync khi row server bị mất)
     const syncResult = await persistSubscription(userId, subscription);
-    if (!syncResult.success) return syncResult;
+    if (!syncResult.success) {
+      // Keep browser permission, but roll back device subscription when backend isn't ready.
+      if (syncResult.code === PUSH_BACKEND_UNAVAILABLE_CODE) {
+        await subscription.unsubscribe().catch(() => {});
+      }
+      return syncResult;
+    }
 
     console.log('[Push] Subscribed successfully');
     return { success: true };
@@ -123,11 +153,15 @@ export const unsubscribeFromPush = async (userId) => {
     const subscription = await registration.pushManager.getSubscription();
     if (subscription) {
       await subscription.unsubscribe();
-      await supabase
+      const { error } = await supabase
         .from('push_subscriptions')
         .delete()
         .eq('user_id', userId)
         .eq('endpoint', subscription.endpoint);
+      if (error) {
+        const mapped = mapPushPersistenceError(error);
+        return mapped;
+      }
     }
     return { success: true };
   } catch (err) {
