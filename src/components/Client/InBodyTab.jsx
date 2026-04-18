@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Activity, Scale, Percent, Flame, Plus, X } from 'lucide-react';
 
-const InBodyTab = ({ client }) => {
+const InBodyTab = () => {
   const [showForm, setShowForm] = useState(false);
   
   // Các chỉ số quan trọng từ ảnh InBody 270 bạn gửi

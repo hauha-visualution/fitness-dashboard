@@ -69,7 +69,10 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
   );
 
   const handleSyncAPI = async () => {
-    if (!formData.phone) toast.error('Enter a phone number before syncing.'); return;
+    if (!formData.phone) {
+      toast.error('Enter a phone number before syncing.');
+      return;
+    }
     setIsSyncing(true);
     try {
       const phoneCandidates = buildPhoneCandidates(formData.phone);
@@ -136,8 +139,14 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
   };
 
   const handleSave = async () => {
-    if (!formData.name || !formData.phone) toast.error('Full name and phone number are required.'); return;
-    if (!clientPassword || clientPassword.length < 6) toast.error('Trainee password must be at least 6 characters.'); return;
+    if (!formData.name || !formData.phone) {
+      toast.error('Full name and phone number are required.');
+      return;
+    }
+    if (!clientPassword || clientPassword.length < 6) {
+      toast.error('Trainee password must be at least 6 characters.');
+      return;
+    }
 
     setIsSaving(true);
 

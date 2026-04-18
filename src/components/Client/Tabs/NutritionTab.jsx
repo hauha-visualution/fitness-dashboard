@@ -56,19 +56,6 @@ const formatDateLabel = (value) => {
   });
 };
 
-const formatTimestampLabel = (value) => {
-  if (!value) return 'Chưa đồng bộ';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString('vi-VN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-};
-
 const SectionCard = ({ icon, title, subtitle, accentClassName = 'text-white', children, action }) => (
   <div className="overflow-hidden rounded-[28px] border border-white/[0.06] bg-white/[0.02] shadow-[0_18px_50px_rgba(0,0,0,0.22)] backdrop-blur-sm">
     <div className={`flex items-center justify-between gap-3 border-b border-white/[0.05] px-4 ${subtitle ? 'py-4' : 'py-3'}`}>
@@ -87,11 +74,11 @@ const SectionCard = ({ icon, title, subtitle, accentClassName = 'text-white', ch
   </div>
 );
 
-const MacroHeroCard = ({ icon: Icon, label, value, hint, tone }) => (
+const MacroHeroCard = ({ icon, label, value, hint, tone }) => (
   <div className="min-h-[112px] rounded-[18px] border border-white/[0.06] bg-black/25 p-3">
     <div className="flex items-center justify-between gap-3">
       <p className="text-[9px] font-black uppercase tracking-[0.22em] text-neutral-600">{label}</p>
-      <Icon className={`h-4 w-4 ${tone}`} />
+      {React.createElement(icon, { className: `h-4 w-4 ${tone}` })}
     </div>
     <p className={`mt-2 text-[22px] font-light ${tone}`}>{value || '--'}</p>
     <p className="mt-1 text-[11px] text-neutral-500">{hint}</p>
@@ -109,7 +96,7 @@ const DataSquareCard = ({ label, value, hint, className = '' }) => (
 );
 
 const EditableMetricCard = ({
-  icon: Icon,
+  icon,
   label,
   value,
   hint,
@@ -121,7 +108,7 @@ const EditableMetricCard = ({
   <div className="flex min-h-[112px] flex-col rounded-[18px] border border-white/[0.06] bg-black/25 p-3">
     <div className="flex items-center justify-between gap-3">
       <p className="text-[9px] font-black uppercase tracking-[0.22em] text-neutral-600">{label}</p>
-      <Icon className={`h-4 w-4 ${tone}`} />
+      {React.createElement(icon, { className: `h-4 w-4 ${tone}` })}
     </div>
     <input
       type={type}
@@ -230,13 +217,13 @@ const ScoreField = ({ label, value, onChange, disabled = false }) => (
   </label>
 );
 
-const IconButton = ({ onClick, isSaving, icon: Icon = Save, className = '' }) => (
+const IconButton = ({ onClick, isSaving, icon = Save, className = '' }) => (
   <button
     onClick={onClick}
     disabled={isSaving}
     className={`inline-flex h-9.5 w-9.5 items-center justify-center rounded-[13px] border border-white/10 bg-white/[0.07] text-white shadow-[0_10px_24px_rgba(0,0,0,0.22)] transition-all hover:bg-white/[0.1] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
   >
-    {isSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}
+    {isSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : React.createElement(icon, { className: 'h-4 w-4' })}
   </button>
 );
 
@@ -255,7 +242,6 @@ const NutritionTab = ({ client, readOnly = false }) => {
   const [isSyncingIntake, setIsSyncingIntake] = useState(false);
 
   const [checkinError, setCheckinError] = useState('');
-  const [nutritionSyncedAt, setNutritionSyncedAt] = useState(client?.nutrition_profile_synced_at || '');
   const [isEditingTargets, setIsEditingTargets] = useState(false);
   const [isEditingPlan, setIsEditingPlan] = useState(false);
   const [isEditingCheckin, setIsEditingCheckin] = useState(false);
@@ -267,7 +253,6 @@ const NutritionTab = ({ client, readOnly = false }) => {
     setTargets(ensureNutritionTargets(client?.nutrition_targets));
     setPlan(ensureNutritionPlan(client?.nutrition_plan));
     setPrep(ensureNutritionPrep(client?.nutrition_prep));
-    setNutritionSyncedAt(client?.nutrition_profile_synced_at || '');
     setIsEditingTargets(false);
     setIsEditingPlan(false);
     setIsEditingCheckin(false);
@@ -385,7 +370,6 @@ const NutritionTab = ({ client, readOnly = false }) => {
       if (updateError) throw updateError;
 
       setArchive((prev) => ({ ...prev, ...payload }));
-      setNutritionSyncedAt(syncedAt);
       toast.success(`Đã đồng bộ lại ${filledNutritionFields}/9 trường intake từ form.`);
     } catch (error) {
       toast.success(`Không thể đồng bộ hồ sơ intake: ${error.message || 'Thử lại nhé'}`);

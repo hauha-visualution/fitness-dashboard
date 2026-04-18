@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Play, Plus, Dumbbell, Clock } from 'lucide-react';
-import { supabase } from '../../supabaseClient';
+import React, { useState } from 'react';
+import { Play, Plus, Dumbbell } from 'lucide-react';
 
-const WorkoutTab = ({ clientId, onStartWorkout }) => {
-  const [groups, setGroups] = useState([
+const WorkoutTab = ({ onStartWorkout }) => {
+  const [groups] = useState([
     // Dữ liệu mẫu ban đầu để Hạo thấy giao diện
     { 
       id: 1, 
@@ -16,12 +15,6 @@ const WorkoutTab = ({ clientId, onStartWorkout }) => {
       ]
     }
   ]);
-
-  // Sau này Hạo dùng hàm này để fetch data thật từ bảng workout_templates
-  const fetchWorkouts = async () => {
-    // const { data } = await supabase.from('workout_templates').select('*, workout_exercises(*)').eq('client_id', clientId);
-    // if(data) setGroups(data);
-  };
 
   return (
     <div className="space-y-6 animate-slide-up">

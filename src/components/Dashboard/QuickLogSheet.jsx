@@ -626,7 +626,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
           .single();
 
         if (updateResult.error && isMissingWorkoutTemplateColumnError(updateResult.error)) {
-          const { workout_template_id, ...legacyUpdates } = updates;
+          const { workout_template_id: _workout_template_id, ...legacyUpdates } = updates;
           updateResult = await supabase
             .from('sessions')
             .update(legacyUpdates)

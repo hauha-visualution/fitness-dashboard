@@ -244,6 +244,7 @@ export default function App() {
 
   useEffect(() => {
     if (!session || !userRole || userRole === 'unknown') return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     navigateToContext(userRole === 'client' ? 'client' : 'coach', { isAuthenticated: true, replace: true });
   }, [navigateToContext, session, userRole]);
 

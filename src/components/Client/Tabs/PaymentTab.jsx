@@ -71,6 +71,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
   useEffect(() => {
     const coachEmail = client?.coach_email;
     if (!coachEmail) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCoachBankInfo(null);
       return;
     }

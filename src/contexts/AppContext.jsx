@@ -74,6 +74,7 @@ export function AppProvider({ session, children }) {
   }, [session]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchClients();
   }, [fetchClients, refreshKey]);
 
@@ -87,6 +88,7 @@ export function AppProvider({ session, children }) {
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAppContext() {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error('useAppContext must be used inside <AppProvider>');

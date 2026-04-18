@@ -122,11 +122,12 @@ const NotifPanel = ({ anchorRef, onClose, notifications, unreadCount, loading, m
     };
   }, [anchorRef]);
 
-  const [style, setStyle] = useState(getStyle);
+  const [style, setStyle] = useState({});
 
   // Recalculate on scroll / resize
   useEffect(() => {
     const recalc = () => setStyle(getStyle());
+    recalc();
     window.addEventListener('scroll', recalc, true);
     window.addEventListener('resize', recalc);
     return () => {

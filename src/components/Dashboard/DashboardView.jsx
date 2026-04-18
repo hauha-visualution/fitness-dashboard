@@ -175,7 +175,7 @@ const buildCalendarDays = (displayedMonth, sessionMap, selectedDate, today) => {
   });
 };
 
-const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOpenQuickLog, onLogout, onOpenProfile }) => {
+const DashboardView = ({ session, refreshKey, onSelectClient, onOpenQuickLog }) => {
   const today = useMemo(() => new Date(), []);
   const [selectedDate, setSelectedDate] = useState(today);
   const [displayedMonth, setDisplayedMonth] = useState(getMonthStart(today));
@@ -337,6 +337,7 @@ const DashboardView = ({ session, coachProfile, refreshKey, onSelectClient, onOp
   }, [currentWeekStart, displayedMonth, session, today, weekDays]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData();
   }, [fetchData, refreshKey]);
 

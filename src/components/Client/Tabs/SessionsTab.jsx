@@ -28,10 +28,6 @@ const isToday = (dateStr) => {
   return dateStr === localDateStr(new Date());
 };
 
-const isPast = (dateStr) => {
-  return dateStr < localDateStr(new Date());
-};
-
 const formatBookingWindow = (sessionItem) => {
   const booking = parseServiceBooking(sessionItem.notes);
   const start = sessionItem.scheduled_time?.slice(0, 5) || '--:--';
