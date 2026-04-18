@@ -13,6 +13,8 @@ import PaymentTab from '../Client/Tabs/PaymentTab';
 import ProfileTab from '../Client/Tabs/ProfileTab';
 import QuickLogSheet from '../Dashboard/QuickLogSheet';
 
+const DEFAULT_AVATAR_PATH = '/avatars/default/default.svg';
+
 const PORTAL_HEADER_META = {
   profile: { eyebrow: 'Trainee Profile', title: 'Profile' },
   package: { eyebrow: 'Trainee Services', title: 'Services' },
@@ -78,7 +80,7 @@ const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) =
     if (!raw) return null;
     return {
       ...raw,
-      avatar: raw.avatar_url || `https://api.dicebear.com/7.x/notionists/svg?seed=${raw.name}&backgroundColor=eceff4`,
+      avatar: raw.avatar_url || DEFAULT_AVATAR_PATH,
       package: {
         total: raw.sessions ? parseInt(raw.sessions) : 0,
         remaining: raw.sessions ? parseInt(raw.sessions) : 0,

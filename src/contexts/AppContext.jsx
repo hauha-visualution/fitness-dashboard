@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
+const DEFAULT_AVATAR_PATH = '/avatars/default/default.svg';
+
 /**
  * AppContext — global coach state (clients list + refresh).
  *
@@ -66,7 +68,7 @@ export function AppProvider({ session, children }) {
         ...db,
         avatar:
           db.avatar_url ||
-          `https://api.dicebear.com/7.x/notionists/svg?seed=${db.name}&backgroundColor=eceff4`,
+          DEFAULT_AVATAR_PATH,
         package: pkgMap[db.id] || { total: 0, remaining: '--', hasActive: false },
       })),
     );

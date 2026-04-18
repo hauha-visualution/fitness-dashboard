@@ -7,6 +7,8 @@ import { toast } from './utils/toast';
 import { useAuth } from './hooks/useAuth';
 import { supabase } from './supabaseClient';
 
+const DEFAULT_AVATAR_PATH = '/avatars/default/default.svg';
+
 // Always-loaded (auth / shell)
 import AuthScreen from './components/Auth/AuthScreen';
 
@@ -293,7 +295,7 @@ export default function App() {
 
     setClients(clientList.map(db => ({
       ...db,
-      avatar: db.avatar_url || `https://api.dicebear.com/7.x/notionists/svg?seed=${db.name}&backgroundColor=eceff4`,
+      avatar: db.avatar_url || DEFAULT_AVATAR_PATH,
       package: pkgMap[db.id] || { total: 0, remaining: '--', hasActive: false },
     })));
     setIsLoading(false);

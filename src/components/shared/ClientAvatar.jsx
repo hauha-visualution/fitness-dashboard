@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+
+const DEFAULT_AVATAR_PATH = '/avatars/default/default.svg';
 
 const buildInitials = (name = '') => {
   const initials = name
@@ -22,12 +24,19 @@ const ClientAvatar = ({
   innerRingClassName = 'absolute inset-1 rounded-full border border-white/10',
 }) => {
   const initials = buildInitials(name);
+  const resolvedAvatarUrl = avatarUrl || DEFAULT_AVATAR_PATH;
+  const [showInitialsFallback, setShowInitialsFallback] = useState(false);
 
   return (
     <div className={`relative overflow-hidden rounded-full flex items-center justify-center ${sizeClassName} ${ringClassName} ${className}`}>
       {showInnerRing && <div className={innerRingClassName} />}
-      {avatarUrl ? (
-        <img src={avatarUrl} alt={name || 'trainee avatar'} className="h-full w-full object-cover" />
+      {!showInitialsFallback ? (
+        <img
+          src={resolvedAvatarUrl}
+          alt={name || 'trainee avatar'}
+          className="h-full w-full object-cover"
+          onError={() => setShowInitialsFallback(true)}
+        />
       ) : (
         <span className={textClassName}>{initials}</span>
       )}

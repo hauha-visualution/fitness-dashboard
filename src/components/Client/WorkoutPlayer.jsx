@@ -31,7 +31,7 @@ const WorkoutPlayer = ({ sessionData, client, onFinish, onBack }) => {
   return (
     <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-slide-up">
       {/* Header Điều khiển */}
-      <div className="p-6 flex justify-between items-center border-b border-white/5 bg-black/40 backdrop-blur-xl">
+      <div className="app-safe-top-header px-6 flex justify-between items-center border-b border-white/5 bg-black/40 backdrop-blur-xl">
         <button onClick={onBack} className="p-2 bg-white/5 rounded-full text-white"><X className="w-5 h-5"/></button>
         <div className="text-center">
           <p className="text-[9px] font-black text-blue-400 uppercase tracking-[0.2em] mb-1">{sessionData.group_name}</p>

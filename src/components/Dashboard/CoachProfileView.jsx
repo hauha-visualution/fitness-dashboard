@@ -3,6 +3,8 @@ import { ArrowLeft, Camera, Lock, Calendar, Save, RefreshCw, Building2, Copy, Qr
 import { supabase } from '../../supabaseClient';
 import { toast } from '../../utils/toast';
 
+const DEFAULT_AVATAR_PATH = '/avatars/default/default.svg';
+
 const CoachProfileView = ({ session, coachProfile, onBack, onProfileUpdated }) => {
   const [coachData, setCoachData] = useState({
     full_name: '',
@@ -142,7 +144,7 @@ const CoachProfileView = ({ session, coachProfile, onBack, onProfileUpdated }) =
   return (
     <div className="h-screen bg-black flex flex-col animate-slide-up overflow-y-auto hide-scrollbar">
       {/* Header */}
-      <div className="p-6 flex justify-between items-center border-b border-white/5">
+      <div className="app-safe-top-header px-6 flex justify-between items-center border-b border-white/5">
         <button onClick={onBack} className="p-3 bg-white/5 rounded-full">
           <ArrowLeft className="w-5 h-5 text-white" />
         </button>
@@ -158,7 +160,7 @@ const CoachProfileView = ({ session, coachProfile, onBack, onProfileUpdated }) =
               <RefreshCw className="w-8 h-8 text-white/20 animate-spin" />
             ) : (
               <img
-                src={coachData.avatar_url || 'https://i.pravatar.cc/150?u=coach'}
+                src={coachData.avatar_url || DEFAULT_AVATAR_PATH}
                 className="w-full h-full rounded-full object-cover grayscale-[20%]"
                 alt="coach avatar"
               />

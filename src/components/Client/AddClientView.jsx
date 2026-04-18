@@ -190,7 +190,7 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
   return (
     <div className="app-screen-shell h-screen flex flex-col relative z-20 overflow-y-auto px-6 animate-slide-up hide-scrollbar">
       {/* Header */}
-      <div className="sticky top-0 z-50 bg-[rgba(13,27,46,0.95)] backdrop-blur-2xl -mx-6 px-6 pt-6 pb-4 border-b border-white/[0.05] flex justify-between items-center">
+      <div className="app-safe-top-header sticky top-0 z-50 bg-[rgba(13,27,46,0.95)] backdrop-blur-2xl -mx-6 px-6 border-b border-white/[0.05] flex justify-between items-center">
          <button onClick={onBack} className="app-ghost-button p-3 border rounded-full text-white active:scale-90 transition-all"><ArrowLeft className="w-5 h-5" /></button>
          <h2 className="text-[10px] font-black tracking-[0.2em] text-white/40 uppercase">New Trainee Form</h2>
          <button onClick={handleSyncAPI} className={`app-ghost-button p-3 rounded-full border text-[var(--app-blue)] ${isSyncing ? 'animate-spin' : ''}`}>

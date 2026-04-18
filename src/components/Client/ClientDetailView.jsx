@@ -193,7 +193,7 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
       <div className="pointer-events-none absolute -right-16 top-32 h-40 w-40 rounded-full bg-blue-400/10 blur-3xl" />
       <div className="pointer-events-none absolute -left-20 bottom-28 h-48 w-48 rounded-full bg-neutral-500/10 blur-3xl" />
 
-      <div className="relative z-20 grid shrink-0 grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-3 border-b border-white/[0.04] bg-black/30 px-4 py-3 backdrop-blur-xl lg:grid-cols-[52px_minmax(0,1fr)_52px] lg:px-6 lg:py-4">
+      <div className="app-safe-top-header relative z-20 grid shrink-0 grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-3 border-b border-white/[0.04] bg-black/30 px-4 backdrop-blur-xl lg:grid-cols-[52px_minmax(0,1fr)_52px] lg:px-6 lg:py-4">
         <button
           onClick={onBack}
           className="app-ghost-button p-2.5 border rounded-full text-white active:scale-90 transition-all shadow-lg shadow-black/20"
