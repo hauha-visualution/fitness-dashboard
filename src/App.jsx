@@ -505,6 +505,8 @@ export default function App() {
             <QuickLogSheet
               session={session}
               initialSelection={quickLogSelection}
+              allowCompletedEdit={true}
+              allowSessionSwitching={true}
               onClose={closeQuickLog}
               onSaved={() => setRefreshKey(k => k + 1)}
             />

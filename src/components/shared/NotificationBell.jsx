@@ -176,7 +176,7 @@ const NotifPanel = ({ anchorRef, onClose, notifications, unreadCount, loading, m
       <div
         ref={panelRef}
         style={{ ...style, zIndex: 99999 }}
-        className="animate-notif-panel overflow-hidden rounded-[22px] border border-white/10 bg-[#111113] shadow-[0_24px_64px_rgba(0,0,0,0.6)]"
+        className="animate-notif-panel app-glass-panel overflow-hidden rounded-[22px] border shadow-[0_24px_64px_rgba(0,0,0,0.6)]"
       >
 
       {/* Subtle top glow */}
@@ -275,7 +275,7 @@ const NotificationBell = ({ userId, className = '' }) => {
         ref={buttonRef}
         type="button"
         onClick={handleToggle}
-        className="app-ghost-button relative p-2.5 border rounded-full transition-all active:scale-90"
+        className={`app-ghost-button relative p-2.5 border rounded-full transition-all active:scale-90 ${unreadCount > 0 ? 'app-highlight-glow' : ''}`}
         aria-label="Thông báo"
       >
         {unreadCount > 0 ? (

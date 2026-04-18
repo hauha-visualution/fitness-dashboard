@@ -138,7 +138,7 @@ const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) =
     switch (activeTab) {
       case 'profile':   return (
         <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pt-4 app-mobile-nav-spacing lg:px-8 lg:pb-8">
-          <ProfileTab client={client} readOnly={true} allowStretchingBooking={true} />
+          <ProfileTab client={client} readOnly={true} allowStretchingBooking={true} allowSelfInbodyEntry={true} />
         </div>
       );
       case 'package':   return (
@@ -169,7 +169,7 @@ const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) =
       );
       default:          return (
         <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pt-4 app-mobile-nav-spacing lg:px-8 lg:pb-8">
-          <ProfileTab client={client} readOnly={true} allowStretchingBooking={true} />
+          <ProfileTab client={client} readOnly={true} allowStretchingBooking={true} allowSelfInbodyEntry={true} />
         </div>
       );
     }
@@ -179,7 +179,7 @@ const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) =
     <div className="app-screen-shell relative flex h-dvh flex-col lg:h-full">
 
       {/* Top bar — luôn hiển thị trên mọi tab, kể cả Profile */}
-      <div className="app-safe-top-header flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.04] bg-black/30 px-5 backdrop-blur-xl lg:px-8 lg:py-4">
+      <div className="app-safe-top-header app-glass-panel flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.08] px-5 lg:px-8 lg:py-4">
         <div className="min-w-0">
           <p className="text-[9px] font-black uppercase tracking-[0.28em] text-neutral-600">
             {activeHeader.eyebrow}
@@ -223,6 +223,8 @@ const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) =
         <QuickLogSheet
           session={null}
           initialSelection={quickLogSelection}
+          allowCompletedEdit={false}
+          allowSessionSwitching={false}
           onClose={() => setQuickLogSelection(null)}
           onSaved={() => {}}
         />

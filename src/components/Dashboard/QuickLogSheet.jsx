@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../../supabaseClient';
 import { parseServiceMeta } from '../../utils/serviceUtils';
 import {
@@ -125,7 +125,41 @@ const normalizeStretchingRecord = (raw) => {
   };
 };
 
-const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) => {
+const FEELING_OPTIONS = [
+  {
+    id: 'tired',
+    label: 'Tired',
+    Icon: BatteryWarning,
+    activeClassName: 'bg-red-500/15 border-red-500/30 text-red-400',
+  },
+  {
+    id: 'ok',
+    label: 'Okay',
+    Icon: Battery,
+    activeClassName: 'bg-yellow-500/15 border-yellow-500/30 text-yellow-300',
+  },
+  {
+    id: 'good',
+    label: 'Good',
+    Icon: BatteryMedium,
+    activeClassName: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300',
+  },
+  {
+    id: 'fire',
+    label: 'On Fire',
+    Icon: Flame,
+    activeClassName: 'bg-purple-500/15 border-purple-500/30 text-purple-300',
+  },
+];
+
+const QuickLogSheet = ({
+  onClose,
+  session,
+  onSaved,
+  initialSelection = null,
+  allowCompletedEdit = false,
+  allowSessionSwitching = true,
+}) => {
   const normalizedInitialSelection = normalizeQuickLogSelection(initialSelection);
   const [todaySessions, setTodaySessions] = useState([]);
   const [selectedSessionId, setSelectedSessionId] = useState(normalizedInitialSelection?.sessionId ?? null);
@@ -137,7 +171,9 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
   const [directSelectedSession, setDirectSelectedSession] = useState(null);
   const [loadingClientSessions, setLoadingClientSessions] = useState(false);
   const [showAllClientSessions, setShowAllClientSessions] = useState(false);
-  const [showClientPicker, setShowClientPicker] = useState(!(normalizedInitialSelection?.clientId ?? null));
+  const [showClientPicker, setShowClientPicker] = useState(
+    allowSessionSwitching ? !(normalizedInitialSelection?.clientId ?? null) : false
+  );
 
   const exerciseIdRef = useRef(1);
   const [exercises, setExercises] = useState([createExerciseDraft('exercise-0')]);
@@ -292,7 +328,9 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
   const selectedSessionRecord = isManualSessionMode ? manuallySelectedSession : (selectedSession || directSelectedSession || initialSession);
   const selectedSessionPackageId = selectedSessionRecord?.package_id ?? selectedSessionRecord?.packageId ?? null;
   const selectedSessionKind = selectedSessionRecord?.session_kind ?? selectedSessionRecord?.sessionKind ?? 'fixed';
-  const isReviewMode = selectedSessionRecord?.status === 'completed';
+  const isCompletedSession = selectedSessionRecord?.status === 'completed';
+  const [isEditingCompleted, setIsEditingCompleted] = useState(false);
+  const isReviewMode = isCompletedSession && !isEditingCompleted;
   const selectedServiceType = selectedPackageMeta?.serviceType || 'training';
   const isStretchingSession = selectedServiceType === 'stretching';
   const visibleClientSessions = showAllClientSessions ? clientSessions : clientSessions.slice(0, 8);
@@ -326,6 +364,21 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
       )
     : exercises.some(ex => ex.name.trim());
   const activeTemplate = templates.find(template => template.id === selectedTemplateId);
+  const currentFeelingLabel = FEELING_OPTIONS.find((option) => option.id === feeling)?.label || 'Not set';
+  const completedExerciseSummary = useMemo(() => {
+    const validExercises = (exercises || []).filter((exercise) => exercise.name?.trim());
+    const totals = validExercises.reduce((acc, exercise) => {
+      const sets = Number(exercise.sets) || 0;
+      const reps = Number(exercise.reps) || 0;
+      const weight = Number(exercise.weight) || 0;
+      acc.sets += sets;
+      acc.reps += reps;
+      acc.volume += sets * reps * weight;
+      return acc;
+    }, { sets: 0, reps: 0, volume: 0 });
+
+    return { validExercises, totals };
+  }, [exercises]);
 
   // Fetch today's sessions
   useEffect(() => {
@@ -474,6 +527,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
     setNotes(selectedSessionRecord?.notes ?? '');
     setStretchingRecord(normalizeStretchingRecord(selectedSessionRecord?.workout_data));
     setSaveFeedback('');
+    setIsEditingCompleted(false);
   }, [selectedSessionRecord]);
 
   const updateStretchingRecord = (field, value) => {
@@ -522,6 +576,8 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
   };
 
   const handleStartManualSessionSelection = () => {
+    if (!allowSessionSwitching) return;
+
     if (selectedClientId) {
       setIsManualSessionMode(true);
       setShowClientPicker(prev => !prev);
@@ -609,7 +665,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
             status, 
             feeling: isStretchingSession ? null : feeling,
             notes: isStretchingSession ? (selectedSessionRecord?.notes ?? null) : notes,
-            completed_at: status === 'completed' ? currTimeIso : null,
+            completed_at: status === 'completed' ? (selectedSessionRecord?.completed_at ?? currTimeIso) : null,
             cancelled_at: status === 'cancelled' ? currTimeIso : null,
             cancel_reason: status === 'cancelled' ? (cancelReason === '📝 Other reason' ? customReason : cancelReason) : null,
             workout_template_id: isStretchingSession
@@ -740,10 +796,10 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose} />
       
       {/* Sheet */}
-      <div className="absolute bottom-0 w-full bg-[var(--app-bg-dialog)] border-t border-white/10 rounded-t-[32px] flex flex-col p-6 pb-10 gap-5 max-h-[90vh] overflow-y-auto hide-scrollbar animate-modal-in">
+      <div className="absolute bottom-0 left-1/2 w-full max-w-[960px] -translate-x-1/2 app-glass-panel border border-white/[0.12] rounded-t-[32px] lg:rounded-[30px] lg:bottom-4 flex flex-col p-4 sm:p-5 pb-8 gap-4 max-h-[92vh] overflow-y-auto hide-scrollbar animate-modal-in shadow-[0_30px_90px_rgba(0,0,0,0.5)]">
         
         {/* Header */}
-          <div className="flex justify-between items-center">
+          <div className="sticky top-0 z-20 -mx-4 sm:-mx-5 px-4 sm:px-5 pb-3 pt-1 bg-[linear-gradient(180deg,rgba(6,13,24,0.96),rgba(6,13,24,0.75)_75%,rgba(6,13,24,0))] backdrop-blur-xl flex justify-between items-center border-b border-white/[0.06]">
            <div>
               <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Aesthetics Hub</p>
               <h2 className="text-xl font-bold text-white">
@@ -753,12 +809,6 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
            <button onClick={onClose} className="app-ghost-button p-2 border rounded-full"><X className="w-5 h-5 text-neutral-400" /></button>
         </div>
 
-        {isReviewMode && (
-          <div className="rounded-[16px] border border-[rgba(200,245,63,0.18)] bg-[rgba(200,245,63,0.08)] px-4 py-3 text-[11px] text-[rgba(235,255,190,0.88)]">
-            This session is already completed. You are viewing the saved {isStretchingSession ? 'therapy record' : 'workout log'} in read-only mode.
-          </div>
-        )}
-
         {saveFeedback && (
           <div className="rounded-[16px] border border-[rgba(96,180,255,0.16)] bg-[rgba(96,180,255,0.10)] px-4 py-3 text-[11px] font-semibold text-[rgba(180,225,255,0.92)]">
             {saveFeedback}
@@ -766,32 +816,83 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
         )}
 
         {/* [A] Chọn buổi tập */}
-        <div className="space-y-2.5">
-           <div className="flex items-center justify-between gap-3">
-             <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest">Today's Sessions</p>
-             <button 
-                onClick={handleStartManualSessionSelection}
-                className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-2 border rounded-[12px] text-[11px] font-black tracking-wide transition-all ${isManualSessionMode ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-white/[0.03] border-white/[0.08] text-neutral-400 hover:bg-white/[0.05]'}`}
-             >
-                <UserRound className="w-3.5 h-3.5" />
-                {manualSelectedClientName || 'Trainee'}
-             </button>
-           </div>
-           <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
-             {loading ? <div className="text-neutral-500 text-sm">Loading...</div> : todaySessions.map(s => (
-               <button 
-                  key={s.id} onClick={() => handleSelectTodaySession(s.id)}
-                  className={`shrink-0 px-3 py-2.5 border rounded-[14px] text-left transition-all min-w-[118px] ${selectedSessionId === s.id ? 'bg-white text-black border-white shadow-[0_10px_30px_rgba(255,255,255,0.08)]' : 'bg-white/[0.03] border-white/[0.06] text-neutral-300 hover:bg-white/[0.05]'}`}
-               >
-                 <p className={`text-[9px] font-black uppercase tracking-widest ${selectedSessionId === s.id ? 'text-black/45' : 'text-neutral-600'}`}>{s.client_name}</p>
-                 <p className={`text-sm font-semibold mt-1 ${selectedSessionId === s.id ? 'text-black' : 'text-white'}`}>{s.scheduled_time?.slice(0,5)}</p>
-               </button>
-             ))}
-           </div>
+        <div className="app-bento-card space-y-2 p-3">
+           {allowSessionSwitching ? (
+             <>
+               <div className="flex items-center justify-end">
+                 <button
+                    onClick={handleStartManualSessionSelection}
+                    className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 border rounded-[11px] text-[10px] font-black tracking-wide transition-all ${isManualSessionMode ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-white/[0.03] border-white/[0.08] text-neutral-400 hover:bg-white/[0.05]'}`}
+                 >
+                    <UserRound className="w-3.5 h-3.5" />
+                    {manualSelectedClientName || 'Trainee'}
+                 </button>
+               </div>
+               <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+                 {loading ? <div className="text-neutral-500 text-sm">Loading...</div> : todaySessions.map(s => (
+                   <button
+                      key={s.id} onClick={() => handleSelectTodaySession(s.id)}
+                      className={`shrink-0 px-3 py-2.5 border rounded-[14px] text-left transition-all min-w-[118px] ${selectedSessionId === s.id ? 'bg-white text-black border-white shadow-[0_10px_30px_rgba(255,255,255,0.08)]' : 'bg-white/[0.03] border-white/[0.06] text-neutral-300 hover:bg-white/[0.05]'}`}
+                   >
+                     <p className={`text-[9px] font-black uppercase tracking-widest ${selectedSessionId === s.id ? 'text-black/45' : 'text-neutral-600'}`}>{s.client_name}</p>
+                     <p className={`text-sm font-semibold mt-1 ${selectedSessionId === s.id ? 'text-black' : 'text-white'}`}>{s.scheduled_time?.slice(0,5)}</p>
+                   </button>
+                 ))}
+               </div>
+             </>
+           ) : null}
+
+           {selectedSessionId && (
+             <>
+               <div className="h-px bg-white/[0.06]" />
+               <div className="space-y-2">
+                 <div className="rounded-[12px] border border-white/[0.08] bg-white/[0.03] px-3 py-2.5">
+                   <p className="text-[11px] font-semibold text-white/85">
+                     <span className="text-white">Session</span>{' '}
+                     <span className="text-white/72">{selectedSessionTime || '--:--'}</span>
+                     {' • '}
+                     <span className="text-white/72">{selectedClientName || 'No trainee selected'}</span>
+                     {!isStretchingSession ? (
+                       <>
+                         {' • '}
+                         <span className="text-white/72">{currentFeelingLabel}</span>
+                       </>
+                     ) : null}
+                   </p>
+                 </div>
+
+                 {!isStretchingSession ? (
+                   <div className="grid grid-cols-4 gap-2">
+                     {FEELING_OPTIONS.map((option) => (
+                       <button
+                         key={option.id}
+                         type="button"
+                         onClick={() => !isReviewMode && setFeeling(option.id)}
+                         disabled={isReviewMode}
+                         className={`flex items-center justify-center gap-1.5 rounded-[11px] border px-2 py-2 text-[10px] font-bold transition-all disabled:opacity-100 ${
+                           feeling === option.id
+                             ? option.activeClassName
+                             : 'bg-white/[0.03] border-white/[0.06] text-neutral-500 hover:bg-white/[0.05]'
+                         }`}
+                       >
+                         <option.Icon className="h-3.5 w-3.5" />
+                         <span className="truncate">{option.label}</span>
+                       </button>
+                     ))}
+                   </div>
+                 ) : (
+                   <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/15 bg-emerald-500/8 px-3 py-2 text-[11px] font-semibold text-emerald-300">
+                     <HeartPulse className="w-3.5 h-3.5 text-emerald-300/80" />
+                     <span>Therapy Session</span>
+                   </div>
+                 )}
+               </div>
+             </>
+           )}
         </div>
          {/* [A2] Client/session selector in manual mode */}
-         {isManualSessionMode && (
-          <div className="space-y-2.5">
+         {allowSessionSwitching && isManualSessionMode && (
+          <div className="app-bento-card space-y-2.5 p-3.5">
              {showClientPicker ? (
                <>
                  <p className="text-[9px] font-black uppercase tracking-widest text-blue-400">Choose a trainee</p>
@@ -873,28 +974,57 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
              )}
           </div>
          )}
-        {selectedSessionId && (
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[11px] font-semibold text-white">
-              <UserRound className="w-3.5 h-3.5 text-neutral-500" />
-              <span className="truncate max-w-[140px]">{selectedClientName || 'No trainee selected'}</span>
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[11px] font-semibold text-neutral-300">
-              <CalendarDays className="w-3.5 h-3.5 text-neutral-500" />
-              <span>{selectedSessionTime || '--:--'}</span>
-            </div>
-            {isStretchingSession ? (
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/15 bg-emerald-500/8 px-3 py-2 text-[11px] font-semibold text-emerald-300">
-                <HeartPulse className="w-3.5 h-3.5 text-emerald-300/80" />
-                <span>Therapy Session</span>
-              </div>
-            ) : null}
-          </div>
-        )}
-
         {!isStretchingSession ? (
+        isReviewMode ? (
+          <div className="app-bento-card p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">Workout Summary</p>
+                <p className="mt-1 text-[11px] text-white/45">Completed log snapshot</p>
+              </div>
+              <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1 text-[10px] font-black uppercase tracking-wide text-white/70">
+                {completedExerciseSummary.validExercises.length} exercises
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-[12px] border border-white/[0.06] bg-white/[0.03] p-2.5 text-center">
+                <p className="text-[8px] font-black uppercase tracking-widest text-neutral-600">Total Sets</p>
+                <p className="mt-1 text-sm font-bold text-white">{completedExerciseSummary.totals.sets}</p>
+              </div>
+              <div className="rounded-[12px] border border-white/[0.06] bg-white/[0.03] p-2.5 text-center">
+                <p className="text-[8px] font-black uppercase tracking-widest text-neutral-600">Total Reps</p>
+                <p className="mt-1 text-sm font-bold text-white">{completedExerciseSummary.totals.reps}</p>
+              </div>
+              <div className="rounded-[12px] border border-white/[0.06] bg-white/[0.03] p-2.5 text-center">
+                <p className="text-[8px] font-black uppercase tracking-widest text-neutral-600">Volume</p>
+                <p className="mt-1 text-sm font-bold text-white">{completedExerciseSummary.totals.volume}</p>
+              </div>
+            </div>
+
+            {completedExerciseSummary.validExercises.length === 0 ? (
+              <div className="rounded-[14px] border border-white/[0.06] bg-black/20 px-4 py-4 text-center">
+                <p className="text-xs text-neutral-500">No exercise entries in this completed log.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {completedExerciseSummary.validExercises.map((exercise, index) => (
+                  <div key={exercise.id} className="rounded-[12px] border border-white/[0.06] bg-white/[0.03] px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-white">{index + 1}. {exercise.name}</p>
+                      <p className="text-[10px] font-black uppercase tracking-wide text-white/55">
+                        {exercise.sets} x {exercise.reps} {Number(exercise.weight) > 0 ? `@ ${exercise.weight}kg` : ''}
+                      </p>
+                    </div>
+                    {exercise.note ? <p className="mt-1 text-[11px] text-white/45">{exercise.note}</p> : null}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
         <div className="flex flex-col gap-3">
-          <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.03] overflow-hidden">
+          <div className="app-bento-card overflow-hidden">
             <div className="flex items-center gap-2 p-2">
               <button
                 type="button"
@@ -963,7 +1093,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
           </div>
 
           {previousWorkoutSource && (
-            <div className="rounded-[14px] border border-blue-500/15 bg-blue-500/8 px-3 py-2 text-[11px] text-blue-300">
+            <div className="rounded-[14px] border border-blue-500/15 bg-blue-500/8 px-3 py-2 text-[11px] text-blue-300 shadow-[0_12px_24px_rgba(96,180,255,0.1)]">
               {previousWorkoutSource.type === 'template-default'
                 ? `Loaded the default structure from ${previousWorkoutSource.templateName || 'the selected template'}.`
                 : `Loaded the latest completed ${previousWorkoutSource.templateName || 'template'} log`}
@@ -981,7 +1111,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
                 onDragStart={isReviewMode ? undefined : (e) => handleDragStart(e, idx)}
                 onDragEnd={isReviewMode ? undefined : handleDragEnd}
                 onDragOver={isReviewMode ? undefined : (e) => handleDragOver(e, idx)}
-                className={`rounded-[16px] border px-3 py-2.5 transition-all ${ex.is_completed ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-white/[0.03] border-white/[0.06]'}`}
+                className={`rounded-[16px] border px-3 py-2.5 transition-all ${ex.is_completed ? 'bg-emerald-500/10 border-emerald-500/20 shadow-[0_10px_24px_rgba(16,185,129,0.1)]' : 'bg-white/[0.03] border-white/[0.06] shadow-[0_8px_20px_rgba(0,0,0,0.18)]'}`}
               >
                 <div className="flex items-center gap-2">
                   <button
@@ -1066,6 +1196,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
             />
           )}
         </div>
+        )
         ) : (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.03] p-4">
@@ -1223,21 +1354,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
         )}
 
         {!isStretchingSession && (
-        <div>
-           <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Trainee Condition</p>
-           <div className="grid grid-cols-4 gap-2">
-              {[ {id:'tired', label:'Tired', Icon:BatteryWarning, col:'red'}, {id:'ok', label:'Okay', Icon:Battery, col:'yellow'}, {id:'good', label:'Good', Icon:BatteryMedium, col:'emerald'}, {id:'fire', label:'On Fire', Icon:Flame, col:'purple'} ].map(f => (
-                 <button key={f.id} onClick={() => !isReviewMode && setFeeling(f.id)} disabled={isReviewMode} className={`flex flex-col items-center justify-center py-3 border rounded-[14px] transition-all gap-1.5 disabled:opacity-100 ${feeling === f.id ? `bg-${f.col}-500/15 border-${f.col}-500/30 text-${f.col}-400` : 'bg-white/[0.03] border-white/[0.05] text-neutral-500 hover:bg-white/[0.05]'}`}>
-                    <f.Icon className="w-5 h-5" />
-                    <span className="text-[10px] font-bold">{f.label}</span>
-                 </button>
-              ))}
-           </div>
-        </div>
-        )}
-
-        {!isStretchingSession && (
-        <div>
+        <div className="app-bento-card p-3.5">
            <p className="text-[9px] font-black text-neutral-600 uppercase tracking-widest mb-3">Extra Notes (Optional)</p>
            <textarea value={notes} onChange={e => setNotes(e.target.value)} readOnly={isReviewMode} placeholder="Add a note..." className="w-full bg-white/[0.04] border border-white/[0.08] rounded-[14px] py-2.5 px-4 text-white text-sm outline-none focus:border-white/30 resize-none h-20" />
         </div>
@@ -1245,11 +1362,41 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
 
         {/* [E] 3 Buttons */}
         {isReviewMode ? (
-          <div className="w-full py-3 text-center text-[11px] font-semibold text-white/45 border border-white/[0.06] bg-white/[0.03] rounded-[18px]">
-            Completed sessions are view-only.
+          <div className="sticky bottom-0 z-20 -mx-4 sm:-mx-5 px-4 sm:px-5 pt-3 bg-[linear-gradient(0deg,rgba(6,13,24,0.98),rgba(6,13,24,0.75)_70%,rgba(6,13,24,0))]">
+            <div className="w-full py-3 text-center text-[11px] font-medium text-white/52 rounded-[18px]">
+              This session is completed. You are viewing the saved {isStretchingSession ? 'therapy record' : 'workout log'} in read-only mode.
+              {allowCompletedEdit && !isStretchingSession ? (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingCompleted(true)}
+                  className="ml-2 text-[11px] font-semibold text-white/75 underline underline-offset-2 transition-all hover:text-white"
+                >
+                  Edit
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : isCompletedSession && isEditingCompleted ? (
+          <div className="sticky bottom-0 z-20 -mx-4 sm:-mx-5 px-4 sm:px-5 pt-3 bg-[linear-gradient(0deg,rgba(6,13,24,0.98),rgba(6,13,24,0.75)_70%,rgba(6,13,24,0))]">
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => setIsEditingCompleted(false)}
+                disabled={saving}
+                className="app-ghost-button flex-1 py-3.5 border rounded-[18px] text-white font-bold text-sm text-center active:scale-95 transition-all disabled:opacity-50"
+              >
+                Cancel Edit
+              </button>
+              <button
+                onClick={() => handleSave('completed')}
+                disabled={saving || !selectedSessionId || !hasWorkoutData}
+                className="app-cta-button flex-1 py-3.5 border text-black font-bold text-sm rounded-[18px] text-center active:scale-[0.98] transition-all disabled:opacity-50"
+              >
+                Save Changes
+              </button>
+            </div>
           </div>
         ) : (
-          <>
+          <div className="sticky bottom-0 z-20 -mx-4 sm:-mx-5 px-4 sm:px-5 pt-3 bg-[linear-gradient(0deg,rgba(6,13,24,0.98),rgba(6,13,24,0.75)_70%,rgba(6,13,24,0))]">
             <div className="flex gap-2 mt-2">
                <button onClick={() => handleSave('in_progress')} disabled={saving || !selectedSessionId || !hasWorkoutData} className="app-ghost-button flex-1 py-3.5 border rounded-[18px] text-white font-bold text-sm text-center active:scale-95 transition-all disabled:opacity-50">
                  Save Draft
@@ -1261,7 +1408,7 @@ const QuickLogSheet = ({ onClose, session, onSaved, initialSelection = null }) =
             <button onClick={() => setShowCancelReason(true)} disabled={saving || !selectedSessionId} className="w-full py-3 text-red-400 text-sm font-bold text-center bg-red-500/10 border border-red-500/20 rounded-[18px] active:scale-95 transition-all disabled:opacity-50">
                Cancel
             </button>
-          </>
+          </div>
         )}
 
       </div>

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { CalendarDays, Camera, MapPin, Plus, RefreshCw, Save, X } from 'lucide-react';
+import { CalendarDays, Camera, ChevronLeft, ChevronRight, MapPin, Plus, RefreshCw, Save, X } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 import ClientAvatar from '../../shared/ClientAvatar';
 import { parseServiceBooking, parseServiceMeta } from '../../../utils/serviceUtils';
@@ -196,6 +196,86 @@ const getPortalSessionLabel = (serviceType, sessionNumber) => {
     default:
       return `Workout #${sessionNumber}`;
   }
+};
+
+const PORTAL_CALENDAR_DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+const toLocalDateKey = (value) =>
+  `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+
+const getMonthStartDate = (value) => {
+  const date = new Date(value);
+  date.setDate(1);
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const getMonthEndDate = (value) => {
+  const date = new Date(value);
+  date.setMonth(date.getMonth() + 1, 0);
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const addCalendarDays = (value, offset) => {
+  const date = new Date(value);
+  date.setDate(date.getDate() + offset);
+  return date;
+};
+
+const formatMonthYearLabel = (value) =>
+  new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(value);
+
+const getPortalCalendarDayState = (sessions = []) => {
+  const activeSessions = sessions.filter((item) => item.status !== 'cancelled');
+  if (activeSessions.length === 0) return 'none';
+  if (activeSessions.some((item) => item.status === 'in_progress')) return 'in_progress';
+  if (activeSessions.some((item) => item.status === 'scheduled')) return 'scheduled';
+  if (activeSessions.some((item) => item.status === 'completed')) return 'completed';
+  return 'scheduled';
+};
+
+const getPortalCalendarDotColor = (dayState) => {
+  switch (dayState) {
+    case 'in_progress':
+      return '#60b4ff';
+    case 'completed':
+      return 'rgba(255,255,255,0.72)';
+    case 'scheduled':
+      return '#c8f53f';
+    default:
+      return 'transparent';
+  }
+};
+
+const buildPortalCalendarDays = (displayedMonth, sessionMap, today) => {
+  const monthStart = getMonthStartDate(displayedMonth);
+  const monthEnd = getMonthEndDate(displayedMonth);
+  const monthEndIndex = (monthEnd.getDay() + 6) % 7;
+  const leadingBlanks = (monthStart.getDay() + 6) % 7;
+  const totalCells = leadingBlanks + monthEnd.getDate() + (6 - monthEndIndex);
+  const gridStart = addCalendarDays(monthStart, -leadingBlanks);
+
+  return Array.from({ length: totalCells }, (_, index) => {
+    const date = addCalendarDays(gridStart, index);
+    const iso = toLocalDateKey(date);
+    const daySessions = sessionMap[iso] || [];
+    const dayState = getPortalCalendarDayState(daySessions);
+    const dotColor = getPortalCalendarDotColor(dayState);
+
+    return {
+      iso,
+      date,
+      isCurrentMonth: date.getMonth() === monthStart.getMonth(),
+      isToday:
+        date.getFullYear() === today.getFullYear()
+        && date.getMonth() === today.getMonth()
+        && date.getDate() === today.getDate(),
+      hasSessions: dayState !== 'none',
+      dayState,
+      dotColor,
+    };
+  });
 };
 
 const formatDobDisplay = (value) => {
@@ -501,7 +581,9 @@ const BodyScoreCard = ({ card, isActive, onClick }) => {
     <button
       type="button"
       onClick={onClick}
-      className="flex h-full w-full flex-col rounded-[14px] border px-2.5 py-[8px] pb-[7px] text-left transition-all"
+      className={`flex h-full w-full flex-col rounded-[14px] border px-2.5 py-[8px] pb-[7px] text-left transition-all ${
+        isActive ? 'app-highlight-glow' : ''
+      }`}
       style={{
         background: isActive ? 'rgba(200,245,63,0.05)' : 'rgba(255,255,255,0.04)',
         borderColor: isActive ? 'rgba(200,245,63,0.22)' : 'rgba(255,255,255,0.07)',
@@ -547,7 +629,9 @@ const InBodyMetricCard = ({ card, isActive, onClick }) => {
     <button
       type="button"
       onClick={onClick}
-      className="w-full rounded-[14px] border px-2.5 py-[8px] pb-[7px] text-left transition-all"
+      className={`w-full rounded-[14px] border px-2.5 py-[8px] pb-[7px] text-left transition-all ${
+        isActive ? 'app-highlight-glow-blue' : ''
+      }`}
       style={{
         background: 'rgba(255,255,255,0.04)',
         borderColor: isActive ? `${card.color}55` : tone ? tone.track.replace('0.28', '0.20').replace('0.32', '0.20') : 'rgba(255,255,255,0.07)',
@@ -946,7 +1030,15 @@ const InBodyProgressChart = ({ records, selectedMetricKey, activeIndex, onActive
   );
 };
 
-const ProfileTab = ({ client, onRegisterActions, readOnly = false, allowStretchingBooking = false }) => {
+const ProfileTab = ({
+  client,
+  onRegisterActions,
+  readOnly = false,
+  allowStretchingBooking = false,
+  allowSelfInbodyEntry = false,
+}) => {
+  const canAddInbody = !readOnly || allowSelfInbodyEntry;
+  const today = useMemo(() => new Date(), []);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingInbody, setIsSavingInbody] = useState(false);
@@ -969,6 +1061,9 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false, allowStretchi
   const [timeFilter, setTimeFilter] = useState('all');
   const [activeChartIndex, setActiveChartIndex] = useState(null);
   const [upcomingSchedule, setUpcomingSchedule] = useState([]);
+  const [schedulePanelTab, setSchedulePanelTab] = useState('upcoming');
+  const [portalCalendarMonth, setPortalCalendarMonth] = useState(() => getMonthStartDate(new Date()));
+  const [portalCalendarSessionMap, setPortalCalendarSessionMap] = useState({});
   const [avatarUrl, setAvatarUrl] = useState(client.avatar_url || client.avatar || '');
   const [editData, setEditData] = useState({
     name: client.name || '',
@@ -1050,6 +1145,40 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false, allowStretchi
     setUpcomingSchedule(normalized);
   }, [client.id, readOnly]);
 
+  const fetchPortalCalendarSessions = useCallback(async () => {
+    if (!readOnly || !client.id) {
+      setPortalCalendarSessionMap({});
+      return;
+    }
+
+    const monthStart = getMonthStartDate(portalCalendarMonth);
+    const monthEnd = getMonthEndDate(portalCalendarMonth);
+
+    const { data: sessionRows, error: sessionError } = await supabase
+      .from('sessions')
+      .select('id, scheduled_date, status')
+      .eq('client_id', client.id)
+      .gte('scheduled_date', toLocalDateKey(monthStart))
+      .lte('scheduled_date', toLocalDateKey(monthEnd))
+      .order('scheduled_date', { ascending: true })
+      .order('scheduled_time', { ascending: true });
+
+    if (sessionError) {
+      console.error('Portal calendar load error:', sessionError.message);
+      setPortalCalendarSessionMap({});
+      return;
+    }
+
+    const groupedByDate = (sessionRows || []).reduce((acc, row) => {
+      if (!row.scheduled_date) return acc;
+      if (!acc[row.scheduled_date]) acc[row.scheduled_date] = [];
+      acc[row.scheduled_date].push(row);
+      return acc;
+    }, {});
+
+    setPortalCalendarSessionMap(groupedByDate);
+  }, [client.id, portalCalendarMonth, readOnly]);
+
   const fetchInBody = useCallback(async () => {
     const { data } = await supabase
       .from('inbody_records')
@@ -1084,6 +1213,10 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false, allowStretchi
     fetchProgressPhotos();
     void fetchUpcomingSchedule();
   }, [fetchInBody, fetchProgressPhotos, fetchUpcomingSchedule]);
+
+  useEffect(() => {
+    void fetchPortalCalendarSessions();
+  }, [fetchPortalCalendarSessions]);
 
   useEffect(() => {
     if (readOnly || !onRegisterActions) return undefined;
@@ -1310,6 +1443,15 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false, allowStretchi
     return years.size > 1;
   }, [filteredChartRecords]);
 
+  const portalCalendarDays = useMemo(
+    () => buildPortalCalendarDays(portalCalendarMonth, portalCalendarSessionMap, today),
+    [portalCalendarMonth, portalCalendarSessionMap, today],
+  );
+
+  const portalMonthSessionCount = useMemo(() => Object.values(portalCalendarSessionMap).reduce((total, daySessions) => (
+    total + daySessions.filter((item) => item.status !== 'cancelled').length
+  ), 0), [portalCalendarSessionMap]);
+
   // Tooltip is only opened on user tap — no auto-open on data change
   useEffect(() => {
     setActiveChartIndex(null);
@@ -1505,50 +1647,125 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false, allowStretchi
 
       {readOnly ? (
         <div className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="app-label text-[9px] font-black uppercase tracking-widest">Upcoming Schedule</p>
-              <p className="mt-1 text-[11px] text-white/45">Your next booked sessions and appointments.</p>
-            </div>
+          <div className="flex items-center gap-2 rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-1.5">
+            <button
+              type="button"
+              onClick={() => setSchedulePanelTab('upcoming')}
+              className={`flex-1 rounded-[12px] px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em] transition-all ${
+                schedulePanelTab === 'upcoming'
+                  ? 'app-nav-item-active-soft text-[var(--app-accent)]'
+                  : 'text-white/38'
+              }`}
+            >
+              Upcoming Schedule
+            </button>
+            <button
+              type="button"
+              onClick={() => setSchedulePanelTab('calendar')}
+              className={`flex-1 rounded-[12px] px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em] transition-all ${
+                schedulePanelTab === 'calendar'
+                  ? 'app-nav-item-active-soft text-[var(--app-accent)]'
+                  : 'text-white/38'
+              }`}
+            >
+              Monthly Calendar
+            </button>
           </div>
 
-          <div className="app-bento-card overflow-hidden">
-            {upcomingSchedule.length > 0 ? (
-              upcomingSchedule.map((item, index) => (
-                <div
-                  key={item.id}
-                  className={`flex items-start gap-3 px-4 py-3 ${index !== upcomingSchedule.length - 1 ? 'border-b border-white/[0.05]' : ''}`}
-                >
-                  <div className={`mt-1 h-2 w-2 shrink-0 rounded-full ${item.status === 'in_progress' ? 'bg-blue-400' : 'bg-[var(--app-accent)]'}`} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[12px] font-bold text-white">{item.label}</p>
-                    <p className="mt-1 text-[10px] font-semibold text-white/42">{item.dayLabel} · {item.timeLabel}</p>
-                    {item.location ? (
-                      <div className="mt-1 inline-flex items-center gap-1.5 text-[10px] text-white/35">
-                        <MapPin className="h-3 w-3" />
-                        <span className="truncate">{item.location}</span>
-                      </div>
-                    ) : null}
+          {schedulePanelTab === 'upcoming' ? (
+            <div className="app-bento-card overflow-hidden">
+              {upcomingSchedule.length > 0 ? (
+                upcomingSchedule.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className={`flex items-start gap-3 px-4 py-3 ${index !== upcomingSchedule.length - 1 ? 'border-b border-white/[0.05]' : ''}`}
+                  >
+                    <div className={`mt-1 h-2 w-2 shrink-0 rounded-full ${item.status === 'in_progress' ? 'bg-blue-400' : 'bg-[var(--app-accent)]'}`} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[12px] font-bold text-white">{item.label}</p>
+                      <p className="mt-1 text-[10px] font-semibold text-white/42">{item.dayLabel} · {item.timeLabel}</p>
+                      {item.location ? (
+                        <div className="mt-1 inline-flex items-center gap-1.5 text-[10px] text-white/35">
+                          <MapPin className="h-3 w-3" />
+                          <span className="truncate">{item.location}</span>
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide ${
+                      item.status === 'in_progress'
+                        ? 'border border-blue-500/20 bg-blue-500/10 text-blue-300'
+                        : 'border border-white/[0.07] bg-white/[0.04] text-white/35'
+                    }`}>
+                      {item.status === 'in_progress' ? 'Live' : 'Booked'}
+                    </div>
                   </div>
-                  <div className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide ${
-                    item.status === 'in_progress'
-                      ? 'border border-blue-500/20 bg-blue-500/10 text-blue-300'
-                      : 'border border-white/[0.07] bg-white/[0.04] text-white/35'
-                  }`}>
-                    {item.status === 'in_progress' ? 'Live' : 'Booked'}
-                  </div>
+                ))
+              ) : (
+                <div className="px-5 py-6 text-center">
+                  <CalendarDays className="mx-auto h-5 w-5 text-white/18" />
+                  <p className="mt-3 text-sm font-semibold text-white">No upcoming sessions yet</p>
+                  <p className="mt-1 text-[11px] text-white/42">
+                    {allowStretchingBooking ? 'Book your next stretching session from the Services tab.' : 'Your next booking will appear here.'}
+                  </p>
                 </div>
-              ))
-            ) : (
-              <div className="px-5 py-6 text-center">
-                <CalendarDays className="mx-auto h-5 w-5 text-white/18" />
-                <p className="mt-3 text-sm font-semibold text-white">No upcoming sessions yet</p>
-                <p className="mt-1 text-[11px] text-white/42">
-                  {allowStretchingBooking ? 'Book your next stretching session from the Services tab.' : 'Your next booking will appear here.'}
-                </p>
+              )}
+            </div>
+          ) : (
+            <div className="app-bento-card p-3.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[9px] font-black uppercase tracking-widest text-white/45">Monthly Calendar</p>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setPortalCalendarMonth((prev) => getMonthStartDate(new Date(prev.getFullYear(), prev.getMonth() - 1, 1)))}
+                    className="app-ghost-button inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/[0.09] text-white/65 transition-all active:scale-95"
+                    aria-label="Previous month"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPortalCalendarMonth((prev) => getMonthStartDate(new Date(prev.getFullYear(), prev.getMonth() + 1, 1)))}
+                    className="app-ghost-button inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/[0.09] text-white/65 transition-all active:scale-95"
+                    aria-label="Next month"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
-            )}
-          </div>
+
+              <p className="mt-1.5 text-[13px] font-semibold text-white">{formatMonthYearLabel(portalCalendarMonth)}</p>
+              <p className="mt-0.5 text-[9px] text-white/38">{portalMonthSessionCount} sessions tracked this month</p>
+
+              <div className="mt-2.5 grid grid-cols-7 gap-1">
+                {PORTAL_CALENDAR_DAY_LABELS.map((label) => (
+                  <div key={label} className="text-center text-[7px] font-black uppercase tracking-[0.08em] text-white/30">
+                    {label}
+                  </div>
+                ))}
+
+                {portalCalendarDays.map((day) => (
+                  <div
+                    key={day.iso}
+                    className={`relative flex h-7.5 flex-col items-center justify-center rounded-[8px] border text-center transition-all ${
+                      day.isCurrentMonth
+                        ? 'border-white/[0.06] bg-white/[0.02]'
+                        : 'border-transparent bg-white/[0.01] opacity-40'
+                    } ${day.isToday ? 'app-highlight-glow border-[rgba(200,245,63,0.28)]' : ''}`}
+                  >
+                    <span className={`text-[9px] font-semibold ${day.isCurrentMonth ? 'text-white/85' : 'text-white/26'}`}>
+                      {day.date.getDate()}
+                    </span>
+                    {day.hasSessions ? (
+                      <span className="mt-[1px] h-1 w-1 rounded-full" style={{ background: day.dotColor }} />
+                    ) : (
+                      <span className="mt-[1px] h-1 w-1 rounded-full bg-transparent" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : null}
 
@@ -1558,7 +1775,7 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false, allowStretchi
             <p className="app-label text-[9px] font-black uppercase tracking-widest">InBody Progress</p>
             <p className="mt-1 text-[11px] text-white/45">Track body composition trends over time.</p>
           </div>
-          {!readOnly && (
+          {canAddInbody && (
             <button
               onClick={() => setIsModalOpen(true)}
               className="inline-flex items-center gap-2 rounded-[16px] border border-white/[0.08] bg-white/[0.04] px-3.5 py-2.5 text-[10px] font-black uppercase tracking-wide text-white transition-all active:scale-95"
@@ -1607,7 +1824,7 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false, allowStretchi
               aria-label={option.label}
               className={`rounded-[12px] px-1 py-2 text-center text-[9px] font-black uppercase tracking-[0.08em] transition-all ${
                 timeFilter === option.id
-                  ? 'bg-white text-black shadow-lg'
+                  ? 'bg-white text-black shadow-lg app-highlight-glow-70'
                   : 'bg-white/[0.02] text-white/35'
               }`}
             >
@@ -1717,7 +1934,7 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false, allowStretchi
       </div>
     </div>
 
-      {!readOnly && isModalOpen && ReactDOM.createPortal(
+      {canAddInbody && isModalOpen && ReactDOM.createPortal(
         <div className="fixed inset-0 z-[180] flex items-end justify-center bg-black/60 px-4 pb-10 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-[360px] rounded-[32px] border border-white/10 bg-[#1a1a1c] p-6 shadow-2xl animate-modal-in">
             <h3 className="mb-6 text-sm font-bold text-white">Add InBody Record</h3>
