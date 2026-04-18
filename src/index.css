@@ -100,6 +100,70 @@ h1, h2, h3, h4, h5, h6 {
   -webkit-backdrop-filter: blur(18px);
 }
 
+.app-bento-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .app-bento-grid {
+    gap: 0.9rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-bento-grid {
+    gap: 1rem;
+  }
+}
+
+.app-bento-card {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border-soft);
+  border-radius: 1.35rem;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 16px 40px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.app-bento-span-12 { grid-column: span 12 / span 12; }
+.app-bento-span-8 { grid-column: span 8 / span 8; }
+.app-bento-span-7 { grid-column: span 7 / span 7; }
+.app-bento-span-6 { grid-column: span 6 / span 6; }
+.app-bento-span-5 { grid-column: span 5 / span 5; }
+.app-bento-span-4 { grid-column: span 4 / span 4; }
+.app-bento-span-3 { grid-column: span 3 / span 3; }
+.app-bento-span-2 { grid-column: span 2 / span 2; }
+
+@media (min-width: 640px) {
+  .app-bento-sm-span-12 { grid-column: span 12 / span 12; }
+  .app-bento-sm-span-6 { grid-column: span 6 / span 6; }
+  .app-bento-sm-span-4 { grid-column: span 4 / span 4; }
+  .app-bento-sm-span-3 { grid-column: span 3 / span 3; }
+}
+
+@media (min-width: 768px) {
+  .app-bento-md-span-12 { grid-column: span 12 / span 12; }
+  .app-bento-md-span-8 { grid-column: span 8 / span 8; }
+  .app-bento-md-span-6 { grid-column: span 6 / span 6; }
+  .app-bento-md-span-4 { grid-column: span 4 / span 4; }
+  .app-bento-md-span-3 { grid-column: span 3 / span 3; }
+}
+
+@media (min-width: 1024px) {
+  .app-bento-lg-span-12 { grid-column: span 12 / span 12; }
+  .app-bento-lg-span-8 { grid-column: span 8 / span 8; }
+  .app-bento-lg-span-7 { grid-column: span 7 / span 7; }
+  .app-bento-lg-span-6 { grid-column: span 6 / span 6; }
+  .app-bento-lg-span-5 { grid-column: span 5 / span 5; }
+  .app-bento-lg-span-4 { grid-column: span 4 / span 4; }
+  .app-bento-lg-span-3 { grid-column: span 3 / span 3; }
+  .app-bento-lg-span-2 { grid-column: span 2 / span 2; }
+}
+
 .app-glass-strong {
   background: var(--app-surface-strong);
   border-color: var(--app-border);

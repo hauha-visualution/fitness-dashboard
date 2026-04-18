@@ -1452,12 +1452,12 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false, allowStretchi
   }
 
   return (
-    <div className="relative isolate pb-6 pt-5 animate-slide-up lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start space-y-5 lg:space-y-0">
+    <div className="relative isolate app-bento-grid pb-6 pt-5 animate-slide-up">
       <div className="pointer-events-none absolute left-1/2 top-2 h-40 w-40 -translate-x-1/2 rounded-full bg-blue-500/10 blur-3xl lg:hidden" />
       <div className="pointer-events-none absolute right-2 top-48 h-28 w-28 rounded-full bg-emerald-500/[0.08] blur-3xl lg:hidden" />
 
       {/* --- CỘT TRÁI (Avatar, Schedule, InBody) --- */}
-      <div className="space-y-5 flex flex-col w-full">
+      <div className="app-bento-span-12 app-bento-lg-span-7 space-y-5 flex flex-col w-full">
       <div className="relative text-center">
         <div className="relative mx-auto w-fit">
           <ClientAvatar
@@ -1512,7 +1512,7 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false, allowStretchi
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-[24px] border border-white/[0.05] bg-white/[0.02] shadow-xl shadow-black/20 backdrop-blur-sm">
+          <div className="app-bento-card overflow-hidden">
             {upcomingSchedule.length > 0 ? (
               upcomingSchedule.map((item, index) => (
                 <div
@@ -1624,7 +1624,7 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false, allowStretchi
             onActiveIndexChange={setActiveChartIndex}
           />
         ) : (
-          <div className="rounded-[24px] border border-white/[0.05] bg-white/[0.02] px-5 py-8 text-center shadow-xl shadow-black/20">
+          <div className="app-bento-card px-5 py-8 text-center">
             <p className="text-sm font-semibold text-white">No InBody data in this range yet</p>
             <p className="mt-2 text-[11px] text-white/45">Add a new measurement to start visualizing progress trends.</p>
           </div>
@@ -1634,10 +1634,10 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false, allowStretchi
       </div>
 
       {/* --- CỘT PHẢI (Personal Info, Photos) --- */}
-      <div className="space-y-5 flex flex-col w-full">
+      <div className="app-bento-span-12 app-bento-lg-span-5 space-y-5 flex flex-col w-full">
         <div className="space-y-3">
         <p className="app-label text-[9px] font-black uppercase tracking-widest">Personal Information</p>
-        <div className="relative overflow-hidden rounded-[24px] border border-white/[0.05] bg-white/[0.02] shadow-xl shadow-black/20 backdrop-blur-sm">
+        <div className="app-bento-card relative overflow-hidden">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-white/[0.03] to-transparent" />
           <div className="grid grid-cols-2">
             {personalInfoCells.map((item, index) => (

@@ -416,11 +416,19 @@ const DashboardView = ({ session, refreshKey, onSelectClient, onOpenQuickLog }) 
     <div className="app-screen-shell relative z-10 flex h-dvh flex-col overflow-hidden lg:h-full">
 
       <div className="hide-scrollbar flex-1 overflow-y-auto px-5 app-mobile-nav-spacing lg:px-8 lg:pb-8">
-        <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-          {metricCards.map((card) => (
+        <div className="app-bento-grid mb-4">
+          {metricCards.map((card, index) => (
             <div
               key={card.label}
-              className={`relative overflow-hidden rounded-[20px] border p-4 lg:min-h-[170px] lg:rounded-[22px] lg:p-5 ${card.isHighlight ? 'bg-[linear-gradient(135deg,rgba(200,245,63,0.10),rgba(120,240,160,0.06))] border-[rgba(200,245,63,0.22)]' : 'app-glass-panel'}`}
+              className={`app-bento-card app-bento-span-6 app-bento-sm-span-6 ${
+                index === 0
+                  ? 'app-bento-md-span-6 app-bento-lg-span-6'
+                  : 'app-bento-md-span-3 app-bento-lg-span-2'
+              } relative overflow-hidden p-4 lg:min-h-[170px] lg:p-5 ${
+                card.isHighlight
+                  ? 'bg-[linear-gradient(135deg,rgba(200,245,63,0.10),rgba(120,240,160,0.06))] border-[rgba(200,245,63,0.22)]'
+                  : ''
+              }`}
             >
               <div
                 className="absolute -top-5 -right-5 w-[78px] h-[78px] rounded-full pointer-events-none"
@@ -435,7 +443,7 @@ const DashboardView = ({ session, refreshKey, onSelectClient, onOpenQuickLog }) 
           ))}
         </div>
 
-        <div className="mb-4 overflow-hidden rounded-[22px] border app-glass-panel lg:rounded-[24px]">
+        <div className="app-bento-card mb-4 overflow-hidden">
           <div className="px-4 py-3 border-b border-white/[0.05]">
             <div>
               <p className="text-[14px] font-black text-white">{sessionsCardTitle}</p>
@@ -534,8 +542,8 @@ const DashboardView = ({ session, refreshKey, onSelectClient, onOpenQuickLog }) 
           )}
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2 lg:gap-4">
-          <div className="overflow-hidden rounded-[22px] border app-glass-panel lg:flex lg:min-h-[360px] lg:flex-col lg:rounded-[24px]">
+        <div className="app-bento-grid">
+          <div className="app-bento-card app-bento-span-12 app-bento-lg-span-5 overflow-hidden lg:flex lg:min-h-[360px] lg:flex-col">
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.05]">
               <div>
                 <p className="text-[14px] font-black text-white">Sessions This Week</p>
@@ -569,7 +577,7 @@ const DashboardView = ({ session, refreshKey, onSelectClient, onOpenQuickLog }) 
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-[22px] border app-glass-panel lg:flex lg:min-h-[360px] lg:flex-col lg:rounded-[24px]">
+          <div className="app-bento-card app-bento-span-12 app-bento-lg-span-7 overflow-hidden lg:flex lg:min-h-[360px] lg:flex-col">
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.05]">
               <p className="text-[14px] font-black text-white">
                 {formatMonthLabel(displayedMonth)}
