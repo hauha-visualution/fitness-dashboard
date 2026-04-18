@@ -66,8 +66,8 @@ export default defineConfig({
 
       // Web App Manifest — xuất hiện khi user Add to Home Screen
       manifest: {
-        name: 'Aesthetics Hub',
-        short_name: 'AHub',
+        name: 'Athletic Hub',
+        short_name: 'Athletic Hub',
         description: 'Quản lý lịch tập, dinh dưỡng và thanh toán với coach.',
         theme_color: '#0d0d0f',
         background_color: '#0d0d0f',
@@ -87,7 +87,7 @@ export default defineConfig({
             sizes: '390x844',
             type: 'image/png',
             form_factor: 'narrow',
-            label: 'Aesthetics Hub — Trang chủ',
+            label: 'Athletic Hub — Trang chủ',
           },
         ],
         categories: ['health', 'fitness'],
