@@ -422,7 +422,7 @@ const DeltaBadge = ({ metricKey, delta }) => {
   );
 };
 
-const RangeChart = ({ standard, value, decimals = 1 }) => {
+const RangeChart = ({ standard, value }) => {
   if (!standard) return null;
 
   const segments = getRangeSegments(standard);
@@ -1292,7 +1292,7 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false, allowStretchi
       };
     }).filter((record) => record.measuredAt)
       .sort((left, right) => new Date(left.measuredAt) - new Date(right.measuredAt));
-  }, [client.height, inbodyRecords]);
+  }, [client.height, client.phone, inbodyRecords]);
 
   const filteredChartRecords = useMemo(() => {
     const selectedFilter = TIME_FILTER_OPTIONS.find((option) => option.id === timeFilter);
@@ -1319,8 +1319,6 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false, allowStretchi
     const latestMeasurementDate = filteredChartRecords.length > 0
       ? formatShortDate(filteredChartRecords[filteredChartRecords.length - 1].measuredAt, chartSpansMultipleYears)
       : null;
-    const latestRecord = filteredChartRecords[filteredChartRecords.length - 1] ?? null;
-    const latestScore = latestRecord?.inbodyScore ?? null;
     const { latest: scoreLatest, previous: scorePrevious } = getLastTwoValues(filteredChartRecords, 'inbodyScore');
     const bodyScoreCard = {
       key: 'all',
@@ -1351,7 +1349,7 @@ const ProfileTab = ({ client, onRegisterActions, readOnly = false, allowStretchi
       bodyScoreCard,
       metrics: metricSummaries,
     };
-  }, [chartSpansMultipleYears, client.gender, client.height, filteredChartRecords]);
+  }, [chartSpansMultipleYears, client.gender, filteredChartRecords]);
 
   const metricCardMap = useMemo(
     () => Object.fromEntries(inbodyCardData.metrics.map((metric) => [metric.key, metric])),

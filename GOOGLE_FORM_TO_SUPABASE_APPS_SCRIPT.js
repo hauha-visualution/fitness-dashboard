@@ -1,6 +1,9 @@
+/* global FormApp, Logger, PropertiesService, SpreadsheetApp, UrlFetchApp */
+
 const SUPABASE_PROJECT_URL = "https://vhidpztcaolmsgijhvtc.supabase.co";
 const SUPABASE_TABLE = "survey_responses";
 
+// eslint-disable-next-line no-unused-vars
 function pushToSupabase(e) {
   try {
     if (!e || !e.response) {
@@ -37,6 +40,7 @@ function pushLatestSheetRowByPhone(phone) {
   return result;
 }
 
+// eslint-disable-next-line no-unused-vars
 function testPushCAM() {
   return pushLatestSheetRowByPhone("0909113799");
 }
@@ -239,7 +243,7 @@ function getSupabaseKey_() {
 function safeRespondentEmail_(formResponse) {
   try {
     return formResponse.getRespondentEmail() || "";
-  } catch (error) {
+  } catch {
     return "";
   }
 }
