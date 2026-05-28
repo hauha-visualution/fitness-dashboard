@@ -11,12 +11,11 @@ jobs:
     steps:
       - name: Ping Supabase REST API
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_URL: https://vhidpztcaolmsgijhvtc.supabase.co
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
-            echo "Missing GitHub secrets SUPABASE_URL and/or SUPABASE_ANON_KEY."
-            exit 1
+          if [ -z "$SUPABASE_ANON_KEY" ]; then
+            SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoaWRwenRjYW9sbXNnaWpodnRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MTk0NDIsImV4cCI6MjA5MDA5NTQ0Mn0.okrkgbIPBfRvxxyf097p9DY-ACzpxrcBioycR_eEwrQ'
           fi
 
           curl --fail --show-error --silent \
