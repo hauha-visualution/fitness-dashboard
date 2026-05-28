@@ -1,4 +1,7 @@
 {
+  "crons": [
+    { "path": "/api/supabase-keepalive", "schedule": "0 2 * * *" }
+  ],
   "rewrites": [
     { "source": "/coach", "destination": "/index.html" },
     { "source": "/coach/login", "destination": "/index.html" },
