@@ -26,3 +26,4 @@ backups/
 
 # Supabase CLI cache/temp metadata
 supabase/.temp/
+.vercel

@@ -19,6 +19,34 @@ export const LOW_SESSION_THRESHOLDS = [5, 3, 1];
 // ─── Core insert ─────────────────────────────────────────────
 export const createNotification = async ({ recipientUserId, type, title, body, metadata = {} }) => {
   if (!recipientUserId) return;
+  const payload = {
+    recipientUserId,
+    type,
+    title,
+    body,
+    metadata,
+  };
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      const response = await fetch('/api/create-notification', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) return;
+      const result = await response.json().catch(() => null);
+      console.error('[Notification] API error:', result?.error || response.statusText);
+    }
+  } catch (err) {
+    console.error('[Notification] API request error:', err.message);
+  }
+
   const { error } = await supabase.from('notifications').insert({
     recipient_user_id: recipientUserId,
     type,
