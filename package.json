@@ -9,6 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "backup:supabase": "node scripts/supabase-backup.mjs",
+    "firebase:migrate:dry-run": "node scripts/migrate-supabase-backup-to-firestore.mjs backups/supabase-2026-06-10T08-33-50-225Z --dry-run",
+    "firebase:migrate": "node scripts/migrate-supabase-backup-to-firestore.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
@@ -16,6 +18,8 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.100.1",
     "@tailwindcss/vite": "^4.2.2",
+    "firebase": "^12.14.0",
+    "firebase-admin": "^14.0.0",
     "lucide-react": "^1.7.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"

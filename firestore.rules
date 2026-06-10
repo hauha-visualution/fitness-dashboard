@@ -1,0 +1,70 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function isCoachForResource() {
+      return signedIn()
+        && request.auth.token.email != null
+        && resource.data.coachEmail == request.auth.token.email;
+    }
+
+    function isCoachForRequest() {
+      return signedIn()
+        && request.auth.token.email != null
+        && request.resource.data.coachEmail == request.auth.token.email;
+    }
+
+    match /users/{userId} {
+      allow read, update: if isSelf(userId);
+      allow create: if false;
+      allow delete: if false;
+    }
+
+    match /coaches/{coachId} {
+      allow read, update: if signedIn() && resource.data.authUserId == request.auth.uid;
+      allow create, delete: if false;
+    }
+
+    match /clients/{clientId} {
+      allow read: if isCoachForResource() || isSelf(resource.data.authUserId);
+      allow create, update, delete: if isCoachForRequest() || isCoachForResource();
+    }
+
+    match /packages/{packageId} {
+      allow read: if isCoachForResource() || isSelf(resource.data.clientAuthUserId);
+      allow create, update, delete: if isCoachForRequest() || isCoachForResource();
+    }
+
+    match /sessions/{sessionId} {
+      allow read: if isCoachForResource() || isSelf(resource.data.clientAuthUserId);
+      allow create, update, delete: if isCoachForRequest() || isCoachForResource();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isCoachForResource() || isSelf(resource.data.clientAuthUserId);
+      allow create, update, delete: if isCoachForRequest() || isCoachForResource();
+    }
+
+    match /notifications/{notificationId} {
+      allow read, update: if signedIn() && resource.data.recipientUserId == request.auth.uid;
+      allow create, delete: if false;
+    }
+
+    match /pushSubscriptions/{subscriptionId} {
+      allow read, delete: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create, update: if signedIn() && request.resource.data.userId == request.auth.uid;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
