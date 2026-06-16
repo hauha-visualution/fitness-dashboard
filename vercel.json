@@ -1,6 +1,7 @@
 {
   "crons": [
-    { "path": "/api/supabase-keepalive", "schedule": "0 2 * * *" }
+    { "path": "/api/supabase-keepalive", "schedule": "0 2 * * *" },
+    { "path": "/api/send-mission-reminders", "schedule": "0 7 * * *" }
   ],
   "rewrites": [
     { "source": "/coach", "destination": "/index.html" },

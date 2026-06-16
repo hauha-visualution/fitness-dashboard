@@ -10,6 +10,7 @@ import {
   Package,
   Pencil,
   RefreshCw,
+  Target,
   Trash2,
   User,
   Utensils,
@@ -21,11 +22,13 @@ import PackageTab from './Tabs/PackageTab';
 import SessionsTab from './Tabs/SessionsTab';
 import NutritionTab from './Tabs/NutritionTab';
 import PaymentTab from './Tabs/PaymentTab';
+import MissionTab from './Tabs/MissionTab';
 
 const DETAIL_HEADER_META = {
   profile: { eyebrow: 'Trainee Profile', title: 'Profile' },
   package: { eyebrow: 'Trainee Services', title: 'Services' },
   sessions: { eyebrow: 'Trainee Sessions', title: 'Sessions' },
+  missions: { eyebrow: 'Trainee Missions', title: 'Missions' },
   nutrition: { eyebrow: 'Trainee Nutrition', title: 'Nutrition' },
   payment: { eyebrow: 'Trainee Payments', title: 'Payment' },
 };
@@ -35,6 +38,7 @@ const ClientDetailNavigation = ({ activeSubTab, onSelectTab, desktop = false }) 
     { id: 'profile', icon: User, label: 'Profile' },
     { id: 'package', icon: Package, label: 'Services' },
     { id: 'sessions', icon: Dumbbell, label: 'Sessions' },
+    { id: 'missions', icon: Target, label: 'Mission' },
     { id: 'nutrition', icon: Utensils, label: 'Nutrition' },
     { id: 'payment', icon: CreditCard, label: 'Payment' },
   ];
@@ -105,6 +109,8 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
         return renderTabShell(
           <SessionsTab clientId={client.id} client={client} readOnly={false} onOpenQuickLog={onOpenQuickLog} refreshKey={refreshKey} />
         );
+      case 'missions':
+        return renderTabShell(<MissionTab client={client} readOnly={false} />);
       case 'nutrition':
         return renderTabShell(<NutritionTab client={client} readOnly={false} />);
       case 'payment':

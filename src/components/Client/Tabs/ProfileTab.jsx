@@ -235,8 +235,17 @@ const getPortalCalendarDayState = (sessions = []) => {
   return 'scheduled';
 };
 
+const getPortalCalendarMissionState = (missions = []) => {
+  const activeMissions = missions.filter((item) => item.status !== 'completed');
+  if (activeMissions.length > 0) return 'mission';
+  if (missions.some((item) => item.status === 'completed')) return 'completed';
+  return 'none';
+};
+
 const getPortalCalendarDotColor = (dayState) => {
   switch (dayState) {
+    case 'mission':
+      return '#ff5a67';
     case 'in_progress':
       return '#60b4ff';
     case 'completed':
@@ -248,7 +257,7 @@ const getPortalCalendarDotColor = (dayState) => {
   }
 };
 
-const buildPortalCalendarDays = (displayedMonth, sessionMap, today) => {
+const buildPortalCalendarDays = (displayedMonth, sessionMap, missionMap, today) => {
   const monthStart = getMonthStartDate(displayedMonth);
   const monthEnd = getMonthEndDate(displayedMonth);
   const monthEndIndex = (monthEnd.getDay() + 6) % 7;
@@ -260,7 +269,10 @@ const buildPortalCalendarDays = (displayedMonth, sessionMap, today) => {
     const date = addCalendarDays(gridStart, index);
     const iso = toLocalDateKey(date);
     const daySessions = sessionMap[iso] || [];
-    const dayState = getPortalCalendarDayState(daySessions);
+    const dayMissions = missionMap[iso] || [];
+    const missionState = getPortalCalendarMissionState(dayMissions);
+    const sessionState = getPortalCalendarDayState(daySessions);
+    const dayState = missionState === 'mission' ? missionState : sessionState;
     const dotColor = getPortalCalendarDotColor(dayState);
 
     return {
@@ -272,6 +284,7 @@ const buildPortalCalendarDays = (displayedMonth, sessionMap, today) => {
         && date.getMonth() === today.getMonth()
         && date.getDate() === today.getDate(),
       hasSessions: dayState !== 'none',
+      hasMissions: dayMissions.length > 0,
       dayState,
       dotColor,
     };
@@ -1064,6 +1077,7 @@ const ProfileTab = ({
   const [schedulePanelTab, setSchedulePanelTab] = useState('upcoming');
   const [portalCalendarMonth, setPortalCalendarMonth] = useState(() => getMonthStartDate(new Date()));
   const [portalCalendarSessionMap, setPortalCalendarSessionMap] = useState({});
+  const [portalCalendarMissionMap, setPortalCalendarMissionMap] = useState({});
   const [avatarUrl, setAvatarUrl] = useState(client.avatar_url || client.avatar || '');
   const [editData, setEditData] = useState({
     name: client.name || '',
@@ -1154,29 +1168,56 @@ const ProfileTab = ({
     const monthStart = getMonthStartDate(portalCalendarMonth);
     const monthEnd = getMonthEndDate(portalCalendarMonth);
 
-    const { data: sessionRows, error: sessionError } = await supabase
-      .from('sessions')
-      .select('id, scheduled_date, status')
-      .eq('client_id', client.id)
-      .gte('scheduled_date', toLocalDateKey(monthStart))
-      .lte('scheduled_date', toLocalDateKey(monthEnd))
-      .order('scheduled_date', { ascending: true })
-      .order('scheduled_time', { ascending: true });
+    const [sessionResult, missionResult] = await Promise.all([
+      supabase
+        .from('sessions')
+        .select('id, scheduled_date, status')
+        .eq('client_id', client.id)
+        .gte('scheduled_date', toLocalDateKey(monthStart))
+        .lte('scheduled_date', toLocalDateKey(monthEnd))
+        .order('scheduled_date', { ascending: true })
+        .order('scheduled_time', { ascending: true }),
+      supabase
+        .from('missions')
+        .select('id, start_date, end_date, status')
+        .eq('client_id', client.id)
+        .lte('start_date', toLocalDateKey(monthEnd))
+        .gte('end_date', toLocalDateKey(monthStart))
+        .order('start_date', { ascending: true }),
+    ]);
 
-    if (sessionError) {
-      console.error('Portal calendar load error:', sessionError.message);
+    if (sessionResult.error || missionResult.error) {
+      console.error('Portal calendar load error:', sessionResult.error?.message || missionResult.error?.message);
       setPortalCalendarSessionMap({});
+      setPortalCalendarMissionMap({});
       return;
     }
 
-    const groupedByDate = (sessionRows || []).reduce((acc, row) => {
+    const groupedByDate = (sessionResult.data || []).reduce((acc, row) => {
       if (!row.scheduled_date) return acc;
       if (!acc[row.scheduled_date]) acc[row.scheduled_date] = [];
       acc[row.scheduled_date].push(row);
       return acc;
     }, {});
 
+    const monthStartKey = toLocalDateKey(monthStart);
+    const monthEndKey = toLocalDateKey(monthEnd);
+    const missionMap = {};
+    (missionResult.data || []).forEach((mission) => {
+      let cursor = new Date(`${mission.start_date}T00:00:00`);
+      const end = new Date(`${mission.end_date}T00:00:00`);
+      while (!Number.isNaN(cursor.getTime()) && cursor <= end) {
+        const key = toLocalDateKey(cursor);
+        if (key >= monthStartKey && key <= monthEndKey) {
+          if (!missionMap[key]) missionMap[key] = [];
+          missionMap[key].push(mission);
+        }
+        cursor = addCalendarDays(cursor, 1);
+      }
+    });
+
     setPortalCalendarSessionMap(groupedByDate);
+    setPortalCalendarMissionMap(missionMap);
   }, [client.id, portalCalendarMonth, readOnly]);
 
   const fetchInBody = useCallback(async () => {
@@ -1444,13 +1485,15 @@ const ProfileTab = ({
   }, [filteredChartRecords]);
 
   const portalCalendarDays = useMemo(
-    () => buildPortalCalendarDays(portalCalendarMonth, portalCalendarSessionMap, today),
-    [portalCalendarMonth, portalCalendarSessionMap, today],
+    () => buildPortalCalendarDays(portalCalendarMonth, portalCalendarSessionMap, portalCalendarMissionMap, today),
+    [portalCalendarMonth, portalCalendarMissionMap, portalCalendarSessionMap, today],
   );
 
-  const portalMonthSessionCount = useMemo(() => Object.values(portalCalendarSessionMap).reduce((total, daySessions) => (
+  const portalMonthScheduleCount = useMemo(() => Object.values(portalCalendarSessionMap).reduce((total, daySessions) => (
     total + daySessions.filter((item) => item.status !== 'cancelled').length
-  ), 0), [portalCalendarSessionMap]);
+  ), 0) + Object.values(portalCalendarMissionMap).reduce((total, dayMissions) => (
+    total + dayMissions.filter((item) => item.status !== 'completed').length
+  ), 0), [portalCalendarMissionMap, portalCalendarSessionMap]);
 
   // Tooltip is only opened on user tap — no auto-open on data change
   useEffect(() => {
@@ -1735,7 +1778,7 @@ const ProfileTab = ({
               </div>
 
               <p className="mt-1.5 text-[13px] font-semibold text-white">{formatMonthYearLabel(portalCalendarMonth)}</p>
-              <p className="mt-0.5 text-[9px] text-white/38">{portalMonthSessionCount} sessions tracked this month</p>
+              <p className="mt-0.5 text-[9px] text-white/38">{portalMonthScheduleCount} schedule items this month</p>
 
               <div className="mt-2.5 grid grid-cols-7 gap-1">
                 {PORTAL_CALENDAR_DAY_LABELS.map((label) => (

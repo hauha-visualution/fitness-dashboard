@@ -11,6 +11,9 @@ export const NOTIFICATION_TYPES = {
   PAYMENT_CREATED:         'payment_created',
   PAYMENT_SUBMITTED:       'payment_submitted',
   PAYMENT_CONFIRMED:       'payment_confirmed',
+  MISSION_ASSIGNED:        'mission_assigned',
+  MISSION_REMINDER:        'mission_reminder',
+  MISSION_COMPLETED:       'mission_completed',
 };
 
 // Ngưỡng buổi còn lại để trigger low_sessions alert
@@ -89,6 +92,7 @@ const fmtVND = (amount) => {
 };
 
 const pkgLabel = (num) => `Gói #${String(num).padStart(2, '0')}`;
+const missionQuantityLabel = (mission) => `${mission?.duration_minutes ?? '--'} ${mission?.duration_unit || 'phút'}`;
 const buildNotificationLinkMeta = (url, targetTab, extra = {}) => ({
   ...extra,
   url,
@@ -191,6 +195,41 @@ export const notifyPaymentCreated = async ({ clientAuthUserId, amount, packageNu
     title: 'Ghi nhận thanh toán mới 💳',
     body: `Coach vừa ghi nhận thanh toán${pkgStr}${amountLabel}.`,
     metadata: buildNotificationLinkMeta('/portal?tab=payment', 'payment', { amount, packageNumber }),
+  });
+};
+
+export const notifyMissionAssigned = async ({ clientAuthUserId, mission }) => {
+  if (!clientAuthUserId || !mission) return;
+  const timeLabel = mission.perform_time ? ` lúc ${mission.perform_time.slice(0, 5)}` : '';
+  await createNotification({
+    recipientUserId: clientAuthUserId,
+    type: NOTIFICATION_TYPES.MISSION_ASSIGNED,
+    title: 'Mission mới từ coach',
+    body: `${mission.title} · ${missionQuantityLabel(mission)}${timeLabel}. Hoàn thành từ ${formatDate(mission.start_date)} đến ${formatDate(mission.end_date)}.`,
+    metadata: buildNotificationLinkMeta('/portal?tab=missions', 'missions', { missionId: mission.id }),
+  });
+};
+
+export const notifyMissionReminder = async ({ clientAuthUserId, mission }) => {
+  if (!clientAuthUserId || !mission) return;
+  const timeLabel = mission.perform_time ? ` lúc ${mission.perform_time.slice(0, 5)}` : '';
+  await createNotification({
+    recipientUserId: clientAuthUserId,
+    type: NOTIFICATION_TYPES.MISSION_REMINDER,
+    title: 'Nhắc mission hôm nay',
+    body: `${mission.title} vẫn chưa done. Hãy hoàn thành ${missionQuantityLabel(mission)}${timeLabel} nhé.`,
+    metadata: buildNotificationLinkMeta('/portal?tab=missions', 'missions', { missionId: mission.id }),
+  });
+};
+
+export const notifyMissionCompleted = async ({ coachAuthUserId, clientName, mission }) => {
+  if (!coachAuthUserId || !mission) return;
+  await createNotification({
+    recipientUserId: coachAuthUserId,
+    type: NOTIFICATION_TYPES.MISSION_COMPLETED,
+    title: 'Trainee đã hoàn thành mission',
+    body: `${clientName || 'Trainee'} đã done "${mission.title}" (${missionQuantityLabel(mission)}).`,
+    metadata: buildNotificationLinkMeta('/?tab=clients', 'clients', { missionId: mission.id, clientId: mission.client_id }),
   });
 };
 

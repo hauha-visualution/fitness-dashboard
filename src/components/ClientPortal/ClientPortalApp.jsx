@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   User, Package, Dumbbell, Utensils, CreditCard, LogOut,
+  Target,
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import NotificationBell from '../shared/NotificationBell';
@@ -11,6 +12,7 @@ import SessionsTab from '../Client/Tabs/SessionsTab';
 import NutritionTab from '../Client/Tabs/NutritionTab';
 import PaymentTab from '../Client/Tabs/PaymentTab';
 import ProfileTab from '../Client/Tabs/ProfileTab';
+import MissionTab from '../Client/Tabs/MissionTab';
 import QuickLogSheet from '../Dashboard/QuickLogSheet';
 
 const DEFAULT_AVATAR_PATH = '/avatars/default/default.svg';
@@ -19,11 +21,12 @@ const PORTAL_HEADER_META = {
   profile: { eyebrow: 'Trainee Profile', title: 'Profile' },
   package: { eyebrow: 'Trainee Services', title: 'Services' },
   sessions: { eyebrow: 'Trainee Sessions', title: 'Sessions' },
+  missions: { eyebrow: 'Trainee Missions', title: 'Missions' },
   nutrition: { eyebrow: 'Trainee Nutrition', title: 'Nutrition' },
   payment: { eyebrow: 'Trainee Payments', title: 'Payment' },
 };
 
-const PORTAL_TABS = ['profile', 'package', 'sessions', 'nutrition', 'payment'];
+const PORTAL_TABS = ['profile', 'package', 'sessions', 'missions', 'nutrition', 'payment'];
 
 const getRequestedPortalTab = () => {
   if (typeof window === 'undefined') return 'profile';
@@ -129,6 +132,7 @@ const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) =
     { id: 'profile',   icon: User,      label: 'Profile' },
     { id: 'package',   icon: Package,   label: 'Services' },
     { id: 'sessions',  icon: Dumbbell,  label: 'Sessions' },
+    { id: 'missions',  icon: Target,    label: 'Mission' },
     { id: 'nutrition', icon: Utensils,  label: 'Nutrition' },
     { id: 'payment',   icon: CreditCard, label: 'Payment' },
   ];
@@ -155,6 +159,11 @@ const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) =
             allowStretchingBooking={true}
             onOpenQuickLog={setQuickLogSelection}
           />
+        </div>
+      );
+      case 'missions': return (
+        <div className="h-full min-h-0 overflow-y-auto hide-scrollbar px-5 pt-4 app-mobile-nav-spacing lg:px-8 lg:pb-8">
+          <MissionTab client={client} readOnly={true} />
         </div>
       );
       case 'nutrition': return (
