@@ -31,7 +31,6 @@ import {
 import {
   DEFAULT_EXERCISE_GROUP,
   DEFAULT_TEMPO,
-  WORKOUT_EXERCISE_GROUPS,
   getExerciseGroupLabel,
   normalizeExerciseGroup,
   parseRestSeconds,
@@ -1155,16 +1154,9 @@ const QuickLogSheet = ({
                     ✓
                   </button>
                   <GripVertical className={`w-3.5 h-3.5 text-white/20 shrink-0 ${isReviewMode ? 'opacity-40' : ''}`} />
-                  <select
-                    value={ex.exercise_group}
-                    onChange={e => updateExercise(ex.id, 'exercise_group', e.target.value)}
-                    disabled={isReviewMode}
-                    className="w-[92px] shrink-0 rounded-[10px] border border-white/[0.08] bg-black/30 px-2 py-1.5 text-[10px] font-bold text-white outline-none transition-all focus:border-white/20 disabled:opacity-80"
-                  >
-                    {WORKOUT_EXERCISE_GROUPS.map((group) => (
-                      <option key={group.id} value={group.id}>{group.label}</option>
-                    ))}
-                  </select>
+                  <span className="shrink-0 rounded-full border border-[rgba(96,180,255,0.18)] bg-[rgba(96,180,255,0.10)] px-2 py-1 text-[9px] font-black uppercase tracking-wide app-blue-text">
+                    {getExerciseGroupLabel(ex.exercise_group)}
+                  </span>
                   <input
                     type="text"
                     placeholder={`Exercise #${idx + 1}`}
