@@ -3,6 +3,7 @@ import { supabase } from '../../supabaseClient';
 import { ChevronDown, ChevronUp, Dumbbell, Plus, RefreshCw, Trash2, UserRound, AlertTriangle, Pencil } from 'lucide-react';
 import CreateTemplateModal from './CreateTemplateModal';
 import { toast } from '../../utils/toast';
+import { getExerciseGroupLabel } from '../../utils/workoutProgramUtils';
 
 const WorkoutTemplateManager = ({ session }) => {
   const [templates, setTemplates] = useState([]);
@@ -200,7 +201,12 @@ const WorkoutTemplateManager = ({ session }) => {
                               <div key={exercise.id} className="rounded-[16px] border border-white/[0.05] bg-black/20 px-4 py-3">
                                 <div className="flex items-center justify-between gap-3">
                                   <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-white truncate">{idx + 1}. {exercise.name}</p>
+                                    <div className="flex min-w-0 items-center gap-2">
+                                      <span className="shrink-0 rounded-full border border-[rgba(96,180,255,0.18)] bg-[rgba(96,180,255,0.10)] px-2 py-0.5 text-[9px] font-black uppercase tracking-wide app-blue-text">
+                                        {getExerciseGroupLabel(exercise.exercise_group)}
+                                      </span>
+                                      <p className="truncate text-sm font-semibold text-white">{idx + 1}. {exercise.name}</p>
+                                    </div>
                                     {exercise.note && (
                                       <p className="text-[11px] app-subtle-text mt-1">{exercise.note}</p>
                                     )}
@@ -208,6 +214,11 @@ const WorkoutTemplateManager = ({ session }) => {
                                   <div className="shrink-0 text-right">
                                     <p className="app-label text-[10px] font-black uppercase tracking-widest">Sets / Reps / Kg</p>
                                     <p className="text-sm font-semibold text-neutral-300">{exercise.sets} / {exercise.reps} / {exercise.weight}</p>
+                                    <p className="mt-0.5 text-[10px] font-semibold text-neutral-500">
+                                      {exercise.tempo || '2-0-X-0'}
+                                      {exercise.rir ? ` • RIR ${exercise.rir}` : ''}
+                                      {exercise.rest_seconds ? ` • ${exercise.rest_seconds}s` : ''}
+                                    </p>
                                   </div>
                                 </div>
                               </div>

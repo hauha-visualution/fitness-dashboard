@@ -28,6 +28,14 @@ import {
   checkAndNotifyLowSessions,
   fetchClientNotifInfo,
 } from '../../utils/notificationUtils';
+import {
+  DEFAULT_EXERCISE_GROUP,
+  DEFAULT_TEMPO,
+  WORKOUT_EXERCISE_GROUPS,
+  getExerciseGroupLabel,
+  normalizeExerciseGroup,
+  parseRestSeconds,
+} from '../../utils/workoutProgramUtils';
 
 const toLocalISOString = (d) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -41,20 +49,28 @@ const formatShortSessionDate = (dateStr) => {
 
 const createExerciseDraft = (id) => ({
   id,
+  exercise_group: DEFAULT_EXERCISE_GROUP,
   name: '',
   sets: 3,
   reps: 10,
   weight: 0,
+  tempo: DEFAULT_TEMPO,
+  rir: '',
+  rest_seconds: '',
   note: '',
   is_completed: false,
 });
 
 const normalizeExerciseRow = (exercise, fallbackIndex = 0) => ({
   id: exercise.id ?? `exercise-${fallbackIndex}`,
+  exercise_group: normalizeExerciseGroup(exercise.exercise_group),
   name: exercise.name ?? '',
   sets: Math.max(1, Number(exercise.sets) || 1),
   reps: Math.max(1, Number(exercise.reps) || 1),
   weight: Math.max(0, Number(exercise.weight) || 0),
+  tempo: exercise.tempo ?? DEFAULT_TEMPO,
+  rir: exercise.rir ?? '',
+  rest_seconds: exercise.rest_seconds ?? '',
   note: exercise.note ?? '',
   is_completed: Boolean(exercise.is_completed),
   sort_order: exercise.sort_order ?? fallbackIndex,
@@ -635,10 +651,14 @@ const QuickLogSheet = ({
         : exercises
             .filter(ex => ex.name.trim())
             .map((ex, idx) => ({
+              exercise_group: normalizeExerciseGroup(ex.exercise_group),
               name: ex.name.trim(),
               sets: Math.max(1, Number(ex.sets) || 1),
               reps: Math.max(1, Number(ex.reps) || 1),
               weight: Math.max(0, Number(ex.weight) || 0),
+              tempo: ex.tempo?.trim() || DEFAULT_TEMPO,
+              rir: ex.rir?.trim() || null,
+              rest_seconds: parseRestSeconds(ex.rest_seconds),
               note: ex.note.trim() || null,
               is_completed: Boolean(ex.is_completed),
               sort_order: idx,
@@ -1011,7 +1031,19 @@ const QuickLogSheet = ({
                 {completedExerciseSummary.validExercises.map((exercise, index) => (
                   <div key={exercise.id} className="rounded-[12px] border border-white/[0.06] bg-white/[0.03] px-3 py-2.5">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-white">{index + 1}. {exercise.name}</p>
+                      <div className="min-w-0">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="shrink-0 rounded-full border border-[rgba(96,180,255,0.18)] bg-[rgba(96,180,255,0.10)] px-2 py-0.5 text-[9px] font-black uppercase tracking-wide app-blue-text">
+                            {getExerciseGroupLabel(exercise.exercise_group)}
+                          </span>
+                          <p className="truncate text-sm font-semibold text-white">{index + 1}. {exercise.name}</p>
+                        </div>
+                        <p className="mt-1 text-[10px] font-semibold text-white/45">
+                          {exercise.tempo || DEFAULT_TEMPO}
+                          {exercise.rir ? ` • RIR ${exercise.rir}` : ''}
+                          {exercise.rest_seconds ? ` • ${exercise.rest_seconds}s rest` : ''}
+                        </p>
+                      </div>
                       <p className="text-[10px] font-black uppercase tracking-wide text-white/55">
                         {exercise.sets} x {exercise.reps} {Number(exercise.weight) > 0 ? `@ ${exercise.weight}kg` : ''}
                       </p>
@@ -1123,6 +1155,16 @@ const QuickLogSheet = ({
                     ✓
                   </button>
                   <GripVertical className={`w-3.5 h-3.5 text-white/20 shrink-0 ${isReviewMode ? 'opacity-40' : ''}`} />
+                  <select
+                    value={ex.exercise_group}
+                    onChange={e => updateExercise(ex.id, 'exercise_group', e.target.value)}
+                    disabled={isReviewMode}
+                    className="w-[92px] shrink-0 rounded-[10px] border border-white/[0.08] bg-black/30 px-2 py-1.5 text-[10px] font-bold text-white outline-none transition-all focus:border-white/20 disabled:opacity-80"
+                  >
+                    {WORKOUT_EXERCISE_GROUPS.map((group) => (
+                      <option key={group.id} value={group.id}>{group.label}</option>
+                    ))}
+                  </select>
                   <input
                     type="text"
                     placeholder={`Exercise #${idx + 1}`}
@@ -1166,6 +1208,43 @@ const QuickLogSheet = ({
                       <button type="button" onClick={() => !isReviewMode && updateExercise(ex.id, 'weight', ex.weight + 1)} disabled={isReviewMode} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all disabled:opacity-30">+</button>
                     </div>
                   </div>
+                </div>
+
+                <div className="mt-2 pl-6 grid grid-cols-3 gap-2">
+                  <label className="rounded-[10px] border border-white/[0.08] bg-white/[0.04] px-2 py-1.5">
+                    <span className="block text-center text-[8px] font-black uppercase text-neutral-600">Tempo</span>
+                    <input
+                      type="text"
+                      value={ex.tempo}
+                      onChange={e => updateExercise(ex.id, 'tempo', e.target.value)}
+                      readOnly={isReviewMode}
+                      placeholder="2-0-X-0"
+                      className="mt-1 w-full bg-transparent text-center text-[11px] font-semibold text-white outline-none placeholder:text-neutral-700"
+                    />
+                  </label>
+                  <label className="rounded-[10px] border border-white/[0.08] bg-white/[0.04] px-2 py-1.5">
+                    <span className="block text-center text-[8px] font-black uppercase text-neutral-600">RIR</span>
+                    <input
+                      type="text"
+                      value={ex.rir}
+                      onChange={e => updateExercise(ex.id, 'rir', e.target.value)}
+                      readOnly={isReviewMode}
+                      placeholder="1-2"
+                      className="mt-1 w-full bg-transparent text-center text-[11px] font-semibold text-white outline-none placeholder:text-neutral-700"
+                    />
+                  </label>
+                  <label className="rounded-[10px] border border-white/[0.08] bg-white/[0.04] px-2 py-1.5">
+                    <span className="block text-center text-[8px] font-black uppercase text-neutral-600">Rest</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={ex.rest_seconds}
+                      onChange={e => updateExercise(ex.id, 'rest_seconds', e.target.value)}
+                      readOnly={isReviewMode}
+                      placeholder="90"
+                      className="mt-1 w-full bg-transparent text-center text-[11px] font-semibold text-white outline-none placeholder:text-neutral-700"
+                    />
+                  </label>
                 </div>
 
                 <div className="mt-2 pl-6">

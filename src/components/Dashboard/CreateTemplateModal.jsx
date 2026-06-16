@@ -1,31 +1,50 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../supabaseClient';
 import { X, Plus, GripVertical, Check, Trash2 } from 'lucide-react';
+import {
+  DEFAULT_EXERCISE_GROUP,
+  DEFAULT_TEMPO,
+  WORKOUT_EXERCISE_GROUPS,
+  normalizeExerciseGroup,
+  parseRestSeconds,
+} from '../../utils/workoutProgramUtils';
 
 const createExerciseDraft = (id) => ({
   id,
+  exercise_group: DEFAULT_EXERCISE_GROUP,
   name: '',
   sets: 3,
   reps: 10,
   weight: 0,
+  tempo: DEFAULT_TEMPO,
+  rir: '',
+  rest_seconds: '',
   note: '',
 });
 
 const normalizeExerciseDraft = (exercise, fallbackSortOrder) => ({
+  exercise_group: normalizeExerciseGroup(exercise.exercise_group),
   name: exercise.name.trim(),
   sets: Math.max(1, Number(exercise.sets) || 1),
   reps: Math.max(1, Number(exercise.reps) || 1),
   weight: Math.max(0, Number(exercise.weight) || 0),
+  tempo: exercise.tempo?.trim() || DEFAULT_TEMPO,
+  rir: exercise.rir?.trim() || null,
+  rest_seconds: parseRestSeconds(exercise.rest_seconds),
   sort_order: fallbackSortOrder,
   note: exercise.note.trim() || null,
 });
 
 const mapInitialExercise = (exercise, fallbackIndex = 0) => ({
   id: exercise.id ?? `template-exercise-${fallbackIndex}`,
+  exercise_group: normalizeExerciseGroup(exercise.exercise_group),
   name: exercise.name ?? '',
   sets: Math.max(1, Number(exercise.sets) || 1),
   reps: Math.max(1, Number(exercise.reps) || 1),
   weight: Math.max(0, Number(exercise.weight) || 0),
+  tempo: exercise.tempo ?? DEFAULT_TEMPO,
+  rir: exercise.rir ?? '',
+  rest_seconds: exercise.rest_seconds ?? '',
   note: exercise.note ?? '',
 });
 
@@ -271,6 +290,15 @@ const CreateTemplateModal = ({ onClose, onCreated, session, initialTemplate = nu
                  <div key={ex.id} draggable onDragStart={(e) => handleDragStart(e, idx)} onDragEnd={handleDragEnd} onDragOver={(e) => handleDragOver(e, idx)} className="bg-white/[0.03] border border-white/[0.06] rounded-[18px] p-3 flex flex-col gap-2.5 relative cursor-move">
                    <div className="flex items-center gap-2">
                      <GripVertical className="w-4 h-4 text-white/20 shrink-0" />
+                     <select
+                       value={ex.exercise_group}
+                       onChange={e => updateExercise(ex.id, 'exercise_group', e.target.value)}
+                       className="w-[104px] shrink-0 bg-black/35 border border-white/[0.08] rounded-[10px] px-2 py-2 text-[11px] font-bold text-white outline-none focus:border-[var(--app-accent-strong)]"
+                     >
+                       {WORKOUT_EXERCISE_GROUPS.map((group) => (
+                         <option key={group.id} value={group.id}>{group.label}</option>
+                       ))}
+                     </select>
                      <input type="text" placeholder={`Exercise #${idx + 1}`} value={ex.name} onChange={e => updateExercise(ex.id, 'name', e.target.value)} className="flex-1 min-w-0 bg-transparent text-white font-semibold text-sm outline-none placeholder:text-neutral-600" />
                      <button type="button" onClick={() => removeExercise(ex.id)} className="p-1.5 h-fit text-red-500/60 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all">
                        <Trash2 className="w-4 h-4" />
@@ -302,6 +330,40 @@ const CreateTemplateModal = ({ onClose, onCreated, session, initialTemplate = nu
                          <button type="button" onClick={() => updateExercise(ex.id, 'weight', ex.weight + 1)} className="w-4 h-4 rounded-md text-neutral-400 active:bg-white/10 transition-all">+</button>
                        </div>
                      </div>
+                   </div>
+
+                   <div className="pl-6 grid grid-cols-3 gap-2">
+                     <label className="bg-white/[0.04] border border-white/[0.08] rounded-[10px] px-2 py-1.5">
+                       <span className="block text-[8px] font-black text-neutral-600 uppercase text-center">Tempo</span>
+                       <input
+                         type="text"
+                         value={ex.tempo}
+                         onChange={e => updateExercise(ex.id, 'tempo', e.target.value)}
+                         placeholder="2-0-X-0"
+                         className="mt-1 w-full bg-transparent text-center text-white text-[11px] font-semibold outline-none placeholder:text-neutral-700"
+                       />
+                     </label>
+                     <label className="bg-white/[0.04] border border-white/[0.08] rounded-[10px] px-2 py-1.5">
+                       <span className="block text-[8px] font-black text-neutral-600 uppercase text-center">RIR</span>
+                       <input
+                         type="text"
+                         value={ex.rir}
+                         onChange={e => updateExercise(ex.id, 'rir', e.target.value)}
+                         placeholder="1-2"
+                         className="mt-1 w-full bg-transparent text-center text-white text-[11px] font-semibold outline-none placeholder:text-neutral-700"
+                       />
+                     </label>
+                     <label className="bg-white/[0.04] border border-white/[0.08] rounded-[10px] px-2 py-1.5">
+                       <span className="block text-[8px] font-black text-neutral-600 uppercase text-center">Rest</span>
+                       <input
+                         type="number"
+                         min="0"
+                         value={ex.rest_seconds}
+                         onChange={e => updateExercise(ex.id, 'rest_seconds', e.target.value)}
+                         placeholder="90"
+                         className="mt-1 w-full bg-transparent text-center text-white text-[11px] font-semibold outline-none placeholder:text-neutral-700"
+                       />
+                     </label>
                    </div>
 
                    <div className="pl-6">
