@@ -92,8 +92,18 @@ const INBODY_METRICS = [
     unit: 'level',
     color: '#ff6b6b',
     goal: 'decrease',
-    decimals: 0,
+    decimals: 1,
     goalLabel: 'Goal: decrease',
+  },
+  {
+    key: 'bmr',
+    label: 'BMR',
+    cardLabel: 'BMR',
+    unit: 'kcal',
+    color: '#67e8f9',
+    goal: 'maintain',
+    decimals: 0,
+    goalLabel: 'Baseline metabolism',
   },
 ];
 
@@ -510,7 +520,7 @@ const DeltaBadge = ({ metricKey, delta }) => {
   return (
     <span className={`inline-flex min-w-0 items-center gap-1 text-[7px] font-black ${tone}`}>
       {!isZero ? <DeltaArrowIcon delta={delta} /> : null}
-      <span>{isZero ? '0.0' : formatDeltaMagnitude(delta, metricKey === 'visceralFat' || metricKey === 'score' ? 0 : 1)}</span>
+      <span>{isZero ? '0.0' : formatDeltaMagnitude(delta, metricKey === 'score' ? 0 : INBODY_METRICS.find((metric) => metric.key === metricKey)?.decimals ?? 1)}</span>
     </span>
   );
 };
@@ -559,42 +569,12 @@ const RangeChart = ({ standard, value }) => {
   );
 };
 
-const BodyScoreRing = ({ score }) => {
-  const safeScore = clamp(score ?? 0, 0, 100);
-  const radius = 26;
-  const circumference = 2 * Math.PI * radius;
-  const dash = (safeScore / 100) * circumference;
-
-  return (
-    <svg viewBox="0 0 80 80" className="h-[52px] w-[52px] shrink-0">
-      <circle cx="40" cy="40" r={radius} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="2" />
-      <circle
-        cx="40"
-        cy="40"
-        r={radius}
-        fill="none"
-        stroke="#c8f53f"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeDasharray={`${dash} ${circumference - dash}`}
-        transform="rotate(-90 40 40)"
-      />
-      <text x="40" y="39" textAnchor="middle" fill="#c8f53f" fontSize="14" fontWeight="300">
-        {score !== null && score !== undefined && !Number.isNaN(score) ? Math.round(score) : '--'}
-      </text>
-      <text x="40" y="48" textAnchor="middle" fill="rgba(255,255,255,0.30)" fontSize="6" fontWeight="700">
-        /100
-      </text>
-    </svg>
-  );
-};
-
 const BodyScoreCard = ({ card, isActive, onClick }) => {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex h-full w-full flex-col rounded-[14px] border px-2.5 py-[8px] pb-[7px] text-left transition-all ${
+      className={`flex min-h-[112px] w-full flex-col justify-between rounded-[14px] border px-2.5 py-[8px] pb-[7px] text-left transition-all ${
         isActive ? 'app-highlight-glow' : ''
       }`}
       style={{
@@ -602,17 +582,21 @@ const BodyScoreCard = ({ card, isActive, onClick }) => {
         borderColor: isActive ? 'rgba(200,245,63,0.22)' : 'rgba(255,255,255,0.07)',
       }}
     >
-      <p className="text-[9px] font-black uppercase tracking-widest text-[rgba(200,245,63,0.5)]">Your Body Score</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="max-w-[60px] text-[8px] font-black uppercase leading-tight tracking-[0.13em] text-[rgba(200,245,63,0.5)]">
+          Body Score
+        </p>
+        <p className="font-mono text-[18px] font-light leading-none text-[var(--app-accent)]">
+          {card.score !== null && card.score !== undefined && !Number.isNaN(card.score) ? Math.round(card.score) : '--'}
+        </p>
+      </div>
 
-      <div className="mt-1 grid grid-cols-[52px_minmax(0,1fr)] items-center gap-2">
-        <BodyScoreRing score={card.score} />
-        <div className="min-w-0 self-center">
-          <div className="flex items-center gap-2 whitespace-nowrap">
-            <ZonePill zone={card.zone} />
-            <DeltaBadge metricKey="score" delta={card.delta} />
-          </div>
-          <p className="mt-0.5 text-[7px] font-bold leading-none text-white/35">{card.scanInfo}</p>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-1.5 whitespace-nowrap">
+          <ZonePill zone={card.zone} />
+          <DeltaBadge metricKey="score" delta={card.delta} />
         </div>
+        <p className="truncate text-[7px] font-bold leading-none text-white/35">{card.scanInfo}</p>
       </div>
     </button>
   );
@@ -672,6 +656,13 @@ const getMetricGoalTone = (metric, delta) => {
     return {
       textClassName: 'text-white/45',
       badgeClassName: 'border-white/[0.08] bg-white/[0.04] text-white/45',
+    };
+  }
+
+  if (metric.goal === 'maintain') {
+    return {
+      textClassName: 'text-cyan-200',
+      badgeClassName: 'border-cyan-500/20 bg-cyan-500/12 text-cyan-200',
     };
   }
 
@@ -1066,6 +1057,7 @@ const ProfileTab = ({
     body_fat_mass: '',
     bmi: '',
     visceral_fat: '',
+    bmr: '',
     recorded_at: '',
   });
   const [uploadError, setUploadError] = useState('');
@@ -1354,6 +1346,7 @@ const ProfileTab = ({
     const smm = parseNullableNumber(newInbodyRecord.muscle_mass);
     const pbf = parseNullableNumber(newInbodyRecord.body_fat);
     const visceralFat = parseNullableNumber(newInbodyRecord.visceral_fat);
+    const bmr = parseNullableNumber(newInbodyRecord.bmr);
     const measuredAt = newInbodyRecord.recorded_at ? new Date(newInbodyRecord.recorded_at).toISOString() : new Date().toISOString();
     const fallbackHeightCm = client.height ? parseFloat(client.height) : null;
     const derivedBmi = weight && fallbackHeightCm ? weight / ((fallbackHeightCm / 100) ** 2) : null;
@@ -1362,6 +1355,16 @@ const ProfileTab = ({
     const bodyFatMass = parseNullableNumber(newInbodyRecord.body_fat_mass) ?? derivedBodyFatMass;
 
     const insertVariants = [
+      {
+        client_id: client.id,
+        weight,
+        smm,
+        pbf,
+        bmi,
+        vfat: visceralFat,
+        bmr,
+        recorded_at: measuredAt,
+      },
       {
         client_id: client.id,
         weight,
@@ -1375,6 +1378,7 @@ const ProfileTab = ({
         bmi,
         visceral_fat: visceralFat,
         visceral_fat_level: visceralFat,
+        bmr,
         recorded_at: measuredAt,
         measured_at: measuredAt,
       },
@@ -1386,6 +1390,7 @@ const ProfileTab = ({
         body_fat_mass: bodyFatMass,
         bmi,
         visceral_fat: visceralFat,
+        bmr,
         recorded_at: measuredAt,
       },
       {
@@ -1394,6 +1399,7 @@ const ProfileTab = ({
         muscle_mass: smm,
         body_fat: pbf,
         visceral_fat: visceralFat,
+        bmr,
         recorded_at: measuredAt,
       },
     ];
@@ -1415,6 +1421,7 @@ const ProfileTab = ({
         body_fat_mass: '',
         bmi: '',
         visceral_fat: '',
+        bmr: '',
         recorded_at: '',
       });
     } else {
@@ -1447,6 +1454,7 @@ const ProfileTab = ({
       const smm = record.muscle_mass ?? record.smm ?? record.smm_kg ?? null;
       const pbf = record.body_fat ?? record.pbf ?? record.pbf_pct ?? null;
       const visceralFat = record.visceral_fat ?? record.visceral_fat_level ?? null;
+      const bmr = record.bmr ?? null;
       const inbodyScore = record.inbody_score ?? record.inbodyScore ?? null;
       const bmi = record.bmi ?? (weight && fallbackHeightCm ? weight / ((fallbackHeightCm / 100) ** 2) : null);
       const bodyFatMass = record.body_fat_mass
@@ -1462,6 +1470,7 @@ const ProfileTab = ({
         bodyFatMass,
         bmi,
         visceralFat,
+        bmr,
         inbodyScore,
       };
     }).filter((record) => record.measuredAt)
@@ -1830,13 +1839,13 @@ const ProfileTab = ({
         </div>
 
         <div className="space-y-2">
-          <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2">
+          <div className="grid grid-cols-4 gap-2">
             <BodyScoreCard
               card={inbodyCardData.bodyScoreCard}
               isActive={selectedMetricKey === 'all'}
               onClick={() => setSelectedMetricKey('all')}
             />
-            {['weight', 'smm'].map((key) => (
+            {['weight', 'smm', 'pbf'].map((key) => (
               <InBodyMetricCard
                 key={key}
                 card={metricCardMap[key]}
@@ -1847,7 +1856,7 @@ const ProfileTab = ({
           </div>
 
           <div className="grid grid-cols-4 gap-2">
-            {['pbf', 'bodyFatMass', 'bmi', 'visceralFat'].map((key) => (
+            {['bodyFatMass', 'bmi', 'visceralFat', 'bmr'].map((key) => (
               <InBodyMetricCard
                 key={key}
                 card={metricCardMap[key]}
@@ -1991,6 +2000,7 @@ const ProfileTab = ({
                 { label: 'Body Fat Mass (kg)', key: 'body_fat_mass' },
                 { label: 'BMI (kg/m²)', key: 'bmi' },
                 { label: 'Visceral Fat Level', key: 'visceral_fat' },
+                { label: 'BMR (kcal/day)', key: 'bmr' },
               ].map((field) => (
                 <input
                   key={field.key}
