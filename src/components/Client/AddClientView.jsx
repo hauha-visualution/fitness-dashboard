@@ -11,6 +11,7 @@ import {
   hasNutritionColumnsInSurveyRow,
   normalizeSurveyResponseRecord,
 } from '../../utils/nutritionUtils';
+import { seedDefaultWorkoutTemplatesForClient } from '../../utils/defaultWorkoutTemplates';
 
 const COMMITMENT_VALUE_MAP = {
   'Sẵn sàng tuân thủ 100%': 'Fully Committed',
@@ -170,10 +171,27 @@ const AddClientView = ({ onBack, onSave, coachEmail }) => {
     cleanPayload.username = formData.phone.replace(/\s/g, '');
     cleanPayload.coach_email = coachEmail || null;
 
-    const { error: dbError } = await supabase.from('clients').insert([cleanPayload]);
+    const { data: createdClient, error: dbError } = await supabase
+      .from('clients')
+      .insert([cleanPayload])
+      .select('id')
+      .single();
 
     setIsSaving(false);
     if (!dbError) {
+      if (createdClient?.id && coachEmail) {
+        try {
+          await seedDefaultWorkoutTemplatesForClient({
+            supabase,
+            coachEmail,
+            clientId: createdClient.id,
+          });
+        } catch (seedError) {
+          console.warn('Default workout template seed failed:', seedError.message);
+          toast.info('Trainee created. Default workout templates could not be seeded automatically.');
+        }
+      }
+
       toast.success(
         `Trainee created successfully.\n\n` +
         `Portal:\n• ${traineePortalUrl}\n\n` +

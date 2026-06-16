@@ -350,7 +350,10 @@ const QuickLogSheet = ({
   const isStretchingSession = selectedServiceType === 'stretching';
   const visibleClientSessions = showAllClientSessions ? clientSessions : clientSessions.slice(0, 8);
   const activeClientId = selectedSessionRecord?.client_id ?? selectedClientId ?? normalizedInitialSelection?.clientId ?? null;
-  const sortedTemplates = [...templates].sort((a, b) => {
+  const clientScopedTemplates = activeClientId
+    ? templates.filter((template) => (template.template_assignments || []).some((assignment) => assignment.client_id === activeClientId))
+    : templates;
+  const sortedTemplates = [...clientScopedTemplates].sort((a, b) => {
     const aAssigned = activeClientId ? (a.template_assignments || []).some((assignment) => assignment.client_id === activeClientId) : false;
     const bAssigned = activeClientId ? (b.template_assignments || []).some((assignment) => assignment.client_id === activeClientId) : false;
 
