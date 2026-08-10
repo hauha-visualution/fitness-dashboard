@@ -1347,7 +1347,8 @@ const ProfileTab = ({
     const pbf = parseNullableNumber(newInbodyRecord.body_fat);
     const visceralFat = parseNullableNumber(newInbodyRecord.visceral_fat);
     const bmr = parseNullableNumber(newInbodyRecord.bmr);
-    const measuredAt = newInbodyRecord.recorded_at ? new Date(newInbodyRecord.recorded_at).toISOString() : new Date().toISOString();
+    const measuredDateKey = newInbodyRecord.recorded_at || toLocalDateKey(new Date());
+    const measuredAt = new Date(`${measuredDateKey}T00:00:00`).toISOString();
     const fallbackHeightCm = client.height ? parseFloat(client.height) : null;
     const derivedBmi = weight && fallbackHeightCm ? weight / ((fallbackHeightCm / 100) ** 2) : null;
     const derivedBodyFatMass = weight !== null && pbf !== null ? (weight * pbf) / 100 : null;
@@ -1404,9 +1405,24 @@ const ProfileTab = ({
       },
     ];
 
-    let error = null;
+    const { data: existingRecords, error: existingError } = await supabase
+      .from('inbody_records')
+      .select('*')
+      .eq('client_id', client.id);
+
+    const existingSameDayRecord = existingError
+      ? null
+      : (existingRecords || []).find((record) => {
+          const recordDate = record.recorded_at ?? record.measured_at;
+          if (!recordDate) return false;
+          return toLocalDateKey(new Date(recordDate)) === measuredDateKey;
+        });
+
+    let error = existingError || null;
     for (const payload of insertVariants) {
-      const response = await supabase.from('inbody_records').insert([payload]);
+      const response = existingSameDayRecord?.id
+        ? await supabase.from('inbody_records').update(payload).eq('id', existingSameDayRecord.id)
+        : await supabase.from('inbody_records').insert([payload]);
       error = response.error;
       if (!error) break;
     }
