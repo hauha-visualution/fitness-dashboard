@@ -1350,7 +1350,6 @@ const ProfileTab = ({
     const bmr = parseNullableNumber(newInbodyRecord.bmr);
     const inbodyScore = parseNullableNumber(newInbodyRecord.inbody_score);
     const measuredDateKey = newInbodyRecord.recorded_at || toLocalDateKey(new Date());
-    const measuredAt = new Date(`${measuredDateKey}T00:00:00`).toISOString();
     const fallbackHeightCm = client.height ? parseFloat(client.height) : null;
     const derivedBmi = weight && fallbackHeightCm ? weight / ((fallbackHeightCm / 100) ** 2) : null;
     const derivedBodyFatMass = weight !== null && pbf !== null ? (weight * pbf) / 100 : null;
@@ -1368,7 +1367,7 @@ const ProfileTab = ({
         bmr,
         body_fat_mass: bodyFatMass,
         inbody_score: inbodyScore,
-        recorded_at: measuredAt,
+        recorded_at: measuredDateKey,
       },
       {
         client_id: client.id,
@@ -1385,8 +1384,8 @@ const ProfileTab = ({
         visceral_fat_level: visceralFat,
         bmr,
         inbody_score: inbodyScore,
-        recorded_at: measuredAt,
-        measured_at: measuredAt,
+        recorded_at: measuredDateKey,
+        measured_at: measuredDateKey,
       },
       {
         client_id: client.id,
@@ -1398,7 +1397,7 @@ const ProfileTab = ({
         visceral_fat: visceralFat,
         bmr,
         inbody_score: inbodyScore,
-        recorded_at: measuredAt,
+        recorded_at: measuredDateKey,
       },
       {
         client_id: client.id,
@@ -1408,7 +1407,7 @@ const ProfileTab = ({
         visceral_fat: visceralFat,
         bmr,
         inbody_score: inbodyScore,
-        recorded_at: measuredAt,
+        recorded_at: measuredDateKey,
       },
     ];
 
