@@ -1058,6 +1058,7 @@ const ProfileTab = ({
     bmi: '',
     visceral_fat: '',
     bmr: '',
+    inbody_score: '',
     recorded_at: '',
   });
   const [uploadError, setUploadError] = useState('');
@@ -1347,6 +1348,7 @@ const ProfileTab = ({
     const pbf = parseNullableNumber(newInbodyRecord.body_fat);
     const visceralFat = parseNullableNumber(newInbodyRecord.visceral_fat);
     const bmr = parseNullableNumber(newInbodyRecord.bmr);
+    const inbodyScore = parseNullableNumber(newInbodyRecord.inbody_score);
     const measuredDateKey = newInbodyRecord.recorded_at || toLocalDateKey(new Date());
     const measuredAt = new Date(`${measuredDateKey}T00:00:00`).toISOString();
     const fallbackHeightCm = client.height ? parseFloat(client.height) : null;
@@ -1364,6 +1366,8 @@ const ProfileTab = ({
         bmi,
         vfat: visceralFat,
         bmr,
+        body_fat_mass: bodyFatMass,
+        inbody_score: inbodyScore,
         recorded_at: measuredAt,
       },
       {
@@ -1380,6 +1384,7 @@ const ProfileTab = ({
         visceral_fat: visceralFat,
         visceral_fat_level: visceralFat,
         bmr,
+        inbody_score: inbodyScore,
         recorded_at: measuredAt,
         measured_at: measuredAt,
       },
@@ -1392,6 +1397,7 @@ const ProfileTab = ({
         bmi,
         visceral_fat: visceralFat,
         bmr,
+        inbody_score: inbodyScore,
         recorded_at: measuredAt,
       },
       {
@@ -1401,6 +1407,7 @@ const ProfileTab = ({
         body_fat: pbf,
         visceral_fat: visceralFat,
         bmr,
+        inbody_score: inbodyScore,
         recorded_at: measuredAt,
       },
     ];
@@ -1438,6 +1445,7 @@ const ProfileTab = ({
         bmi: '',
         visceral_fat: '',
         bmr: '',
+        inbody_score: '',
         recorded_at: '',
       });
     } else {
@@ -2017,6 +2025,7 @@ const ProfileTab = ({
                 { label: 'BMI (kg/m²)', key: 'bmi' },
                 { label: 'Visceral Fat Level', key: 'visceral_fat' },
                 { label: 'BMR (kcal/day)', key: 'bmr' },
+                { label: 'InBody Score', key: 'inbody_score' },
               ].map((field) => (
                 <input
                   key={field.key}
