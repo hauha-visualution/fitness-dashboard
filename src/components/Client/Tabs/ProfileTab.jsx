@@ -1402,11 +1402,20 @@ const ProfileTab = ({
       {
         client_id: client.id,
         weight,
+        smm,
+        pbf,
+        bmi,
+        vfat: visceralFat,
+        bmr,
+        recorded_at: measuredDateKey,
+      },
+      {
+        client_id: client.id,
+        weight,
         muscle_mass: smm,
         body_fat: pbf,
         visceral_fat: visceralFat,
         bmr,
-        inbody_score: inbodyScore,
         recorded_at: measuredDateKey,
       },
     ];
