@@ -5,6 +5,7 @@ export const NOTIFICATION_TYPES = {
   SESSION_COMPLETED:       'session_completed',
   SESSION_CANCELLED:       'session_cancelled',
   SESSION_EXTRA:           'session_extra',
+  SESSION_SCHEDULE_UPDATED:'session_schedule_updated',
   LOW_SESSIONS:            'low_sessions',
   PACKAGE_CREATED:         'package_created',
   NUTRITION_UPDATED:       'nutrition_updated',
@@ -132,6 +133,19 @@ export const notifyExtraSessionAdded = async ({ clientAuthUserId, scheduledDate,
     title: 'Buổi tập mới được thêm 📅',
     body: `Coach vừa thêm buổi tập vào ngày ${formatDate(scheduledDate)}${timeLabel}.`,
     metadata: buildNotificationLinkMeta('/portal?tab=sessions', 'sessions', { scheduledDate, scheduledTime }),
+  });
+};
+
+export const notifySessionScheduleUpdated = async ({ clientAuthUserId, effectiveDate, changedCount, upcomingCount }) => {
+  if (!clientAuthUserId || !changedCount) return;
+  const sessionLabel = changedCount === 1 ? '1 buổi tập sắp tới đã thay đổi.' : `${changedCount} buổi tập sắp tới đã thay đổi.`;
+  const totalLabel = upcomingCount > changedCount ? ` Tổng cộng còn ${upcomingCount} buổi chưa hoàn thành.` : '';
+  await createNotification({
+    recipientUserId: clientAuthUserId,
+    type: NOTIFICATION_TYPES.SESSION_SCHEDULE_UPDATED,
+    title: 'Lịch tập đã được cập nhật 📅',
+    body: `Coach đã cập nhật lịch tập từ ngày ${formatDate(effectiveDate)}. ${sessionLabel}${totalLabel}`,
+    metadata: buildNotificationLinkMeta('/portal?tab=sessions', 'sessions', { effectiveDate, changedCount, upcomingCount }),
   });
 };
 

@@ -20,6 +20,7 @@ const FALLBACK_TARGETS: Record<string, { url: string; targetTab?: string }> = {
   session_completed: { url: '/portal?tab=sessions', targetTab: 'sessions' },
   session_cancelled: { url: '/portal?tab=sessions', targetTab: 'sessions' },
   session_extra: { url: '/portal?tab=sessions', targetTab: 'sessions' },
+  session_schedule_updated: { url: '/portal?tab=sessions', targetTab: 'sessions' },
   low_sessions: { url: '/portal?tab=package', targetTab: 'package' },
   package_created: { url: '/portal?tab=package', targetTab: 'package' },
   nutrition_updated: { url: '/portal?tab=nutrition', targetTab: 'nutrition' },

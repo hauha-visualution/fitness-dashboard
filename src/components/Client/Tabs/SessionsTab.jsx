@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { Dumbbell, CheckCircle2, Clock, ChevronDown, ChevronUp, Plus, X, CalendarDays } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 import { getServiceTypeLabel, parseServiceBooking, parseServiceMeta } from '../../../utils/serviceUtils';
-import { notifyExtraSessionAdded, fetchClientNotifInfo } from '../../../utils/notificationUtils';
+import { notifyExtraSessionAdded, notifySessionScheduleUpdated, fetchClientNotifInfo } from '../../../utils/notificationUtils';
 import { toast } from '../../../utils/toast';
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -159,7 +159,12 @@ const SessionsTab = ({
   const handleApplySchedule = async () => {
     if (!schedulePackage || !scheduleEffectiveDate || weeklySchedule.length === 0) return;
     setSavingSchedule(true);
-    const { error } = await supabase.rpc('apply_package_schedule', {
+    const previousUpcoming = new Map(
+      sessions
+        .filter((sessionItem) => sessionItem.package_id === schedulePackage.id && ['scheduled', 'in_progress'].includes(sessionItem.status))
+        .map((sessionItem) => [sessionItem.id, `${sessionItem.scheduled_date}|${sessionItem.scheduled_time || ''}`])
+    );
+    const { data, error } = await supabase.rpc('apply_package_schedule', {
       p_package_id: schedulePackage.id,
       p_effective_date: scheduleEffectiveDate,
       p_weekly_schedule: weeklySchedule,
@@ -172,6 +177,22 @@ const SessionsTab = ({
     setSchedulePackage(null);
     toast.success('Upcoming sessions have been updated.');
     void fetchData();
+
+    const changedCount = (data || []).filter((sessionItem) => {
+      const previousSlot = previousUpcoming.get(sessionItem.session_id);
+      return !previousSlot || previousSlot !== `${sessionItem.scheduled_date}|${sessionItem.scheduled_time || ''}`;
+    }).length;
+    if (changedCount > 0) {
+      void (async () => {
+        const clientInfo = await fetchClientNotifInfo(clientId);
+        await notifySessionScheduleUpdated({
+          clientAuthUserId: clientInfo?.auth_user_id,
+          effectiveDate: scheduleEffectiveDate,
+          changedCount,
+          upcomingCount: (data || []).length,
+        });
+      })();
+    }
   };
 
   const handleCompleteSession = async (sessionId) => {

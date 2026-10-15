@@ -4,6 +4,7 @@ import { Package, Zap, Plus, ChevronDown, ChevronUp, Calendar, Trash2, AlertTria
 import { supabase } from '../../../supabaseClient';
 import CreatePackageModal from '../Modals/CreatePackageModal';
 import { toast } from '../../../utils/toast';
+import { notifyExtraSessionAdded, fetchClientNotifInfo } from '../../../utils/notificationUtils';
 import {
   buildMealPrepPaymentDetail,
   getServiceTotalLabel,
@@ -215,6 +216,15 @@ const PackageTab = ({ client, readOnly = false, allowStretchingBooking = false }
     setBookingPackage(null);
     toast.success('Stretching booking created.');
     void fetchData();
+
+    void (async () => {
+      const clientInfo = await fetchClientNotifInfo(clientId);
+      await notifyExtraSessionAdded({
+        clientAuthUserId: clientInfo?.auth_user_id,
+        scheduledDate: bookingDate,
+        scheduledTime: bookingStartTime,
+      });
+    })();
   };
 
   if (loading) return (

@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import {
   Bell, BellDot, Check, CheckCheck, Dumbbell, X,
   Package, Utensils, CreditCard, AlertTriangle,
-  CalendarPlus, BadgeDollarSign,
+  CalendarPlus, CalendarDays, BadgeDollarSign,
 } from 'lucide-react';
 import { useNotifications } from '../../hooks/useNotifications';
 import { NOTIFICATION_TYPES } from '../../utils/notificationUtils';
@@ -19,6 +19,8 @@ const NotifIcon = ({ type }) => {
       return <X className={`${cls} text-red-400`} />;
     case NOTIFICATION_TYPES.SESSION_EXTRA:
       return <CalendarPlus className={`${cls} text-blue-400`} />;
+    case NOTIFICATION_TYPES.SESSION_SCHEDULE_UPDATED:
+      return <CalendarDays className={`${cls} text-sky-400`} />;
     case NOTIFICATION_TYPES.LOW_SESSIONS:
       return <AlertTriangle className={`${cls} text-amber-400`} />;
     case NOTIFICATION_TYPES.PACKAGE_CREATED:
