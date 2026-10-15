@@ -421,7 +421,7 @@ const CompletedMissionReport = ({ completedGroups, missions }) => {
   );
 };
 
-const CoachMissionComposer = ({ client, editingMission, onCancelEdit, onSaved, creator = 'coach' }) => {
+const CoachMissionComposer = ({ client, editingMission, onCancelEdit, onCancelCreate, onSaved, creator = 'coach' }) => {
   const isEditing = Boolean(editingMission?.id);
   const isTraineeCreator = creator === 'trainee';
   const [draft, setDraft] = useState(() => (isEditing ? missionToDraft(editingMission) : emptyDraft()));
@@ -528,12 +528,12 @@ const CoachMissionComposer = ({ client, editingMission, onCancelEdit, onSaved, c
           </h3>
         </div>
         <div className="flex items-center gap-2">
-          {isEditing ? (
+          {isEditing || isTraineeCreator ? (
             <button
               type="button"
-              onClick={onCancelEdit}
+              onClick={isEditing ? onCancelEdit : onCancelCreate}
               className="app-ghost-button inline-flex h-10 w-10 items-center justify-center rounded-[16px] border border-white/[0.08] text-white/70"
-              aria-label="Cancel edit"
+              aria-label={isEditing ? 'Cancel edit' : 'Close new mission form'}
             >
               <X className="h-4 w-4" />
             </button>
@@ -684,6 +684,7 @@ const MissionTab = ({ client, readOnly = false }) => {
   const [missions, setMissions] = useState([]);
   const [selectedMission, setSelectedMission] = useState(null);
   const [editingMission, setEditingMission] = useState(null);
+  const [showTraineeComposer, setShowTraineeComposer] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [savingMissionId, setSavingMissionId] = useState(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -847,15 +848,33 @@ const MissionTab = ({ client, readOnly = false }) => {
 
   return (
     <div className="space-y-4 animate-tab-in">
-      {(!readOnly || !editingMission) ? (
+      {!readOnly || showTraineeComposer ? (
         <CoachMissionComposer
-          key={editingMission?.id || 'new-mission'}
+          key={editingMission?.id || `new-mission-${showTraineeComposer}`}
           client={client}
           editingMission={editingMission}
           onCancelEdit={() => setEditingMission(null)}
-          onSaved={handleCoachSaved}
+          onCancelCreate={() => setShowTraineeComposer(false)}
+          onSaved={(savedMission) => {
+            handleCoachSaved(savedMission);
+            if (readOnly) setShowTraineeComposer(false);
+          }}
           creator={readOnly ? 'trainee' : 'coach'}
         />
+      ) : null}
+
+      {readOnly && !showTraineeComposer ? (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setShowTraineeComposer(true)}
+            className="app-cta-button inline-flex h-11 w-11 items-center justify-center rounded-full text-black shadow-[0_0_24px_rgba(200,245,63,0.22)] transition-transform active:scale-95"
+            aria-label="Create mission"
+            title="Tạo mission"
+          >
+            <Plus className="h-5 w-5" />
+          </button>
+        </div>
       ) : null}
 
       {isLoading ? (
