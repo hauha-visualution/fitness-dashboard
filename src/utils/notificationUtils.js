@@ -240,6 +240,18 @@ export const notifyMissionAssigned = async ({ clientAuthUserId, mission }) => {
   });
 };
 
+export const notifyMissionCreatedByTrainee = async ({ coachAuthUserId, clientName, mission }) => {
+  if (!coachAuthUserId || !mission) return;
+  const timeLabel = mission.perform_time ? ` lúc ${mission.perform_time.slice(0, 5)}` : '';
+  await createNotification({
+    recipientUserId: coachAuthUserId,
+    type: NOTIFICATION_TYPES.MISSION_ASSIGNED,
+    title: 'Trainee đã tạo mission mới',
+    body: `${clientName || 'Trainee'} đã tạo "${mission.title}" · ${missionQuantityLabel(mission)}${timeLabel}.`,
+    metadata: buildNotificationLinkMeta('/?tab=clients', 'clients', { missionId: mission.id, clientId: mission.client_id, createdBy: 'trainee' }),
+  });
+};
+
 export const notifyMissionReminder = async ({ clientAuthUserId, mission }) => {
   if (!clientAuthUserId || !mission) return;
   const timeLabel = mission.perform_time ? ` lúc ${mission.perform_time.slice(0, 5)}` : '';

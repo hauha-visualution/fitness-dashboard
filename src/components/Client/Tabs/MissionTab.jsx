@@ -4,7 +4,9 @@ import { supabase } from '../../../supabaseClient';
 import { toast } from '../../../utils/toast';
 import {
   notifyMissionAssigned,
+  notifyMissionCreatedByTrainee,
   notifyMissionCompleted,
+  fetchCoachAuthUserId,
 } from '../../../utils/notificationUtils';
 
 const todayKey = () => {
@@ -419,8 +421,9 @@ const CompletedMissionReport = ({ completedGroups, missions }) => {
   );
 };
 
-const CoachMissionComposer = ({ client, editingMission, onCancelEdit, onSaved }) => {
+const CoachMissionComposer = ({ client, editingMission, onCancelEdit, onSaved, creator = 'coach' }) => {
   const isEditing = Boolean(editingMission?.id);
+  const isTraineeCreator = creator === 'trainee';
   const [draft, setDraft] = useState(() => (isEditing ? missionToDraft(editingMission) : emptyDraft()));
   const [isSaving, setIsSaving] = useState(false);
 
@@ -453,9 +456,10 @@ const CoachMissionComposer = ({ client, editingMission, onCancelEdit, onSaved })
     const authUser = authData?.session?.user;
 
     const payload = {
-      coach_email: client.coach_email || authUser?.email,
-      coach_auth_user_id: authUser?.id || null,
+      coach_email: client.coach_email || authUser?.email || null,
+      coach_auth_user_id: isTraineeCreator ? null : (authUser?.id || null),
       client_id: client.id,
+      created_by: creator,
       exercise_type: exerciseType,
       title,
       duration_minutes: duration,
@@ -497,10 +501,15 @@ const CoachMissionComposer = ({ client, editingMission, onCancelEdit, onSaved })
     }
 
     if (!isEditing) {
-      await notifyMissionAssigned({ clientAuthUserId: client.auth_user_id, mission: data });
+      if (isTraineeCreator) {
+        const coachAuthUserId = await fetchCoachAuthUserId(client.coach_email);
+        await notifyMissionCreatedByTrainee({ coachAuthUserId, clientName: client.name, mission: data });
+      } else {
+        await notifyMissionAssigned({ clientAuthUserId: client.auth_user_id, mission: data });
+      }
     }
 
-    toast.success(isEditing ? 'Đã cập nhật mission.' : 'Đã giao mission cho trainee.');
+    toast.success(isEditing ? 'Đã cập nhật mission.' : isTraineeCreator ? 'Đã tạo mission.' : 'Đã giao mission cho trainee.');
     setDraft(emptyDraft());
     setIsSaving(false);
     onSaved?.(data);
@@ -512,10 +521,10 @@ const CoachMissionComposer = ({ client, editingMission, onCancelEdit, onSaved })
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-[9px] font-black uppercase tracking-widest text-red-300/80">
-            {isEditing ? 'Edit Exercise' : 'Assign Exercise'}
+            {isEditing ? 'Edit Exercise' : isTraineeCreator ? 'My Mission' : 'Assign Exercise'}
           </p>
           <h3 className="mt-1 text-sm font-bold text-white">
-            {isEditing ? 'Chỉnh mission trước khi start' : 'Mission mới'}
+            {isEditing ? 'Chỉnh mission trước khi start' : isTraineeCreator ? 'Tạo mission cho tôi' : 'Mission mới'}
           </h3>
         </div>
         <div className="flex items-center gap-2">
@@ -533,7 +542,7 @@ const CoachMissionComposer = ({ client, editingMission, onCancelEdit, onSaved })
             type="submit"
             disabled={isSaving}
             className="app-cta-button inline-flex h-10 w-10 items-center justify-center rounded-[16px] text-black disabled:opacity-50"
-            aria-label={isEditing ? 'Update mission' : 'Assign mission'}
+            aria-label={isEditing ? 'Update mission' : isTraineeCreator ? 'Create mission' : 'Assign mission'}
           >
             {isSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : isEditing ? <CheckCircle2 className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
           </button>
@@ -838,13 +847,14 @@ const MissionTab = ({ client, readOnly = false }) => {
 
   return (
     <div className="space-y-4 animate-tab-in">
-      {!readOnly ? (
+      {(!readOnly || !editingMission) ? (
         <CoachMissionComposer
           key={editingMission?.id || 'new-mission'}
           client={client}
           editingMission={editingMission}
           onCancelEdit={() => setEditingMission(null)}
           onSaved={handleCoachSaved}
+          creator={readOnly ? 'trainee' : 'coach'}
         />
       ) : null}
 
@@ -857,7 +867,7 @@ const MissionTab = ({ client, readOnly = false }) => {
           <Target className="mx-auto h-6 w-6 text-white/20" />
           <p className="mt-3 text-sm font-semibold text-white">No missions yet</p>
           <p className="mt-1 text-[11px] text-white/42">
-            {readOnly ? 'Mission được coach giao sẽ xuất hiện ở đây.' : 'Giao bài tập đầu tiên cho trainee từ form phía trên.'}
+            {readOnly ? 'Tạo mission đầu tiên cho chính bạn từ form phía trên.' : 'Giao bài tập đầu tiên cho trainee từ form phía trên.'}
           </p>
         </div>
       ) : (
