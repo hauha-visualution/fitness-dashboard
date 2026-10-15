@@ -411,6 +411,34 @@ const PaymentTab = ({ client, readOnly = false }) => {
                   const timeline = buildTimeline(payment);
                   const supportingCopy = payment.detail_note?.trim() || '';
 
+                  if (payment.status === 'paid') {
+                    const paidDate = fmtDate(payment.paid_at || payment.coach_confirmed_at || payment.customer_marked_at || payment.created_at);
+                    return (
+                      <div
+                        key={payment.id}
+                        className="flex min-h-[66px] items-center justify-between gap-3 rounded-[16px] border border-[rgba(200,245,63,0.18)] bg-[rgba(200,245,63,0.035)] px-3.5 py-2.5 lg:min-h-[72px] lg:rounded-[18px] lg:px-4"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex min-w-0 items-center gap-1.5">
+                            <span className="truncate text-[8px] font-black uppercase tracking-[0.16em] text-[rgba(200,245,63,0.82)]">
+                              {typeMeta.label}
+                            </span>
+                            <span className="h-1 w-1 shrink-0 rounded-full bg-[rgba(200,245,63,0.55)]" />
+                            <span className="text-[8px] font-black uppercase tracking-[0.16em] text-[rgba(200,245,63,0.82)]">Paid</span>
+                          </div>
+                          <p className="mt-1 truncate text-[13px] font-semibold leading-tight text-white">{title}</p>
+                          <p className="mt-1 flex items-center gap-1 text-[9px] text-neutral-500">
+                            <CalendarClock className="h-2.5 w-2.5 shrink-0" />
+                            Paid {paidDate}
+                          </p>
+                        </div>
+                        <p className="shrink-0 text-right text-[15px] font-bold leading-none tabular-nums text-white">
+                          {fmtVND(payment.amount)}
+                        </p>
+                      </div>
+                    );
+                  }
+
                   return (
                     <div
                       key={payment.id}
