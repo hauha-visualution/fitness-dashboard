@@ -24,6 +24,35 @@ const nextWeekRange = () => {
   return { start: monday.toISOString().slice(0, 10), end: sunday.toISOString().slice(0, 10) };
 };
 
+const weekdayLabel = (dateKey) => {
+  const date = new Date(`${dateKey}T12:00:00Z`);
+  const day = date.getUTCDay();
+  return day === 0 ? 'Chủ nhật' : `Thứ ${day + 1}`;
+};
+
+const compactWeekdays = (dateKeys) => {
+  const labels = dateKeys.map(weekdayLabel);
+  if (labels.length <= 1) return labels[0] || '';
+
+  const first = labels[0];
+  const remaining = labels.slice(1).map((label) => label.replace('Thứ ', ''));
+  return `${first}, ${remaining.join(', ')}`;
+};
+
+const formatWeeklySchedule = (rows) => {
+  const slots = new Map();
+  rows.forEach((row) => {
+    const time = row.scheduled_time.slice(0, 5);
+    const dates = slots.get(time) || [];
+    dates.push(row.scheduled_date);
+    slots.set(time, dates);
+  });
+
+  return Array.from(slots.entries())
+    .map(([time, dates]) => `${compactWeekdays(dates)} lúc ${time}`)
+    .join(' · ');
+};
+
 const restFetch = (path, options = {}) => fetch(`${supabaseUrl}/rest/v1/${path}`, {
   ...options,
   headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, ...(options.headers || {}) },
@@ -62,10 +91,10 @@ export default async function handler(req, res) {
   let sent = 0;
   for (const [recipient_user_id, rows] of grouped) {
     if (alreadySent.has(recipient_user_id)) continue;
-    const agenda = rows.map((row) => `${row.scheduled_date.split('-').reverse().slice(0, 2).join('/')} ${row.scheduled_time.slice(0, 5)}`).join(' · ');
+    const scheduleSummary = formatWeeklySchedule(rows);
     const insert = await restFetch('notifications', {
       method: 'POST', headers: { 'Content-Type': 'application/json', Prefer: 'return=representation' },
-      body: JSON.stringify({ recipient_user_id, type: 'weekly_schedule', title: 'Lịch tập tuần tới 📅', body: `Lịch tập tuần ${start.split('-').reverse().slice(0, 2).join('/')} của bạn: ${agenda}.`, metadata: { url: '/portal?tab=sessions', targetTab: 'sessions', weekStart: start, weekEnd: end } }),
+      body: JSON.stringify({ recipient_user_id, type: 'weekly_schedule', title: 'Lịch tuần mới 📅', body: `Lịch tuần mới: ${scheduleSummary} nha 💪`, metadata: { url: '/portal?tab=sessions', targetTab: 'sessions', weekStart: start, weekEnd: end } }),
     });
     if (!insert.ok) continue;
     const notification = (await insert.json())[0];
