@@ -124,7 +124,7 @@ export const notifyTraineeSessionCompleted = async ({ coachAuthUserId, clientId,
     recipientUserId: coachAuthUserId,
     type: NOTIFICATION_TYPES.SESSION_COMPLETED,
     title: 'Trainee đã hoàn thành buổi tập 💪',
-    body: `${clientName || 'Trainee'} đã tự hoàn thành buổi #${String(sessionNumber).padStart(2, '0')} ngày ${formatDate(scheduledDate)}.`,
+    body: `${clientName || 'Trainee'} đã hoàn thành buổi #${String(sessionNumber).padStart(2, '0')} ngày ${formatDate(scheduledDate)}.`,
     metadata: buildNotificationLinkMeta('/?tab=clients', 'clients', { clientId, sessionNumber, scheduledDate, completedBy: 'trainee' }),
   });
 };
