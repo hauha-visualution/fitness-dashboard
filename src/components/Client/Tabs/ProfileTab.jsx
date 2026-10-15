@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { CalendarDays, Camera, ChevronLeft, ChevronRight, MapPin, Plus, RefreshCw, Save, X } from 'lucide-react';
+import { CalendarDays, Camera, CheckCircle2, ChevronLeft, ChevronRight, MapPin, Plus, RefreshCw, Save, X } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 import ClientAvatar from '../../shared/ClientAvatar';
 import { parseServiceBooking, parseServiceMeta } from '../../../utils/serviceUtils';
@@ -33,6 +33,14 @@ const TIME_FILTER_OPTIONS = [
   { id: '12m', label: '12 months', shortLabel: '12M', months: 12 },
   { id: 'all', label: 'All', shortLabel: 'ALL', months: null },
 ];
+
+const isPortalSessionTimeReached = (session, nowMs = Date.now()) => {
+  const date = String(session?.scheduledDate || '').slice(0, 10);
+  const time = String(session?.scheduledTime || '').slice(0, 5);
+  if (!date || !time) return false;
+  const scheduledMs = new Date(`${date}T${time}:00`).getTime();
+  return !Number.isNaN(scheduledMs) && nowMs >= scheduledMs;
+};
 
 const INBODY_METRICS = [
   {
@@ -1067,6 +1075,8 @@ const ProfileTab = ({
   const [timeFilter, setTimeFilter] = useState('all');
   const [activeChartIndex, setActiveChartIndex] = useState(null);
   const [upcomingSchedule, setUpcomingSchedule] = useState([]);
+  const [completingScheduleId, setCompletingScheduleId] = useState(null);
+  const [scheduleNowMs, setScheduleNowMs] = useState(() => Date.now());
   const [schedulePanelTab, setSchedulePanelTab] = useState('upcoming');
   const [portalCalendarMonth, setPortalCalendarMonth] = useState(() => getMonthStartDate(new Date()));
   const [portalCalendarSessionMap, setPortalCalendarSessionMap] = useState({});
@@ -1146,6 +1156,8 @@ const ProfileTab = ({
           : item.scheduled_time?.slice(0, 5) || '--:--',
         location: bookingMeta.location || '',
         status: item.status,
+        scheduledDate: item.scheduled_date,
+        scheduledTime: item.scheduled_time,
       };
     });
 
@@ -1247,6 +1259,27 @@ const ProfileTab = ({
     fetchProgressPhotos();
     void fetchUpcomingSchedule();
   }, [fetchInBody, fetchProgressPhotos, fetchUpcomingSchedule]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setScheduleNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  const handlePortalSessionComplete = async (sessionId) => {
+    if (!sessionId || completingScheduleId) return;
+    setCompletingScheduleId(sessionId);
+    const { error } = await supabase.rpc('complete_session_without_exercises', { p_session_id: sessionId });
+    setCompletingScheduleId(null);
+
+    if (error) {
+      toast.error(`Unable to complete session: ${error.message}`);
+      return;
+    }
+
+    toast.success('Session marked complete. Great work!');
+    void fetchUpcomingSchedule();
+    void fetchPortalCalendarSessions();
+  };
 
   useEffect(() => {
     void fetchPortalCalendarSessions();
@@ -1759,7 +1792,10 @@ const ProfileTab = ({
           {schedulePanelTab === 'upcoming' ? (
             <div className="app-bento-card overflow-hidden">
               {upcomingSchedule.length > 0 ? (
-                upcomingSchedule.map((item, index) => (
+                upcomingSchedule.map((item, index) => {
+                  const canComplete = isPortalSessionTimeReached(item, scheduleNowMs);
+                  const isCompleting = completingScheduleId === item.id;
+                  return (
                   <div
                     key={item.id}
                     className={`flex items-start gap-3 px-4 py-3 ${index !== upcomingSchedule.length - 1 ? 'border-b border-white/[0.05]' : ''}`}
@@ -1775,15 +1811,19 @@ const ProfileTab = ({
                         </div>
                       ) : null}
                     </div>
-                    <div className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide ${
-                      item.status === 'in_progress'
-                        ? 'border border-blue-500/20 bg-blue-500/10 text-blue-300'
-                        : 'border border-white/[0.07] bg-white/[0.04] text-white/35'
-                    }`}>
-                      {item.status === 'in_progress' ? 'Live' : 'Booked'}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handlePortalSessionComplete(item.id)}
+                      disabled={!canComplete || isCompleting}
+                      title={canComplete ? 'Complete session' : `Available after ${item.timeLabel}`}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-300/30 bg-emerald-400 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-emerald-950 transition-transform active:scale-95 disabled:opacity-35"
+                    >
+                      <CheckCircle2 className="h-3 w-3" />
+                      {isCompleting ? 'Saving' : 'Complete'}
+                    </button>
                   </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="px-5 py-6 text-center">
                   <CalendarDays className="mx-auto h-5 w-5 text-white/18" />
