@@ -894,7 +894,10 @@ const MissionTab = ({ client, readOnly = false }) => {
           key={editingMission?.id || `new-mission-${showTraineeComposer}`}
           client={client}
           editingMission={editingMission}
-          onCancelEdit={() => setEditingMission(null)}
+          onCancelEdit={() => {
+            setEditingMission(null);
+            if (readOnly) setShowTraineeComposer(false);
+          }}
           onCancelCreate={() => setShowTraineeComposer(false)}
           onDeleted={handleMissionDeleted}
           onSaved={(savedMission) => {
