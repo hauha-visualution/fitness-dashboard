@@ -863,36 +863,51 @@ const MissionTab = ({ client, readOnly = false }) => {
         />
       ) : null}
 
-      {readOnly && !showTraineeComposer ? (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => setShowTraineeComposer(true)}
-            className="app-cta-button inline-flex h-11 w-11 items-center justify-center rounded-full text-black shadow-[0_0_24px_rgba(200,245,63,0.22)] transition-transform active:scale-95"
-            aria-label="Create mission"
-            title="Tạo mission"
-          >
-            <Plus className="h-5 w-5" />
-          </button>
-        </div>
-      ) : null}
-
       {isLoading ? (
         <div className="app-bento-card flex items-center justify-center p-8">
           <RefreshCw className="h-5 w-5 animate-spin text-white/35" />
         </div>
       ) : missions.length === 0 ? (
-        <div className="app-bento-card px-5 py-8 text-center">
-          <Target className="mx-auto h-6 w-6 text-white/20" />
-          <p className="mt-3 text-sm font-semibold text-white">No missions yet</p>
-          <p className="mt-1 text-[11px] text-white/42">
-            {readOnly ? 'Tạo mission đầu tiên cho chính bạn từ form phía trên.' : 'Giao bài tập đầu tiên cho trainee từ form phía trên.'}
-          </p>
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[9px] font-black uppercase tracking-widest text-white/35">Active · 0</p>
+            {readOnly && !showTraineeComposer ? (
+              <button
+                type="button"
+                onClick={() => setShowTraineeComposer(true)}
+                className="app-cta-button inline-flex h-10 w-10 items-center justify-center rounded-full text-black shadow-[0_0_20px_rgba(200,245,63,0.18)] transition-transform active:scale-95"
+                aria-label="Create mission"
+                title="Tạo mission"
+              >
+                <Plus className="h-4.5 w-4.5" />
+              </button>
+            ) : null}
+          </div>
+          <div className="app-bento-card px-5 py-8 text-center">
+            <Target className="mx-auto h-6 w-6 text-white/20" />
+            <p className="mt-3 text-sm font-semibold text-white">No missions yet</p>
+            <p className="mt-1 text-[11px] text-white/42">
+              {readOnly ? 'Tạo mission đầu tiên cho chính bạn bằng nút +.' : 'Giao bài tập đầu tiên cho trainee từ form phía trên.'}
+            </p>
+          </div>
         </div>
       ) : (
         <div className="space-y-5">
           <section className="space-y-2.5">
-            <p className="text-[9px] font-black uppercase tracking-widest text-white/35">Active · {grouped.active.length}</p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[9px] font-black uppercase tracking-widest text-white/35">Active · {grouped.active.length}</p>
+              {readOnly && !showTraineeComposer ? (
+                <button
+                  type="button"
+                  onClick={() => setShowTraineeComposer(true)}
+                  className="app-cta-button inline-flex h-10 w-10 items-center justify-center rounded-full text-black shadow-[0_0_20px_rgba(200,245,63,0.18)] transition-transform active:scale-95"
+                  aria-label="Create mission"
+                  title="Tạo mission"
+                >
+                  <Plus className="h-4.5 w-4.5" />
+                </button>
+              ) : null}
+            </div>
             {grouped.active.length > 0 ? grouped.active.map((mission) => (
               <MissionCard
                 key={mission.id}
