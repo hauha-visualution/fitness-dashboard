@@ -3,7 +3,12 @@ import ReactDOM from 'react-dom';
 import { Dumbbell, CheckCircle2, Clock, ChevronDown, ChevronUp, Plus, X, CalendarDays } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 import { getServiceTypeLabel, parseServiceBooking, parseServiceMeta } from '../../../utils/serviceUtils';
-import { notifyExtraSessionAdded, notifySessionScheduleUpdated, fetchClientNotifInfo } from '../../../utils/notificationUtils';
+import {
+  SCHEDULE_CHANGE_NOTIFICATIONS_ENABLED,
+  notifyExtraSessionAdded,
+  notifySessionScheduleUpdated,
+  fetchClientNotifInfo,
+} from '../../../utils/notificationUtils';
 import { toast } from '../../../utils/toast';
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -182,7 +187,7 @@ const SessionsTab = ({
       const previousSlot = previousUpcoming.get(sessionItem.session_id);
       return !previousSlot || previousSlot !== `${sessionItem.scheduled_date}|${sessionItem.scheduled_time || ''}`;
     }).length;
-    if (changedCount > 0) {
+    if (SCHEDULE_CHANGE_NOTIFICATIONS_ENABLED && changedCount > 0) {
       void (async () => {
         const clientInfo = await fetchClientNotifInfo(clientId);
         await notifySessionScheduleUpdated({
