@@ -34,6 +34,15 @@ const isToday = (dateStr) => {
   return dateStr === localDateStr(new Date());
 };
 
+const isSessionTimeReached = (sessionItem, nowMs = Date.now()) => {
+  const date = String(sessionItem?.scheduled_date || '').slice(0, 10);
+  const time = String(sessionItem?.scheduled_time || '').slice(0, 5);
+  if (!date || !time) return false;
+
+  const scheduledMs = new Date(`${date}T${time}:00`).getTime();
+  return !Number.isNaN(scheduledMs) && nowMs >= scheduledMs;
+};
+
 const formatBookingWindow = (sessionItem) => {
   const booking = parseServiceBooking(sessionItem.notes);
   const start = sessionItem.scheduled_time?.slice(0, 5) || '--:--';
@@ -74,6 +83,7 @@ const SessionsTab = ({
   const [weeklySchedule, setWeeklySchedule] = useState([]);
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [completingSessionId, setCompletingSessionId] = useState(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const canScheduleStretching = !readOnly || allowStretchingBooking;
 
   const fetchData = useCallback(async () => {
@@ -102,6 +112,11 @@ const SessionsTab = ({
     }, 0);
     return () => window.clearTimeout(timeoutId);
   }, [fetchData, refreshKey]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   const openExtraModal = (pkg, pkgSessions, serviceType = 'training') => {
     const activeSessions = pkgSessions
@@ -405,6 +420,8 @@ const SessionsTab = ({
                       const today = isToday(sess.scheduled_date);
                       const isInProgress = sess.status === 'in_progress';
                       const bookingMeta = formatBookingWindow(sess);
+                      const traineeCanComplete = isSessionTimeReached(sess, nowMs);
+                      const completeDisabled = completingSessionId === sess.id || (readOnly && !traineeCanComplete);
 
                       return (
                         <div
@@ -456,7 +473,8 @@ const SessionsTab = ({
                               <button
                                 type="button"
                                 onClick={() => handleCompleteSession(sess.id)}
-                                disabled={completingSessionId === sess.id}
+                                disabled={completeDisabled}
+                                title={readOnly && !traineeCanComplete ? `Available after ${bookingMeta.timeLabel}` : 'Complete session'}
                                 className="inline-flex h-11 items-center gap-1.5 rounded-[12px] border border-emerald-300/30 bg-emerald-400 px-3 text-[10px] font-black uppercase text-emerald-950 transition-transform active:scale-95 disabled:opacity-50"
                               >
                                 <CheckCircle2 className="h-3.5 w-3.5" />
