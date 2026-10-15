@@ -92,9 +92,10 @@ export default async function handler(req, res) {
   for (const [recipient_user_id, rows] of grouped) {
     if (alreadySent.has(recipient_user_id)) continue;
     const scheduleSummary = formatWeeklySchedule(rows);
+    const sessionCount = rows.length;
     const insert = await restFetch('notifications', {
       method: 'POST', headers: { 'Content-Type': 'application/json', Prefer: 'return=representation' },
-      body: JSON.stringify({ recipient_user_id, type: 'weekly_schedule', title: 'Lịch tuần mới 📅', body: `Lịch tuần mới: ${scheduleSummary} nha 💪`, metadata: { url: '/portal?tab=sessions', targetTab: 'sessions', weekStart: start, weekEnd: end } }),
+      body: JSON.stringify({ recipient_user_id, type: 'weekly_schedule', title: `Lịch tập tuần sau (${start.slice(8, 10)}/${start.slice(5, 7)} - ${end.slice(8, 10)}/${end.slice(5, 7)}):`, body: `Bạn có ${sessionCount} buổi tập vào ${scheduleSummary}. 💪`, metadata: { url: '/portal?tab=sessions', targetTab: 'sessions', weekStart: start, weekEnd: end } }),
     });
     if (!insert.ok) continue;
     const notification = (await insert.json())[0];
