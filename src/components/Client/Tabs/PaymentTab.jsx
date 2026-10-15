@@ -39,6 +39,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showExactTotals, setShowExactTotals] = useState(false);
   const [isPaidHistoryExpanded, setIsPaidHistoryExpanded] = useState(false);
+  const [isCancelledHistoryExpanded, setIsCancelledHistoryExpanded] = useState(false);
   const [coachBankInfo, setCoachBankInfo] = useState(null);
   const [showBankInfo, setShowBankInfo] = useState(false);
 
@@ -382,23 +383,32 @@ const PaymentTab = ({ client, readOnly = false }) => {
           <div className="space-y-4 lg:grid lg:grid-cols-4 lg:gap-4 lg:space-y-0">
             {paymentGroups.map((group) => {
               const isPaidHistory = group.id === 'paid';
-              const isExpanded = !isPaidHistory || isPaidHistoryExpanded;
+              const isCancelledHistory = group.id === 'cancelled';
+              const isCollapsibleHistory = isPaidHistory || isCancelledHistory;
+              const isExpanded = isPaidHistory
+                ? isPaidHistoryExpanded
+                : isCancelledHistory
+                  ? isCancelledHistoryExpanded
+                  : true;
               return (
               <div key={group.id} className="space-y-2 lg:space-y-2.5">
-                {isPaidHistory ? (
+                {isCollapsibleHistory ? (
                   <button
                     type="button"
-                    onClick={() => setIsPaidHistoryExpanded((current) => !current)}
-                    aria-expanded={isPaidHistoryExpanded}
+                    onClick={() => {
+                      if (isPaidHistory) setIsPaidHistoryExpanded((current) => !current);
+                      if (isCancelledHistory) setIsCancelledHistoryExpanded((current) => !current);
+                    }}
+                    aria-expanded={isExpanded}
                     className="flex w-full items-center justify-between rounded-[12px] px-1 py-2 text-left"
                   >
-                    <span className="text-[10px] font-black uppercase tracking-[0.24em] text-[rgba(200,245,63,0.8)]">
-                      Paid · {group.items.length} payments
+                    <span className={`text-[10px] font-black uppercase tracking-[0.24em] ${isPaidHistory ? 'text-[rgba(200,245,63,0.8)]' : 'text-neutral-500'}`}>
+                      {group.label} · {group.items.length} payments
                     </span>
-                    {isPaidHistoryExpanded ? (
-                      <ChevronUp className="h-3.5 w-3.5 text-[rgba(200,245,63,0.65)]" />
+                    {isExpanded ? (
+                      <ChevronUp className={`h-3.5 w-3.5 ${isPaidHistory ? 'text-[rgba(200,245,63,0.65)]' : 'text-neutral-600'}`} />
                     ) : (
-                      <ChevronDown className="h-3.5 w-3.5 text-[rgba(200,245,63,0.65)]" />
+                      <ChevronDown className={`h-3.5 w-3.5 ${isPaidHistory ? 'text-[rgba(200,245,63,0.65)]' : 'text-neutral-600'}`} />
                     )}
                   </button>
                 ) : (
