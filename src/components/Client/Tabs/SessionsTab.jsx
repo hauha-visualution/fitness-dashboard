@@ -470,16 +470,26 @@ const SessionsTab = ({
                               </button>
                             )}
                             {(!readOnly || allowTraineeComplete) && (
-                              <button
-                                type="button"
-                                onClick={() => handleCompleteSession(sess.id)}
-                                disabled={completeDisabled}
-                                title={readOnly && !traineeCanComplete ? `Available after ${bookingMeta.timeLabel}` : 'Complete session'}
-                                className="inline-flex h-11 items-center gap-1.5 rounded-[12px] border border-emerald-300/30 bg-emerald-400 px-3 text-[10px] font-black uppercase text-emerald-950 transition-transform active:scale-95 disabled:opacity-50"
-                              >
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                {completingSessionId === sess.id ? 'Saving' : 'Complete'}
-                              </button>
+                              readOnly && !traineeCanComplete && completingSessionId !== sess.id ? (
+                                <span
+                                  title={`Available after ${bookingMeta.timeLabel}`}
+                                  className="inline-flex h-11 items-center gap-1.5 rounded-[12px] border border-blue-500/25 bg-blue-500/10 px-3 text-[10px] font-black uppercase text-blue-300"
+                                >
+                                  <Clock className="h-3.5 w-3.5" />
+                                  Booked
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCompleteSession(sess.id)}
+                                  disabled={completeDisabled}
+                                  title="Complete session"
+                                  className="inline-flex h-11 items-center gap-1.5 rounded-[12px] border border-emerald-300/30 bg-emerald-400 px-3 text-[10px] font-black uppercase text-emerald-950 transition-transform active:scale-95 disabled:opacity-50"
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                  {completingSessionId === sess.id ? 'Saving' : 'Complete'}
+                                </button>
+                              )
                             )}
                           </div>
                         </div>

@@ -1811,16 +1811,25 @@ const ProfileTab = ({
                         </div>
                       ) : null}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handlePortalSessionComplete(item.id)}
-                      disabled={!canComplete || isCompleting}
-                      title={canComplete ? 'Complete session' : `Available after ${item.timeLabel}`}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-300/30 bg-emerald-400 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-emerald-950 transition-transform active:scale-95 disabled:opacity-35"
-                    >
-                      <CheckCircle2 className="h-3 w-3" />
-                      {isCompleting ? 'Saving' : 'Complete'}
-                    </button>
+                    {!canComplete && !isCompleting ? (
+                      <span
+                        title={`Available after ${item.timeLabel}`}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-full border border-blue-500/25 bg-blue-500/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-blue-300"
+                      >
+                        ◷ Booked
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handlePortalSessionComplete(item.id)}
+                        disabled={isCompleting}
+                        title="Complete session"
+                        className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-300/30 bg-emerald-400 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-emerald-950 transition-transform active:scale-95 disabled:opacity-35"
+                      >
+                        <CheckCircle2 className="h-3 w-3" />
+                        {isCompleting ? 'Saving' : 'Complete'}
+                      </button>
+                    )}
                   </div>
                   );
                 })
