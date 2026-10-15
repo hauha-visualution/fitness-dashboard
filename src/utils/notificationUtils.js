@@ -23,7 +23,7 @@ export const LOW_SESSION_THRESHOLDS = [5, 3, 1];
 // Keep the schedule-change notification ready, but do not send it until the
 // product flow is approved for trainees.
 export const SCHEDULE_CHANGE_NOTIFICATIONS_ENABLED = false;
-export const SESSION_COMPLETION_NOTIFICATIONS_ENABLED = false;
+export const SESSION_COMPLETION_NOTIFICATIONS_ENABLED = true;
 
 // ─── Core insert ─────────────────────────────────────────────
 export const createNotification = async ({ recipientUserId, type, title, body, metadata = {} }) => {
@@ -115,6 +115,17 @@ export const notifySessionCompleted = async ({ clientAuthUserId, sessionNumber, 
     title: 'Buổi tập hoàn thành 💪',
     body: `Buổi #${String(sessionNumber).padStart(2, '0')} ngày ${formatDate(scheduledDate)} đã được coach ghi nhận hoàn thành.`,
     metadata: buildNotificationLinkMeta('/portal?tab=sessions', 'sessions', { sessionNumber, scheduledDate }),
+  });
+};
+
+export const notifyTraineeSessionCompleted = async ({ coachAuthUserId, clientId, clientName, sessionNumber, scheduledDate }) => {
+  if (!coachAuthUserId) return;
+  await createNotification({
+    recipientUserId: coachAuthUserId,
+    type: NOTIFICATION_TYPES.SESSION_COMPLETED,
+    title: 'Trainee đã hoàn thành buổi tập 💪',
+    body: `${clientName || 'Trainee'} đã tự hoàn thành buổi #${String(sessionNumber).padStart(2, '0')} ngày ${formatDate(scheduledDate)}.`,
+    metadata: buildNotificationLinkMeta('/?tab=clients', 'clients', { clientId, sessionNumber, scheduledDate, completedBy: 'trainee' }),
   });
 };
 

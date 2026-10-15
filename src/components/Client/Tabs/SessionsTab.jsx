@@ -7,6 +7,8 @@ import {
   SCHEDULE_CHANGE_NOTIFICATIONS_ENABLED,
   notifyExtraSessionAdded,
   notifySessionScheduleUpdated,
+  notifyTraineeSessionCompleted,
+  fetchCoachAuthUserId,
   fetchClientNotifInfo,
 } from '../../../utils/notificationUtils';
 import { toast } from '../../../utils/toast';
@@ -202,6 +204,7 @@ const SessionsTab = ({
 
   const handleCompleteSession = async (sessionId) => {
     if (!sessionId || completingSessionId) return;
+    const completedSession = sessions.find((sessionItem) => sessionItem.id === sessionId);
     setCompletingSessionId(sessionId);
     const { error } = await supabase.rpc('complete_session_without_exercises', { p_session_id: sessionId });
     setCompletingSessionId(null);
@@ -211,6 +214,19 @@ const SessionsTab = ({
     }
     toast.success('Session marked complete. Great work!');
     void fetchData();
+
+    if (readOnly && allowTraineeComplete && completedSession) {
+      void (async () => {
+        const coachAuthUserId = await fetchCoachAuthUserId(client?.coach_email);
+        await notifyTraineeSessionCompleted({
+          coachAuthUserId,
+          clientId,
+          clientName: client?.name,
+          sessionNumber: completedSession.session_number,
+          scheduledDate: completedSession.scheduled_date,
+        });
+      })();
+    }
   };
 
   const handleCreateExtraSession = async () => {
