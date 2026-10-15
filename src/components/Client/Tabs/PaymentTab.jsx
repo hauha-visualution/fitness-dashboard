@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom';
 import {
   Building2,
   CalendarClock,
+  ChevronDown,
+  ChevronUp,
   CheckCircle2,
   Clock3,
   Copy,
@@ -36,6 +38,7 @@ const PaymentTab = ({ client, readOnly = false }) => {
   const [actioningId, setActioningId] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showExactTotals, setShowExactTotals] = useState(false);
+  const [isPaidHistoryExpanded, setIsPaidHistoryExpanded] = useState(false);
   const [coachBankInfo, setCoachBankInfo] = useState(null);
   const [showBankInfo, setShowBankInfo] = useState(false);
 
@@ -377,21 +380,42 @@ const PaymentTab = ({ client, readOnly = false }) => {
           </div>
         ) : (
           <div className="space-y-4 lg:grid lg:grid-cols-4 lg:gap-4 lg:space-y-0">
-            {paymentGroups.map((group) => (
+            {paymentGroups.map((group) => {
+              const isPaidHistory = group.id === 'paid';
+              const isExpanded = !isPaidHistory || isPaidHistoryExpanded;
+              return (
               <div key={group.id} className="space-y-2 lg:space-y-2.5">
-                <div className="flex items-center justify-between gap-3 px-1">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/85">
-                      {group.label}
-                    </p>
-                    <p className="text-neutral-500 text-[11px]">{group.description}</p>
+                {isPaidHistory ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsPaidHistoryExpanded((current) => !current)}
+                    aria-expanded={isPaidHistoryExpanded}
+                    className="flex w-full items-center justify-between rounded-[12px] px-1 py-2 text-left"
+                  >
+                    <span className="text-[10px] font-black uppercase tracking-[0.24em] text-[rgba(200,245,63,0.8)]">
+                      Paid · {group.items.length} payments
+                    </span>
+                    {isPaidHistoryExpanded ? (
+                      <ChevronUp className="h-3.5 w-3.5 text-[rgba(200,245,63,0.65)]" />
+                    ) : (
+                      <ChevronDown className="h-3.5 w-3.5 text-[rgba(200,245,63,0.65)]" />
+                    )}
+                  </button>
+                ) : (
+                  <div className="flex items-center justify-between gap-3 px-1">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/85">
+                        {group.label}
+                      </p>
+                      <p className="text-neutral-500 text-[11px]">{group.description}</p>
+                    </div>
+                    <span className="text-neutral-500 text-[11px] font-semibold">
+                      {group.items.length}
+                    </span>
                   </div>
-                  <span className="text-neutral-500 text-[11px] font-semibold">
-                    {group.items.length}
-                  </span>
-                </div>
+                )}
 
-                {group.items.length === 0 ? (
+                {isExpanded && (group.items.length === 0 ? (
                   <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.02] px-3 py-4 text-center text-[11px] text-neutral-600">
                     No payments
                   </div>
@@ -570,9 +594,10 @@ const PaymentTab = ({ client, readOnly = false }) => {
                   );
                 })}
                 </div>
-                )}
+                ))}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
