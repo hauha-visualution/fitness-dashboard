@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
-import { Home, Library, LogOut, Users, Wallet } from 'lucide-react';
+import { Home, Library, LogOut, MoreHorizontal, Users, Wallet } from 'lucide-react';
 import NotificationBell from './components/shared/NotificationBell';
 import ToastContainer from './components/shared/ToastContainer';
 import Skeleton from './components/shared/Skeleton';
@@ -97,7 +97,7 @@ const clearConsumedTabParam = () => {
   window.history.replaceState({}, '', next || '/');
 };
 
-const CoachNavigation = ({ coachTabs, activeTab, onSelectTab, onOpenQuickLog, desktop = false }) => (
+const CoachNavigation = ({ coachTabs, activeTab, onSelectTab, onOpenQuickLog, onOpenMore, isMoreOpen = false, desktop = false }) => (
   <div
     className={
       desktop
@@ -108,7 +108,7 @@ const CoachNavigation = ({ coachTabs, activeTab, onSelectTab, onOpenQuickLog, de
     <div className={desktop ? 'flex flex-col gap-1.5' : 'contents'}>
       {coachTabs.map((tab) => {
         const Icon = tab.icon;
-        const isActive = activeTab === tab.id;
+        const isActive = activeTab === tab.id || (tab.isMore && isMoreOpen);
         const buttonClassName = tab.isAction
           ? 'app-nav-action'
           : isActive
@@ -123,6 +123,10 @@ const CoachNavigation = ({ coachTabs, activeTab, onSelectTab, onOpenQuickLog, de
             onClick={() => {
               if (tab.isAction) {
                 onOpenQuickLog();
+                return;
+              }
+              if (tab.isMore) {
+                onOpenMore();
                 return;
               }
               onSelectTab(tab.id);
@@ -149,6 +153,22 @@ const CoachNavigation = ({ coachTabs, activeTab, onSelectTab, onOpenQuickLog, de
           </button>
         );
       })}
+    </div>
+  </div>
+);
+
+const CoachMoreMenu = ({ onClose, onOpenTemplates, onOpenProfile }) => (
+  <div className="absolute inset-0 z-[100] flex items-end bg-black/60 p-4 backdrop-blur-sm lg:items-center lg:justify-center">
+    <button type="button" className="absolute inset-0" aria-label="Close more menu" onClick={onClose} />
+    <div className="relative w-full max-w-[360px] rounded-[24px] border border-white/[0.1] bg-[#111b29] p-4 shadow-2xl">
+      <div className="mb-3 flex items-center justify-between">
+        <div><p className="text-[9px] font-black uppercase tracking-widest text-white/38">Coach menu</p><h2 className="mt-1 text-base font-semibold text-white">More</h2></div>
+        <button type="button" onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.04] text-white/70">×</button>
+      </div>
+      <div className="space-y-2">
+        <button type="button" onClick={onOpenTemplates} className="flex w-full items-center gap-3 rounded-[16px] border border-white/[0.07] bg-white/[0.03] px-4 py-3 text-left text-sm font-semibold text-white transition-colors hover:bg-white/[0.06]"><Library className="h-4 w-4 text-[var(--app-accent)]" />Workout Templates</button>
+        <button type="button" onClick={onOpenProfile} className="flex w-full items-center gap-3 rounded-[16px] border border-white/[0.07] bg-white/[0.03] px-4 py-3 text-left text-sm font-semibold text-white transition-colors hover:bg-white/[0.06]"><Users className="h-4 w-4 text-blue-300" />Coach Profile</button>
+      </div>
     </div>
   </div>
 );
@@ -204,16 +224,17 @@ export default function App() {
   const [clients, setClients] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showCoachProfile, setShowCoachProfile] = useState(false);
+  const [showCoachMore, setShowCoachMore] = useState(false);
   const [showQuickLog, setShowQuickLog] = useState(false);
   const [quickLogSelection, setQuickLogSelection] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const coachTabs = [
-    { id: 'home', label: 'Home', icon: Home },
-    { id: 'templates', label: 'Workout Templates', icon: Library },
-    { id: 'quick_log', label: 'START WORKOUT', icon: StartWorkoutIcon, isAction: true },
+    { id: 'home', label: 'Dashboard', icon: Home },
     { id: 'clients', label: 'Trainees', icon: Users },
+    { id: 'quick_log', label: 'START WORKOUT', icon: StartWorkoutIcon, isAction: true },
     { id: 'payments', label: 'Payments', icon: Wallet },
+    { id: 'more', label: 'More', icon: MoreHorizontal, isMore: true },
   ];
 
   const navigateToContext = useCallback((context, { isAuthenticated = false, replace = false } = {}) => {
@@ -472,8 +493,10 @@ export default function App() {
               <CoachNavigation
                 coachTabs={coachTabs}
                 activeTab={activeTab}
-                onSelectTab={setActiveTab}
+                onSelectTab={(tab) => { setActiveTab(tab); setShowCoachMore(false); }}
                 onOpenQuickLog={openQuickLog}
+                onOpenMore={() => setShowCoachMore(true)}
+                isMoreOpen={showCoachMore || activeTab === 'templates'}
                 desktop
               />
 
@@ -482,8 +505,10 @@ export default function App() {
                 <CoachNavigation
                   coachTabs={coachTabs}
                   activeTab={activeTab}
-                  onSelectTab={setActiveTab}
+                  onSelectTab={(tab) => { setActiveTab(tab); setShowCoachMore(false); }}
                   onOpenQuickLog={openQuickLog}
+                  onOpenMore={() => setShowCoachMore(true)}
+                  isMoreOpen={showCoachMore || activeTab === 'templates'}
                 />
               )}
             </div>
@@ -498,6 +523,14 @@ export default function App() {
               refreshKey={refreshKey}
             />
           </Suspense>
+        )}
+
+        {showCoachMore && !showCoachProfile && !selectedClient && (
+          <CoachMoreMenu
+            onClose={() => setShowCoachMore(false)}
+            onOpenTemplates={() => { setActiveTab('templates'); setShowCoachMore(false); }}
+            onOpenProfile={() => { setShowCoachMore(false); setShowCoachProfile(true); }}
+          />
         )}
 
         {showQuickLog && (
