@@ -23,6 +23,7 @@ export const LOW_SESSION_THRESHOLDS = [5, 3, 1];
 // Keep the schedule-change notification ready, but do not send it until the
 // product flow is approved for trainees.
 export const SCHEDULE_CHANGE_NOTIFICATIONS_ENABLED = false;
+export const SESSION_COMPLETION_NOTIFICATIONS_ENABLED = false;
 
 // ─── Core insert ─────────────────────────────────────────────
 export const createNotification = async ({ recipientUserId, type, title, body, metadata = {} }) => {

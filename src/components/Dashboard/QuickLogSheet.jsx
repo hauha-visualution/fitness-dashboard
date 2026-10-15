@@ -23,6 +23,7 @@ import {
 import CreateTemplateModal from './CreateTemplateModal';
 import { toast } from '../../utils/toast';
 import {
+  SESSION_COMPLETION_NOTIFICATIONS_ENABLED,
   notifySessionCompleted,
   notifySessionCancelled,
   checkAndNotifyLowSessions,
@@ -749,7 +750,9 @@ const QuickLogSheet = ({
           const clientAuthUserId = clientInfo?.auth_user_id ?? null;
 
           if (status === 'completed') {
-            await notifySessionCompleted({ clientAuthUserId, sessionNumber: sessNum, scheduledDate: sessDate });
+            if (SESSION_COMPLETION_NOTIFICATIONS_ENABLED) {
+              await notifySessionCompleted({ clientAuthUserId, sessionNumber: sessNum, scheduledDate: sessDate });
+            }
             await checkAndNotifyLowSessions({ packageId: pkgIdForNotif, clientId: clientIdForNotif, coachAuthUserId });
           } else {
             const reason = cancelReason === '📝 Other reason' ? customReason : cancelReason;
