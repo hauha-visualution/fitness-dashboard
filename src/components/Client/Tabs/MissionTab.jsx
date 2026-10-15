@@ -201,7 +201,6 @@ const MissionCard = ({
   isSaving,
   onEdit,
   onOpenDetail,
-  onCloseDetail,
   onStatusChange,
 }) => {
   const elapsed = getMissionElapsedSeconds(mission, nowMs);
@@ -220,7 +219,7 @@ const MissionCard = ({
       }`}
     >
       <div className="flex items-start justify-between gap-3">
-        <button type="button" onClick={onOpenDetail} className="min-w-0 flex-1 text-left">
+        <button type="button" onClick={readOnly ? undefined : onOpenDetail} className="min-w-0 flex-1 text-left" disabled={readOnly}>
           <p className="text-[9px] font-black uppercase tracking-widest text-red-300/80">{mission.exercise_type}</p>
           <h3 className="mt-1 truncate text-sm font-bold text-white">{mission.title}</h3>
         </button>
@@ -242,7 +241,8 @@ const MissionCard = ({
 
       <button
         type="button"
-        onClick={onOpenDetail}
+        onClick={readOnly ? undefined : onOpenDetail}
+        disabled={readOnly}
         className="mt-3 grid w-full grid-cols-1 gap-2 text-left text-[10px] font-semibold text-white/45 sm:grid-cols-2"
       >
         <span className="inline-flex items-center gap-1.5">
@@ -268,30 +268,6 @@ const MissionCard = ({
               </div>
             ) : null}
           </div>
-
-          {isSelected ? (
-            <div className="mt-3 rounded-[16px] border border-red-400/15 bg-red-500/[0.06] p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[8px] font-black uppercase tracking-widest text-red-200/55">
-                    {mission.created_by === 'trainee' ? 'Mission của bạn' : 'Nội dung coach giao'}
-                  </p>
-                  <p className="mt-2 text-sm font-semibold leading-relaxed text-white">{mission.title}</p>
-                  <p className="mt-1 text-[11px] leading-relaxed text-white/45">
-                    {mission.exercise_type} · {getMissionQuantityLabel(mission)} · {mission.perform_time?.slice(0, 5) || '--:--'}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={onCloseDetail}
-                  className="app-ghost-button inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/[0.08] text-white/70"
-                  aria-label="Close mission detail"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-          ) : null}
 
           <div className="mt-3 grid grid-cols-3 gap-2">
             <MissionActionButton
@@ -320,16 +296,14 @@ const MissionCard = ({
           <span className="text-[10px] font-semibold text-white/35">
             {canEdit ? 'Editable until trainee starts' : 'Locked after start'}
           </span>
-          {canEdit ? (
-            <button
-              type="button"
-              onClick={onEdit}
-              className="app-ghost-button inline-flex h-9 items-center justify-center gap-1.5 rounded-[14px] border border-white/[0.08] px-3 text-[10px] font-black uppercase tracking-wide text-white"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-              Edit
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={onEdit}
+            className="app-ghost-button inline-flex h-9 items-center justify-center gap-1.5 rounded-[14px] border border-white/[0.08] px-3 text-[10px] font-black uppercase tracking-wide text-white"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            {canEdit ? 'Edit' : 'Manage'}
+          </button>
         </div>
       )}
     </div>
@@ -542,15 +516,17 @@ const CoachMissionComposer = ({ client, editingMission, onCancelEdit, onCancelCr
   };
 
   const handleDelete = async () => {
-    if (!isEditing || !isTraineeCreator || isDeleting) return;
+    if (!isEditing || isDeleting) return;
     if (!window.confirm('Xoá mission này? Hành động này không thể hoàn tác.')) return;
 
     setIsDeleting(true);
-    const { error } = await supabase
+    let query = supabase
       .from('missions')
       .delete()
-      .eq('id', editingMission.id)
-      .eq('created_by', 'trainee');
+      .eq('id', editingMission.id);
+
+    if (isTraineeCreator) query = query.eq('created_by', 'trainee');
+    const { error } = await query;
     setIsDeleting(false);
 
     if (error) {
@@ -649,7 +625,7 @@ const CoachMissionComposer = ({ client, editingMission, onCancelEdit, onCancelCr
         />
       </div>
 
-      {isEditing && isTraineeCreator ? (
+      {isEditing ? (
         <button
           type="button"
           onClick={() => { void handleDelete(); }}
@@ -848,7 +824,7 @@ const MissionTab = ({ client, readOnly = false }) => {
     setEditingMission(null);
   };
 
-  const handleTraineeMissionDeleted = (missionId) => {
+  const handleMissionDeleted = (missionId) => {
     setMissions((prev) => prev.filter((mission) => mission.id !== missionId));
     setSelectedMission((prev) => (prev?.id === missionId ? null : prev));
     setEditingMission(null);
@@ -920,7 +896,7 @@ const MissionTab = ({ client, readOnly = false }) => {
           editingMission={editingMission}
           onCancelEdit={() => setEditingMission(null)}
           onCancelCreate={() => setShowTraineeComposer(false)}
-          onDeleted={handleTraineeMissionDeleted}
+          onDeleted={handleMissionDeleted}
           onSaved={(savedMission) => {
             handleCoachSaved(savedMission);
             if (readOnly) setShowTraineeComposer(false);
@@ -990,7 +966,6 @@ const MissionTab = ({ client, readOnly = false }) => {
                   if (readOnly) setShowTraineeComposer(true);
                 }}
                 onOpenDetail={() => setSelectedMission(mission)}
-                onCloseDetail={() => setSelectedMission(null)}
                 onStatusChange={updateMissionStatus}
               />
             )) : (
