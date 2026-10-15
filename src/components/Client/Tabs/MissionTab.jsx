@@ -196,6 +196,7 @@ const MissionCard = ({
   isSelected,
   readOnly,
   canEdit,
+  canTraineeManage,
   nowMs,
   isSaving,
   onEdit,
@@ -223,7 +224,20 @@ const MissionCard = ({
           <p className="text-[9px] font-black uppercase tracking-widest text-red-300/80">{mission.exercise_type}</p>
           <h3 className="mt-1 truncate text-sm font-bold text-white">{mission.title}</h3>
         </button>
-        <MissionStatusPill status={mission.status} />
+        <div className="flex items-center gap-2">
+          <MissionStatusPill status={mission.status} />
+          {canTraineeManage ? (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="app-ghost-button inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/[0.08] text-white/65"
+              aria-label="Edit my mission"
+              title="Chỉnh mission"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <button
@@ -259,7 +273,9 @@ const MissionCard = ({
             <div className="mt-3 rounded-[16px] border border-red-400/15 bg-red-500/[0.06] p-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[8px] font-black uppercase tracking-widest text-red-200/55">Nội dung coach giao</p>
+                  <p className="text-[8px] font-black uppercase tracking-widest text-red-200/55">
+                    {mission.created_by === 'trainee' ? 'Mission của bạn' : 'Nội dung coach giao'}
+                  </p>
                   <p className="mt-2 text-sm font-semibold leading-relaxed text-white">{mission.title}</p>
                   <p className="mt-1 text-[11px] leading-relaxed text-white/45">
                     {mission.exercise_type} · {getMissionQuantityLabel(mission)} · {mission.perform_time?.slice(0, 5) || '--:--'}
@@ -421,11 +437,12 @@ const CompletedMissionReport = ({ completedGroups, missions }) => {
   );
 };
 
-const CoachMissionComposer = ({ client, editingMission, onCancelEdit, onCancelCreate, onSaved, creator = 'coach' }) => {
+const CoachMissionComposer = ({ client, editingMission, onCancelEdit, onCancelCreate, onDeleted, onSaved, creator = 'coach' }) => {
   const isEditing = Boolean(editingMission?.id);
   const isTraineeCreator = creator === 'trainee';
   const [draft, setDraft] = useState(() => (isEditing ? missionToDraft(editingMission) : emptyDraft()));
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const updateDraft = (key, value) => setDraft((prev) => ({ ...prev, [key]: value }));
 
@@ -445,7 +462,7 @@ const CoachMissionComposer = ({ client, editingMission, onCancelEdit, onCancelCr
       return;
     }
 
-    if (isEditing && !isMissionEditableByCoach(editingMission)) {
+    if (isEditing && !isTraineeCreator && !isMissionEditableByCoach(editingMission)) {
       toast.error('Mission đã được start nên không thể chỉnh sửa.');
       onCancelEdit?.();
       return;
@@ -470,15 +487,23 @@ const CoachMissionComposer = ({ client, editingMission, onCancelEdit, onCancelCr
     };
 
     const query = isEditing
-      ? supabase
-        .from('missions')
-        .update({ ...payload, updated_at: new Date().toISOString() })
-        .eq('id', editingMission.id)
-        .eq('status', 'assigned')
-        .eq('elapsed_seconds', 0)
-        .is('started_at', null)
-        .select('*')
-        .maybeSingle()
+      ? isTraineeCreator
+        ? supabase
+          .from('missions')
+          .update({ ...payload, created_by: 'trainee', updated_at: new Date().toISOString() })
+          .eq('id', editingMission.id)
+          .eq('created_by', 'trainee')
+          .select('*')
+          .maybeSingle()
+        : supabase
+          .from('missions')
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq('id', editingMission.id)
+          .eq('status', 'assigned')
+          .eq('elapsed_seconds', 0)
+          .is('started_at', null)
+          .select('*')
+          .maybeSingle()
       : supabase
         .from('missions')
         .insert(payload)
@@ -514,6 +539,27 @@ const CoachMissionComposer = ({ client, editingMission, onCancelEdit, onCancelCr
     setIsSaving(false);
     onSaved?.(data);
     if (isEditing) onCancelEdit?.();
+  };
+
+  const handleDelete = async () => {
+    if (!isEditing || !isTraineeCreator || isDeleting) return;
+    if (!window.confirm('Xoá mission này? Hành động này không thể hoàn tác.')) return;
+
+    setIsDeleting(true);
+    const { error } = await supabase
+      .from('missions')
+      .delete()
+      .eq('id', editingMission.id)
+      .eq('created_by', 'trainee');
+    setIsDeleting(false);
+
+    if (error) {
+      toast.error(`Không thể xoá mission: ${error.message}`);
+      return;
+    }
+
+    toast.success('Đã xoá mission.');
+    onDeleted?.(editingMission.id);
   };
 
   return (
@@ -602,6 +648,18 @@ const CoachMissionComposer = ({ client, editingMission, onCancelEdit, onCancelCr
           className="rounded-[16px] border border-white/[0.08] bg-black/40 px-4 py-3 text-sm text-white outline-none focus:border-red-400/45"
         />
       </div>
+
+      {isEditing && isTraineeCreator ? (
+        <button
+          type="button"
+          onClick={() => { void handleDelete(); }}
+          disabled={isSaving || isDeleting}
+          className="inline-flex h-10 items-center justify-center gap-1.5 rounded-[14px] border border-red-400/25 bg-red-500/[0.08] px-4 text-[10px] font-black uppercase tracking-wide text-red-300 disabled:opacity-50"
+        >
+          <X className="h-3.5 w-3.5" />
+          {isDeleting ? 'Deleting' : 'Delete mission'}
+        </button>
+      ) : null}
     </form>
   );
 };
@@ -790,6 +848,13 @@ const MissionTab = ({ client, readOnly = false }) => {
     setEditingMission(null);
   };
 
+  const handleTraineeMissionDeleted = (missionId) => {
+    setMissions((prev) => prev.filter((mission) => mission.id !== missionId));
+    setSelectedMission((prev) => (prev?.id === missionId ? null : prev));
+    setEditingMission(null);
+    setShowTraineeComposer(false);
+  };
+
   const updateMissionStatus = async (mission, status) => {
     setSavingMissionId(mission.id);
     const nowIso = new Date().toISOString();
@@ -848,13 +913,14 @@ const MissionTab = ({ client, readOnly = false }) => {
 
   return (
     <div className="space-y-4 animate-tab-in">
-      {!readOnly || showTraineeComposer ? (
+      {!readOnly || showTraineeComposer || (readOnly && editingMission) ? (
         <CoachMissionComposer
           key={editingMission?.id || `new-mission-${showTraineeComposer}`}
           client={client}
           editingMission={editingMission}
           onCancelEdit={() => setEditingMission(null)}
           onCancelCreate={() => setShowTraineeComposer(false)}
+          onDeleted={handleTraineeMissionDeleted}
           onSaved={(savedMission) => {
             handleCoachSaved(savedMission);
             if (readOnly) setShowTraineeComposer(false);
@@ -914,12 +980,14 @@ const MissionTab = ({ client, readOnly = false }) => {
                 mission={mission}
                 readOnly={readOnly}
                 canEdit={!readOnly && isMissionEditableByCoach(mission)}
+                canTraineeManage={readOnly && mission.created_by === 'trainee'}
                 nowMs={nowMs}
                 isSaving={savingMissionId === mission.id}
                 isSelected={selectedMission?.id === mission.id}
                 onEdit={() => {
                   setEditingMission(mission);
                   setSelectedMission(null);
+                  if (readOnly) setShowTraineeComposer(true);
                 }}
                 onOpenDetail={() => setSelectedMission(mission)}
                 onCloseDetail={() => setSelectedMission(null)}
