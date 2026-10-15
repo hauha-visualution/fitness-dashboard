@@ -157,6 +157,7 @@ const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) =
             client={client}
             readOnly={true}
             allowStretchingBooking={true}
+            allowTraineeComplete={true}
             onOpenQuickLog={setQuickLogSelection}
           />
         </div>

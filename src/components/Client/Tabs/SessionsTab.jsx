@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { Dumbbell, CheckCircle2, Clock, ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
+import { Dumbbell, CheckCircle2, Clock, ChevronDown, ChevronUp, Plus, X, CalendarDays } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 import { getServiceTypeLabel, parseServiceBooking, parseServiceMeta } from '../../../utils/serviceUtils';
 import { notifyExtraSessionAdded, fetchClientNotifInfo } from '../../../utils/notificationUtils';
@@ -8,14 +8,20 @@ import { toast } from '../../../utils/toast';
 
 // ─── Helpers ─────────────────────────────────────────────────
 const DAY_VI = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAY_OPTIONS = [
+  { day: 1, label: 'M' }, { day: 2, label: 'T' }, { day: 3, label: 'W' },
+  { day: 4, label: 'T' }, { day: 5, label: 'F' }, { day: 6, label: 'S' }, { day: 0, label: 'S' },
+];
 
 const formatSessionDate = (dateStr) => {
-  const d = new Date(dateStr + 'T00:00:00');
-  const day = DAY_VI[d.getDay()];
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const yyyy = d.getFullYear();
-  return { dayLabel: day, full: `${dd}/${mm}/${yyyy}`, short: `${dd}/${mm}` };
+  // Session dates are calendar dates. Parse them in UTC at noon so a browser
+  // timezone can never shift the displayed day backwards or forwards.
+  const [yyyy, mm, dd] = String(dateStr).slice(0, 10).split('-').map(Number);
+  const d = new Date(Date.UTC(yyyy, mm - 1, dd, 12));
+  const day = DAY_VI[d.getUTCDay()];
+  const paddedDay = String(dd).padStart(2, '0');
+  const paddedMonth = String(mm).padStart(2, '0');
+  return { dayLabel: day, full: `${paddedDay}/${paddedMonth}/${yyyy}`, short: `${paddedDay}/${paddedMonth}` };
 };
 
 const localDateStr = (d) => {
@@ -46,6 +52,7 @@ const SessionsTab = ({
   client,
   readOnly = false,
   allowStretchingBooking = false,
+  allowTraineeComplete = false,
   onOpenQuickLog,
   refreshKey = 0,
 }) => {
@@ -53,6 +60,8 @@ const SessionsTab = ({
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedPkg, setExpandedPkg] = useState(null);
+  const [expandedCompletedPackages, setExpandedCompletedPackages] = useState({});
+  const [expandedCancelledPackages, setExpandedCancelledPackages] = useState({});
   const [showExtraModal, setShowExtraModal] = useState(false);
   const [extraPackage, setExtraPackage] = useState(null);
   const [extraServiceType, setExtraServiceType] = useState('training');
@@ -60,6 +69,11 @@ const SessionsTab = ({
   const [extraTime, setExtraTime] = useState('');
   const [extraNote, setExtraNote] = useState('');
   const [addingExtra, setAddingExtra] = useState(false);
+  const [schedulePackage, setSchedulePackage] = useState(null);
+  const [scheduleEffectiveDate, setScheduleEffectiveDate] = useState('');
+  const [weeklySchedule, setWeeklySchedule] = useState([]);
+  const [savingSchedule, setSavingSchedule] = useState(false);
+  const [completingSessionId, setCompletingSessionId] = useState(null);
   const canScheduleStretching = !readOnly || allowStretchingBooking;
 
   const fetchData = useCallback(async () => {
@@ -67,7 +81,7 @@ const SessionsTab = ({
     setLoading(true);
 
     const [{ data: pkgs }, { data: sess }] = await Promise.all([
-      supabase.from('packages').select('id, package_number, total_sessions, status, note').eq('client_id', clientId).order('package_number'),
+      supabase.from('packages').select('id, package_number, total_sessions, status, note, weekly_schedule').eq('client_id', clientId).order('package_number'),
       supabase.from('sessions').select('*').eq('client_id', clientId).order('scheduled_date').order('scheduled_time'),
     ]);
 
@@ -106,6 +120,56 @@ const SessionsTab = ({
     setExtraTime(firstActiveSession?.scheduled_time?.slice(0, 5) || '07:00');
     setExtraNote('');
     setShowExtraModal(true);
+  };
+
+  const openScheduleModal = (pkg) => {
+    const now = new Date();
+    setSchedulePackage(pkg);
+    setScheduleEffectiveDate(localDateStr(now));
+    setWeeklySchedule(pkg.weekly_schedule || []);
+  };
+
+  const toggleScheduleDay = (day) => {
+    setWeeklySchedule((current) => {
+      const exists = current.some((item) => item.day === day);
+      if (exists) return current.filter((item) => item.day !== day);
+      return [...current, { day, time: '07:00' }].sort((a, b) => (a.day || 7) - (b.day || 7));
+    });
+  };
+
+  const updateScheduleTime = (day, time) => {
+    setWeeklySchedule((current) => current.map((item) => item.day === day ? { ...item, time } : item));
+  };
+
+  const handleApplySchedule = async () => {
+    if (!schedulePackage || !scheduleEffectiveDate || weeklySchedule.length === 0) return;
+    setSavingSchedule(true);
+    const { error } = await supabase.rpc('apply_package_schedule', {
+      p_package_id: schedulePackage.id,
+      p_effective_date: scheduleEffectiveDate,
+      p_weekly_schedule: weeklySchedule,
+    });
+    setSavingSchedule(false);
+    if (error) {
+      toast.error(`Unable to update schedule: ${error.message}`);
+      return;
+    }
+    setSchedulePackage(null);
+    toast.success('Upcoming sessions have been updated.');
+    void fetchData();
+  };
+
+  const handleCompleteSession = async (sessionId) => {
+    if (!sessionId || completingSessionId) return;
+    setCompletingSessionId(sessionId);
+    const { error } = await supabase.rpc('complete_session_without_exercises', { p_session_id: sessionId });
+    setCompletingSessionId(null);
+    if (error) {
+      toast.error(`Unable to complete session: ${error.message}`);
+      return;
+    }
+    toast.success('Session marked complete. Great work!');
+    void fetchData();
   };
 
   const handleCreateExtraSession = async () => {
@@ -228,6 +292,8 @@ const SessionsTab = ({
                       a.scheduled_time.localeCompare(b.scheduled_time)
                   );
                 const doneSessions = pkgSessions.filter((s) => s.status === 'completed');
+                const isCompletedExpanded = Boolean(expandedCompletedPackages[pkg.id]);
+                const isCancelledExpanded = Boolean(expandedCancelledPackages[pkg.id]);
                 const cancelledSessions = pkgSessions
                   .filter((s) => s.status === 'cancelled' && s.cancel_reason !== 'overflow_by_extra_session')
                   .sort((a, b) => {
@@ -304,6 +370,17 @@ const SessionsTab = ({
                     {/* Sessions list */}
                     <div className={`space-y-1.5 px-4 pb-4 lg:px-5 lg:pb-5 ${isExpanded ? 'block' : 'hidden'}`}>
 
+                {isActive && serviceType === 'training' && !readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => openScheduleModal(pkg)}
+                    className="mb-2 flex w-full items-center justify-center gap-2 rounded-[14px] border border-white/[0.08] bg-white/[0.04] px-3 py-3 text-[10px] font-black uppercase text-white"
+                  >
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    {pkg.weekly_schedule?.length ? 'Update schedule' : 'Set schedule'}
+                  </button>
+                )}
+
                 {/* Upcoming sessions */}
                 {upcomingSessions.length > 0 && (
                   <>
@@ -332,36 +409,30 @@ const SessionsTab = ({
                       return (
                         <div
                           key={sess.id}
-                          className={`flex items-center gap-3 rounded-[16px] px-4 py-3 transition-all lg:gap-4 lg:px-5 lg:py-3.5 ${
+                          className={`grid grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-3 rounded-[16px] px-3.5 py-3 transition-all lg:grid-cols-[28px_minmax(0,1fr)_auto] lg:gap-4 lg:px-5 lg:py-3.5 ${
                             isInProgress ? 'bg-blue-500/12 border border-blue-500/25' : today ? 'bg-blue-500/15 border border-blue-500/20' : 'bg-white/[0.02]'
                           }`}
                         >
                           {/* Session number */}
-                          <span className="text-[10px] font-black text-neutral-600 w-6 text-center">
+                          <span className="text-center text-[10px] font-black tabular-nums text-neutral-600">
                             {String(sess.session_number).padStart(2, '0')}
                           </span>
 
-                          {/* Day chip */}
-                          <span className={`text-[10px] font-black w-6 text-center ${today ? 'text-blue-400' : 'text-neutral-500'}`}>
-                            {dayLabel}
-                          </span>
-
                           {/* Date & time */}
-                          <div className="flex-1">
-                            <p className={`text-xs font-medium ${today || isInProgress ? 'text-blue-300' : 'text-white'}`}>
-                              {short}
+                          <div className="min-w-0">
+                            <p className={`flex items-center gap-1.5 text-xs font-medium ${today || isInProgress ? 'text-blue-300' : 'text-white'}`}>
+                              <span className={`text-[10px] font-black uppercase tracking-wide ${today ? 'text-blue-400' : 'text-neutral-500'}`}>{dayLabel}</span>
+                              <span>{short}</span>
                               {today && <span className="text-[9px] font-black text-blue-400 ml-1">TODAY</span>}
                               {isInProgress && <span className="text-[9px] font-black text-blue-400 ml-1">LIVE</span>}
                             </p>
-                            <p className="text-[10px] text-neutral-600">{bookingMeta.timeLabel}</p>
-                            {bookingMeta.locationLabel ? (
-                              <p className="text-[10px] text-neutral-700">{bookingMeta.locationLabel}</p>
-                            ) : null}
+                            <p className="truncate text-[10px] text-neutral-600">
+                              {bookingMeta.timeLabel}{bookingMeta.locationLabel ? ` · ${bookingMeta.locationLabel}` : ''}
+                            </p>
                           </div>
 
-                          {/* Mark done button (coach only) */}
-                          {!readOnly && (
-                            <div className="flex items-center">
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            {!readOnly && (
                               <button
                                 onClick={() => onOpenQuickLog?.({
                                   sessionId: sess.id,
@@ -374,13 +445,25 @@ const SessionsTab = ({
                                   sessionKind: sess.session_kind,
                                   manualMode: false,
                                 })}
-                                className="flex items-center gap-1.5 px-3 py-2 rounded-[12px] text-[10px] font-black uppercase transition-all active:scale-90 bg-blue-500/10 border border-blue-500/20 text-blue-400"
+                                aria-label="Record workout"
+                                title="Record workout"
+                                className="inline-flex h-11 w-11 items-center justify-center rounded-[12px] border border-blue-500/20 bg-blue-500/10 text-blue-300 transition-transform active:scale-95"
                               >
-                                <Clock className="w-3 h-3" />
-                                Record
+                                <Clock className="h-3.5 w-3.5" />
                               </button>
-                            </div>
-                          )}
+                            )}
+                            {(!readOnly || allowTraineeComplete) && (
+                              <button
+                                type="button"
+                                onClick={() => handleCompleteSession(sess.id)}
+                                disabled={completingSessionId === sess.id}
+                                className="inline-flex h-11 items-center gap-1.5 rounded-[12px] border border-emerald-300/30 bg-emerald-400 px-3 text-[10px] font-black uppercase text-emerald-950 transition-transform active:scale-95 disabled:opacity-50"
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                {completingSessionId === sess.id ? 'Saving' : 'Complete'}
+                              </button>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -406,10 +489,25 @@ const SessionsTab = ({
                 {/* Completed sessions */}
                 {doneSessions.length > 0 && (
                   <>
-                    <p className="text-[9px] font-black text-neutral-700 uppercase tracking-widest py-2 px-1 mt-2">
-                      Completed · {doneSessions.length} sessions
-                    </p>
-                    {doneSessions.map(sess => {
+                    <button
+                      type="button"
+                      onClick={() => setExpandedCompletedPackages((current) => ({
+                        ...current,
+                        [pkg.id]: !current[pkg.id],
+                      }))}
+                      aria-expanded={isCompletedExpanded}
+                      className="mt-2 flex w-full items-center justify-between rounded-[12px] px-1 py-2 text-left"
+                    >
+                      <span className="text-[9px] font-black uppercase tracking-widest text-neutral-700">
+                        Completed · {doneSessions.length} sessions
+                      </span>
+                      {isCompletedExpanded ? (
+                        <ChevronUp className="h-3.5 w-3.5 text-neutral-600" />
+                      ) : (
+                        <ChevronDown className="h-3.5 w-3.5 text-neutral-600" />
+                      )}
+                    </button>
+                    {isCompletedExpanded && doneSessions.map(sess => {
                       const { dayLabel, short } = formatSessionDate(sess.scheduled_date);
                       const canReviewLog = typeof onOpenQuickLog === 'function';
                       const bookingMeta = formatBookingWindow(sess);
@@ -461,10 +559,25 @@ const SessionsTab = ({
 
                 {cancelledSessions.length > 0 && (
                   <>
-                    <p className="text-[9px] font-black text-red-400/70 uppercase tracking-widest py-2 px-1 mt-2">
-                      Cancelled · {cancelledSessions.length} sessions
-                    </p>
-                    {cancelledSessions.map(sess => {
+                    <button
+                      type="button"
+                      onClick={() => setExpandedCancelledPackages((current) => ({
+                        ...current,
+                        [pkg.id]: !current[pkg.id],
+                      }))}
+                      aria-expanded={isCancelledExpanded}
+                      className="mt-2 flex w-full items-center justify-between rounded-[12px] px-1 py-2 text-left"
+                    >
+                      <span className="text-[9px] font-black uppercase tracking-widest text-red-400/70">
+                        Cancelled · {cancelledSessions.length} sessions
+                      </span>
+                      {isCancelledExpanded ? (
+                        <ChevronUp className="h-3.5 w-3.5 text-red-300/60" />
+                      ) : (
+                        <ChevronDown className="h-3.5 w-3.5 text-red-300/60" />
+                      )}
+                    </button>
+                    {isCancelledExpanded && cancelledSessions.map(sess => {
                       const { dayLabel, short } = formatSessionDate(sess.scheduled_date);
                       const bookingMeta = formatBookingWindow(sess);
                       return (
@@ -572,6 +685,35 @@ const SessionsTab = ({
           </div>
         </div>,
         document.body
+      )}
+      {schedulePackage && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[220] flex items-end justify-center bg-black/70 px-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-[560px] rounded-t-[28px] border border-white/10 bg-[#111113] p-5 pb-8 animate-modal-in lg:rounded-[28px]">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">Flexible schedule</p>
+                <h3 className="text-lg font-semibold text-white">Package #{String(schedulePackage.package_number).padStart(2, '0')}</h3>
+              </div>
+              <button onClick={() => setSchedulePackage(null)} className="rounded-full bg-white/5 p-2 text-neutral-400"><X className="h-4 w-4" /></button>
+            </div>
+            <p className="mb-4 rounded-[14px] border border-white/[0.06] bg-white/[0.03] px-4 py-3 text-[11px] leading-relaxed text-neutral-400">
+              All unfinished sessions, including missed sessions, will move to the new schedule from the effective date. Completed sessions remain unchanged.
+            </p>
+            <label className="block text-[9px] font-black uppercase tracking-widest text-neutral-600">Effective from</label>
+            <input type="date" value={scheduleEffectiveDate} onChange={(event) => setScheduleEffectiveDate(event.target.value)} className="mt-2 w-full rounded-[14px] border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-sm text-white outline-none" />
+            <p className="mb-2 mt-5 text-[9px] font-black uppercase tracking-widest text-neutral-600">Weekly training days</p>
+            <div className="grid grid-cols-7 gap-1.5">
+              {DAY_OPTIONS.map(({ day, label }) => {
+                const selected = weeklySchedule.some((item) => item.day === day);
+                return <button key={day} type="button" onClick={() => toggleScheduleDay(day)} className={`rounded-[12px] py-2.5 text-[11px] font-black ${selected ? 'bg-white text-black' : 'border border-white/[0.08] bg-white/[0.04] text-neutral-500'}`}>{label}</button>;
+              })}
+            </div>
+            {weeklySchedule.length > 0 && <div className="mt-3 space-y-2">
+              {weeklySchedule.map(({ day, time }) => <div key={day} className="flex items-center justify-between rounded-[12px] border border-white/[0.06] bg-white/[0.03] px-4 py-2.5"><span className="text-xs font-bold text-white">{DAY_VI[day]}</span><input type="time" value={time} onChange={(event) => updateScheduleTime(day, event.target.value)} className="bg-transparent text-sm text-white outline-none" /></div>)}
+            </div>}
+            <div className="mt-5 flex gap-3"><button onClick={() => setSchedulePackage(null)} className="flex-1 rounded-[16px] border border-white/[0.08] bg-white/[0.04] py-3.5 text-sm font-bold text-white">Cancel</button><button onClick={handleApplySchedule} disabled={savingSchedule || !scheduleEffectiveDate || weeklySchedule.length === 0} className="flex-1 rounded-[16px] bg-white py-3.5 text-sm font-bold text-black disabled:opacity-50">{savingSchedule ? 'Updating...' : 'Apply schedule'}</button></div>
+          </div>
+        </div>, document.body
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarDays, CheckCircle2, Clock3, Pause, Play, Plus, RefreshCw, Target, X } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Clock3, Flame, Pause, Pencil, Play, Plus, RefreshCw, Target, X } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 import { toast } from '../../../utils/toast';
 import {
@@ -17,6 +17,55 @@ const formatDate = (value) => {
   const parts = value.split('-');
   if (parts.length !== 3) return value;
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
+};
+
+const formatShortDate = (value) => {
+  if (!value) return '--/--';
+  const date = new Date(value);
+  if (!Number.isNaN(date.getTime())) {
+    const parts = new Intl.DateTimeFormat('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      timeZone: 'Asia/Ho_Chi_Minh',
+    }).formatToParts(date);
+    const day = parts.find((part) => part.type === 'day')?.value;
+    const month = parts.find((part) => part.type === 'month')?.value;
+    return day && month ? `${day}/${month}` : '--/--';
+  }
+  const parts = value.split('-');
+  return parts.length === 3 ? `${parts[2]}/${parts[1]}` : value;
+};
+
+const formatDateTime = (value) => {
+  if (!value) return '--';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+};
+
+const getMonthKey = (value) => {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return 'Unknown';
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const getMonthLabel = (monthKey) => {
+  if (monthKey === 'Unknown') return 'Unknown';
+  const [year, month] = monthKey.split('-');
+  return `Tháng ${Number(month)}/${year}`;
+};
+
+const getWeekOfMonth = (value) => {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return 'Week ?';
+  return `Tuần ${Math.ceil(date.getDate() / 7)}`;
 };
 
 const statusMeta = {
@@ -68,6 +117,22 @@ const getTimerLabel = (mission, nowMs) => {
   return `${formatElapsedTime(elapsed)} / ${formatElapsedTime(target)}`;
 };
 
+const getCompletionRate = (completedCount, totalCount) => {
+  if (!totalCount) return 0;
+  return Math.round((completedCount / totalCount) * 100);
+};
+
+const getDurationDeltaLabel = (actualSeconds, targetSeconds) => {
+  const delta = Math.max(0, actualSeconds - targetSeconds);
+  return `+${formatElapsedTime(delta)}`;
+};
+
+const getMissionCompletionStreak = (missions) => (
+  missions.filter((mission) => mission.status === 'completed').length
+);
+
+const getNextStreakMilestone = (streak) => [3, 7, 14, 30].find((milestone) => milestone > streak) || null;
+
 const emptyDraft = () => ({
   exercise_type: 'Cardio',
   title: '',
@@ -77,6 +142,23 @@ const emptyDraft = () => ({
   start_date: todayKey(),
   end_date: todayKey(),
 });
+
+const missionToDraft = (mission) => ({
+  exercise_type: mission?.exercise_type || 'Cardio',
+  title: mission?.title || '',
+  duration_minutes: String(mission?.duration_minutes || '20'),
+  duration_unit: MISSION_UNITS.includes(mission?.duration_unit) ? mission.duration_unit : 'phút',
+  perform_time: mission?.perform_time?.slice(0, 5) || '07:00',
+  start_date: mission?.start_date || todayKey(),
+  end_date: mission?.end_date || mission?.start_date || todayKey(),
+});
+
+const isMissionEditableByCoach = (mission) => (
+  mission?.status === 'assigned'
+  && getMissionElapsedSeconds(mission) === 0
+  && !mission.started_at
+  && !mission.completed_at
+);
 
 const MissionStatusPill = ({ status }) => {
   const meta = statusMeta[status] || statusMeta.assigned;
@@ -111,8 +193,10 @@ const MissionCard = ({
   mission,
   isSelected,
   readOnly,
+  canEdit,
   nowMs,
   isSaving,
+  onEdit,
   onOpenDetail,
   onCloseDetail,
   onStatusChange,
@@ -213,13 +297,131 @@ const MissionCard = ({
             />
           </div>
         </>
-      ) : null}
+      ) : (
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <span className="text-[10px] font-semibold text-white/35">
+            {canEdit ? 'Editable until trainee starts' : 'Locked after start'}
+          </span>
+          {canEdit ? (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="app-ghost-button inline-flex h-9 items-center justify-center gap-1.5 rounded-[14px] border border-white/[0.08] px-3 text-[10px] font-black uppercase tracking-wide text-white"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Edit
+            </button>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 };
 
-const CoachMissionComposer = ({ client, onCreated }) => {
-  const [draft, setDraft] = useState(emptyDraft);
+const CompletedMissionRow = ({ mission }) => {
+  const actualSeconds = getMissionElapsedSeconds(mission);
+  const targetSeconds = getMissionTargetSeconds(mission);
+  const actualLabel = formatElapsedTime(actualSeconds);
+  const targetLabel = targetSeconds ? formatElapsedTime(targetSeconds) : getMissionQuantityLabel(mission);
+  const completedLabel = formatDateTime(mission.completed_at);
+
+  return (
+    <div className="flex items-center gap-3 px-3 py-2.5">
+      <span className="w-10 shrink-0 text-[10px] font-bold tabular-nums text-[var(--app-accent)]">
+        {formatShortDate(mission.completed_at || mission.start_date)}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[11px] font-medium text-white">{mission.title}</p>
+        <p className="mt-0.5 truncate text-[9px] text-white/35">
+          {mission.exercise_type} · Target {targetLabel}{completedLabel ? ` · Done ${completedLabel}` : ''}
+        </p>
+      </div>
+      <span className="shrink-0 font-mono text-[10px] font-semibold text-white/85">
+        {actualSeconds > 0 ? actualLabel : targetLabel}
+      </span>
+    </div>
+  );
+};
+
+const CompletedMissionGroups = ({ groups }) => (
+  <div className="space-y-3">
+    {groups.map((monthGroup) => (
+      <div key={monthGroup.key} className="rounded-[20px] border border-white/[0.06] bg-white/[0.02] p-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[9px] font-black uppercase tracking-widest text-white/38">{monthGroup.label}</p>
+          <span className="rounded-full border border-emerald-500/15 bg-emerald-500/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-emerald-300">
+            {monthGroup.count} done
+          </span>
+        </div>
+
+        <div className="mt-3 space-y-3">
+          {monthGroup.weeks.map((weekGroup) => (
+            <div key={`${monthGroup.key}-${weekGroup.key}`} className="space-y-2">
+              <p className="text-[8px] font-black uppercase tracking-widest text-white/28">{weekGroup.key} · {weekGroup.items.length}</p>
+              <div className="overflow-hidden rounded-[14px] border border-white/[0.06] bg-black/15 divide-y divide-white/[0.06]">
+                {weekGroup.items.map((mission) => (
+                  <CompletedMissionRow key={mission.id} mission={mission} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+const CompletedMissionReport = ({ completedGroups, missions }) => {
+  const latestMonth = completedGroups[0];
+  if (!latestMonth) return null;
+
+  const monthMissions = missions.filter((mission) => getMonthKey(mission.start_date) === latestMonth.key);
+  const completionRate = getCompletionRate(latestMonth.count, monthMissions.length);
+  const actualSeconds = latestMonth.weeks.flatMap((week) => week.items)
+    .reduce((total, mission) => total + getMissionElapsedSeconds(mission), 0);
+  const targetSeconds = latestMonth.weeks.flatMap((week) => week.items)
+    .reduce((total, mission) => total + (getMissionTargetSeconds(mission) || 0), 0);
+  const streak = getMissionCompletionStreak(missions);
+  const nextMilestone = getNextStreakMilestone(streak);
+  const headline = completionRate === 100 ? 'Hoàn thành tất cả mission' : 'Kết quả mission tháng này';
+  const totalLabel = monthMissions.length ? `${latestMonth.count}/${monthMissions.length}` : String(latestMonth.count);
+
+  return (
+    <section className="overflow-hidden rounded-[22px] border border-white/[0.07] bg-[linear-gradient(135deg,rgba(9,31,39,0.94),rgba(10,19,38,0.95))]">
+      <div className="border-b border-white/[0.07] px-4 pb-4 pt-3.5">
+        <p className="text-[9px] font-black uppercase tracking-widest text-white/40">{latestMonth.label}</p>
+        <h3 className="mt-1.5 text-[17px] font-medium tracking-[-0.015em] text-white">{headline}</h3>
+        <div className="mt-4 grid grid-cols-[94px_minmax(0,1fr)] items-center gap-4">
+          <div className="relative grid h-[94px] w-[94px] place-items-center rounded-full bg-[conic-gradient(var(--app-accent)_0deg_360deg,rgba(255,255,255,0.08)_360deg)]">
+            <div className="grid h-[72px] w-[72px] place-items-center rounded-full bg-[#0a1b27] text-[21px] font-medium tracking-[-0.04em] text-white">
+              {totalLabel}
+            </div>
+          </div>
+          <div className="min-w-0">
+            <p className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-[var(--app-accent)]">
+              <Flame className="h-3.5 w-3.5" /> Streak {streak} mission
+            </p>
+            <p className="mt-1 text-[17px] font-medium text-white">{getDurationDeltaLabel(actualSeconds, targetSeconds)} vượt chỉ tiêu</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-white/48">
+              {nextMilestone
+                ? `Còn ${nextMilestone - streak} mission để mở khoá mốc ${nextMilestone}.`
+                : 'Bạn đã chạm mốc Streak cao nhất.'}
+            </p>
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2 p-3">
+        <div className="rounded-[13px] bg-white/[0.045] px-2.5 py-2.5"><p className="text-[15px] font-medium text-white">{completionRate}%</p><p className="mt-1 text-[7px] font-black uppercase tracking-widest text-white/35">Hoàn thành</p></div>
+        <div className="rounded-[13px] bg-white/[0.045] px-2.5 py-2.5"><p className="truncate text-[13px] font-medium text-white">{formatElapsedTime(actualSeconds)}</p><p className="mt-1 text-[7px] font-black uppercase tracking-widest text-white/35">Tập thực tế</p></div>
+        <div className="rounded-[13px] bg-white/[0.045] px-2.5 py-2.5"><p className="truncate text-[13px] font-medium text-white">{formatElapsedTime(targetSeconds)}</p><p className="mt-1 text-[7px] font-black uppercase tracking-widest text-white/35">Chỉ tiêu</p></div>
+      </div>
+    </section>
+  );
+};
+
+const CoachMissionComposer = ({ client, editingMission, onCancelEdit, onSaved }) => {
+  const isEditing = Boolean(editingMission?.id);
+  const [draft, setDraft] = useState(() => (isEditing ? missionToDraft(editingMission) : emptyDraft()));
   const [isSaving, setIsSaving] = useState(false);
 
   const updateDraft = (key, value) => setDraft((prev) => ({ ...prev, [key]: value }));
@@ -240,6 +442,12 @@ const CoachMissionComposer = ({ client, onCreated }) => {
       return;
     }
 
+    if (isEditing && !isMissionEditableByCoach(editingMission)) {
+      toast.error('Mission đã được start nên không thể chỉnh sửa.');
+      onCancelEdit?.();
+      return;
+    }
+
     setIsSaving(true);
     const { data: authData } = await supabase.auth.getSession();
     const authUser = authData?.session?.user;
@@ -257,40 +465,79 @@ const CoachMissionComposer = ({ client, onCreated }) => {
       end_date: draft.end_date,
     };
 
-    const { data, error } = await supabase
-      .from('missions')
-      .insert(payload)
-      .select('*')
-      .single();
+    const query = isEditing
+      ? supabase
+        .from('missions')
+        .update({ ...payload, updated_at: new Date().toISOString() })
+        .eq('id', editingMission.id)
+        .eq('status', 'assigned')
+        .eq('elapsed_seconds', 0)
+        .is('started_at', null)
+        .select('*')
+        .maybeSingle()
+      : supabase
+        .from('missions')
+        .insert(payload)
+        .select('*')
+        .single();
+
+    const { data, error } = await query;
 
     if (error) {
-      toast.error(`Không giao được mission: ${error.message}`);
+      toast.error(`${isEditing ? 'Không cập nhật được mission' : 'Không giao được mission'}: ${error.message}`);
       setIsSaving(false);
       return;
     }
 
-    await notifyMissionAssigned({ clientAuthUserId: client.auth_user_id, mission: data });
-    toast.success('Đã giao mission cho trainee.');
+    if (!data) {
+      toast.error('Mission đã được start nên không thể chỉnh sửa.');
+      setIsSaving(false);
+      onCancelEdit?.();
+      return;
+    }
+
+    if (!isEditing) {
+      await notifyMissionAssigned({ clientAuthUserId: client.auth_user_id, mission: data });
+    }
+
+    toast.success(isEditing ? 'Đã cập nhật mission.' : 'Đã giao mission cho trainee.');
     setDraft(emptyDraft());
     setIsSaving(false);
-    onCreated?.();
+    onSaved?.(data);
+    if (isEditing) onCancelEdit?.();
   };
 
   return (
     <form onSubmit={handleSubmit} className="app-bento-card space-y-3 p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[9px] font-black uppercase tracking-widest text-red-300/80">Assign Exercise</p>
-          <h3 className="mt-1 text-sm font-bold text-white">Mission mới</h3>
+          <p className="text-[9px] font-black uppercase tracking-widest text-red-300/80">
+            {isEditing ? 'Edit Exercise' : 'Assign Exercise'}
+          </p>
+          <h3 className="mt-1 text-sm font-bold text-white">
+            {isEditing ? 'Chỉnh mission trước khi start' : 'Mission mới'}
+          </h3>
         </div>
-        <button
-          type="submit"
-          disabled={isSaving}
-          className="app-cta-button inline-flex h-10 w-10 items-center justify-center rounded-[16px] text-black disabled:opacity-50"
-          aria-label="Assign mission"
-        >
-          {isSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-        </button>
+        <div className="flex items-center gap-2">
+          {isEditing ? (
+            <button
+              type="button"
+              onClick={onCancelEdit}
+              className="app-ghost-button inline-flex h-10 w-10 items-center justify-center rounded-[16px] border border-white/[0.08] text-white/70"
+              aria-label="Cancel edit"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="app-cta-button inline-flex h-10 w-10 items-center justify-center rounded-[16px] text-black disabled:opacity-50"
+            aria-label={isEditing ? 'Update mission' : 'Assign mission'}
+          >
+            {isSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : isEditing ? <CheckCircle2 className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -427,6 +674,7 @@ const MissionDetail = ({ mission, nowMs, onClose }) => {
 const MissionTab = ({ client, readOnly = false }) => {
   const [missions, setMissions] = useState([]);
   const [selectedMission, setSelectedMission] = useState(null);
+  const [editingMission, setEditingMission] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [savingMissionId, setSavingMissionId] = useState(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -469,13 +717,67 @@ const MissionTab = ({ client, readOnly = false }) => {
 
   const grouped = useMemo(() => {
     const active = missions.filter((mission) => mission.status !== 'completed');
-    const completed = missions.filter((mission) => mission.status === 'completed');
+    const completed = missions
+      .filter((mission) => mission.status === 'completed')
+      .sort((left, right) => {
+        const leftTime = parseDateMs(left.completed_at || left.updated_at || left.created_at) || 0;
+        const rightTime = parseDateMs(right.completed_at || right.updated_at || right.created_at) || 0;
+        return rightTime - leftTime;
+      });
     return { active, completed };
   }, [missions]);
+
+  const completedGroups = useMemo(() => {
+    const monthMap = new Map();
+
+    grouped.completed.forEach((mission) => {
+      const completedAt = mission.completed_at || mission.updated_at || mission.created_at;
+      const monthKey = getMonthKey(completedAt);
+      const weekKey = getWeekOfMonth(completedAt);
+
+      if (!monthMap.has(monthKey)) {
+        monthMap.set(monthKey, {
+          key: monthKey,
+          label: getMonthLabel(monthKey),
+          count: 0,
+          weekMap: new Map(),
+        });
+      }
+
+      const monthGroup = monthMap.get(monthKey);
+      monthGroup.count += 1;
+
+      if (!monthGroup.weekMap.has(weekKey)) {
+        monthGroup.weekMap.set(weekKey, { key: weekKey, items: [] });
+      }
+
+      monthGroup.weekMap.get(weekKey).items.push(mission);
+    });
+
+    return Array.from(monthMap.values()).map((monthGroup) => ({
+      key: monthGroup.key,
+      label: monthGroup.label,
+      count: monthGroup.count,
+      weeks: Array.from(monthGroup.weekMap.values()),
+    }));
+  }, [grouped.completed]);
 
   const handleUpdated = (updatedMission) => {
     setMissions((prev) => prev.map((item) => (item.id === updatedMission.id ? updatedMission : item)));
     setSelectedMission(updatedMission);
+    if (editingMission?.id === updatedMission.id && !isMissionEditableByCoach(updatedMission)) {
+      setEditingMission(null);
+    }
+  };
+
+  const handleCoachSaved = (savedMission) => {
+    setMissions((prev) => {
+      const exists = prev.some((item) => item.id === savedMission.id);
+      if (!exists) return [savedMission, ...prev];
+      return prev.map((item) => (item.id === savedMission.id ? savedMission : item));
+    });
+    setSelectedMission((prev) => (prev?.id === savedMission.id ? savedMission : prev));
+    setEditingMission(null);
   };
 
   const updateMissionStatus = async (mission, status) => {
@@ -501,26 +803,15 @@ const MissionTab = ({ client, readOnly = false }) => {
     if (status === 'completed') {
       patch.started_at = null;
       patch.paused_at = null;
-      patch.completed_at = mission.completed_at || nowIso;
+      patch.completed_at = nowIso;
     }
 
-    let response = await supabase
+    const response = await supabase
       .from('missions')
       .update(patch)
       .eq('id', mission.id)
       .select('*')
       .single();
-
-    if (response.error && response.error.message?.includes('elapsed_seconds')) {
-      const fallbackPatch = { ...patch };
-      delete fallbackPatch.elapsed_seconds;
-      response = await supabase
-        .from('missions')
-        .update(fallbackPatch)
-        .eq('id', mission.id)
-        .select('*')
-        .single();
-    }
 
     const { data, error } = response;
 
@@ -548,7 +839,13 @@ const MissionTab = ({ client, readOnly = false }) => {
   return (
     <div className="space-y-4 animate-tab-in">
       {!readOnly ? (
-        <CoachMissionComposer client={client} onCreated={fetchMissions} />
+        <CoachMissionComposer
+          key={editingMission?.id || 'new-mission'}
+          client={client}
+          editingMission={editingMission}
+          onCancelEdit={() => setEditingMission(null)}
+          onSaved={handleCoachSaved}
+        />
       ) : null}
 
       {isLoading ? (
@@ -572,9 +869,14 @@ const MissionTab = ({ client, readOnly = false }) => {
                 key={mission.id}
                 mission={mission}
                 readOnly={readOnly}
+                canEdit={!readOnly && isMissionEditableByCoach(mission)}
                 nowMs={nowMs}
                 isSaving={savingMissionId === mission.id}
                 isSelected={selectedMission?.id === mission.id}
+                onEdit={() => {
+                  setEditingMission(mission);
+                  setSelectedMission(null);
+                }}
                 onOpenDetail={() => setSelectedMission(mission)}
                 onCloseDetail={() => setSelectedMission(null)}
                 onStatusChange={updateMissionStatus}
@@ -588,20 +890,9 @@ const MissionTab = ({ client, readOnly = false }) => {
 
           {grouped.completed.length > 0 ? (
             <section className="space-y-2.5">
-              <p className="text-[9px] font-black uppercase tracking-widest text-white/35">Completed · {grouped.completed.length}</p>
-              {grouped.completed.map((mission) => (
-                <MissionCard
-                  key={mission.id}
-                  mission={mission}
-                  readOnly={readOnly}
-                  nowMs={nowMs}
-                  isSaving={savingMissionId === mission.id}
-                  isSelected={selectedMission?.id === mission.id}
-                  onOpenDetail={() => setSelectedMission(mission)}
-                  onCloseDetail={() => setSelectedMission(null)}
-                  onStatusChange={updateMissionStatus}
-                />
-              ))}
+              <p className="text-[9px] font-black uppercase tracking-widest text-white/35">Completed history · {grouped.completed.length}</p>
+              <CompletedMissionReport completedGroups={completedGroups} missions={missions} />
+              <CompletedMissionGroups groups={completedGroups} />
             </section>
           ) : null}
         </div>

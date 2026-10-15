@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import {
-  Calendar,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -24,17 +23,6 @@ import {
   serializeServiceMeta,
 } from '../../../utils/serviceUtils';
 
-const DAY_LABELS = [
-  { day: 1, short: 'M', full: 'Monday' },
-  { day: 2, short: 'T', full: 'Tuesday' },
-  { day: 3, short: 'W', full: 'Wednesday' },
-  { day: 4, short: 'T', full: 'Thursday' },
-  { day: 5, short: 'F', full: 'Friday' },
-  { day: 6, short: 'S', full: 'Saturday' },
-  { day: 0, short: 'S', full: 'Sunday' },
-];
-const DURATIONS = [45, 60, 75, 90];
-const DAY_VI = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const createMealPrepItem = () => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -45,43 +33,9 @@ const createMealPrepItem = () => ({
   amount: '',
 });
 
-const generateSessionDates = (startDate, schedule, totalCount) => {
-  if (!startDate || !schedule.length || totalCount <= 0) return [];
-  const sessions = [];
-  const start = new Date(startDate + 'T00:00:00');
-  let current = new Date(start);
-  let safety = 0;
-  while (sessions.length < totalCount && safety < 730) {
-    const slot = schedule.find((item) => item.day === current.getDay());
-    if (slot) {
-      sessions.push({ number: sessions.length + 1, date: new Date(current), time: slot.time });
-    }
-    current.setDate(current.getDate() + 1);
-    safety += 1;
-  }
-  return sessions;
-};
-
-const formatDate = (date) => {
-  const d = date instanceof Date ? date : new Date(date);
-  const day = DAY_VI[d.getDay()];
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  return `${day} ${dd}/${mm}`;
-};
-
 const formatDots = (raw) => {
   const digits = raw.replace(/\D/g, '');
   return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-};
-
-const addMinutes = (timeStr, minutes) => {
-  if (!timeStr) return '';
-  const [h, m] = timeStr.split(':').map(Number);
-  const total = h * 60 + m + minutes;
-  const endH = Math.floor(total / 60) % 24;
-  const endM = total % 60;
-  return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
 };
 
 const FieldBlock = ({ label, children }) => (
@@ -132,8 +86,6 @@ const CreatePackageModal = ({
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
-  const [schedule, setSchedule] = useState(existingPackage?.weekly_schedule || []);
-  const [sessionDuration, setSessionDuration] = useState(60);
   const [isSaving, setIsSaving] = useState(false);
   const scrollRef = useRef(null);
 
@@ -158,37 +110,14 @@ const CreatePackageModal = ({
   const priceVND = Number(priceRawDigits || 0);
   const priceFormatted = priceRawDigits ? formatDots(priceRawDigits) : '';
 
-  const previewSessions = useMemo(
-    () => (isTraining ? generateSessionDates(startDate, schedule, totalSessions) : []),
-    [isTraining, startDate, schedule, totalSessions]
-  );
-
   const step1Valid = isMealPrep
     ? true
     : sessionCount >= 1 && sessionCount <= 200;
   const step2Valid = isTraining
-    ? Boolean(startDate) && schedule.length > 0 && previewSessions.length === totalSessions
+    ? true
     : isStretching
       ? sessionCount >= 1
       : hasMealPrepRows;
-
-  const toggleDay = (day) => {
-    setSchedule((prev) => {
-      const exists = prev.find((item) => item.day === day);
-      if (exists) return prev.filter((item) => item.day !== day);
-      return [...prev, { day, time: '07:00' }].sort((a, b) => {
-        const da = a.day === 0 ? 7 : a.day;
-        const db = b.day === 0 ? 7 : b.day;
-        return da - db;
-      });
-    });
-  };
-
-  const updateDayTime = (day, time) => {
-    setSchedule((prev) => prev.map((item) => (item.day === day ? { ...item, time } : item)));
-  };
-
-  const isDaySelected = (day) => schedule.some((item) => item.day === day);
 
   const updateMealPrepItem = (id, key, value) => {
     setMealPrepItems((prev) =>
@@ -211,8 +140,8 @@ const CreatePackageModal = ({
     bonus_sessions: bonusSessions,
     total_sessions: totalSessions,
     price: priceVND,
-    start_date: isTraining || isStretching ? startDate : null,
-    weekly_schedule: isTraining ? schedule : [],
+    start_date: isStretching ? startDate : (existingPackage?.start_date ?? null),
+    weekly_schedule: isTraining ? (existingPackage?.weekly_schedule || []) : [],
     note: serializeServiceMeta({
       serviceType,
       serviceDetail,
@@ -283,27 +212,6 @@ const CreatePackageModal = ({
           return;
         }
         pkg = data;
-      }
-
-      if (!isEditing && isTraining) {
-        const rows = previewSessions.map((session) => ({
-          client_id: clientId,
-          package_id: pkg.id,
-          session_number: session.number,
-          scheduled_date: `${session.date.getFullYear()}-${String(session.date.getMonth() + 1).padStart(2, '0')}-${String(session.date.getDate()).padStart(2, '0')}`,
-          scheduled_time: session.time,
-          status: 'scheduled',
-          session_kind: 'fixed',
-        }));
-
-        if (rows.length > 0) {
-          const { error } = await supabase.from('sessions').insert(rows);
-          if (error) {
-            toast.error(`Unable to create schedule: ${error.message}`);
-            setIsSaving(false);
-            return;
-          }
-        }
       }
 
       if (!isEditing && (isTraining || isStretching)) {
@@ -527,118 +435,12 @@ const CreatePackageModal = ({
               </div>
 
               {isTraining && (
-                <>
-                  <FieldBlock label="Start Date">
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(event) => setStartDate(event.target.value)}
-                      min={(() => {
-                        const d = new Date();
-                        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                      })()}
-                      className="w-full rounded-[14px] border border-white/[0.08] bg-white/[0.04] px-4 py-2.5 text-sm text-white outline-none focus:border-white/20"
-                    />
-                  </FieldBlock>
-
-                  <FieldBlock label="Session Length">
-                    <div className="grid grid-cols-4 gap-2">
-                      {DURATIONS.map((duration) => (
-                        <button
-                          key={duration}
-                          type="button"
-                          onClick={() => setSessionDuration(duration)}
-                          className={`rounded-[12px] py-2.5 text-xs font-black transition-all active:scale-95 ${
-                            sessionDuration === duration
-                              ? 'bg-white text-black'
-                              : 'border border-white/[0.08] bg-white/[0.04] text-neutral-400'
-                          }`}
-                        >
-                          {duration}'
-                        </button>
-                      ))}
-                    </div>
-                  </FieldBlock>
-
-                  <FieldBlock label="Weekly Training Days">
-                    <div className="mb-3 grid grid-cols-7 gap-1.5">
-                      {DAY_LABELS.map(({ day, short }) => (
-                        <button
-                          key={day}
-                          type="button"
-                          onClick={() => toggleDay(day)}
-                          className={`rounded-[12px] py-2.5 text-[11px] font-black transition-all active:scale-90 ${
-                            isDaySelected(day)
-                              ? 'bg-white text-black'
-                              : 'border border-white/[0.08] bg-white/[0.04] text-neutral-500'
-                          }`}
-                        >
-                          {short}
-                        </button>
-                      ))}
-                    </div>
-
-                    {schedule.length > 0 && (
-                      <div className="space-y-2">
-                        {schedule.map(({ day, time }) => {
-                          const dayInfo = DAY_LABELS.find((item) => item.day === day);
-                          return (
-                            <div
-                              key={day}
-                              className="flex items-center gap-3 rounded-[14px] border border-white/[0.06] bg-white/[0.03] px-4 py-2.5"
-                            >
-                              <span className="w-12 shrink-0 text-[11px] font-black text-white">{dayInfo?.short}</span>
-                              <input
-                                type="time"
-                                value={time}
-                                onChange={(event) => updateDayTime(day, event.target.value)}
-                                className="bg-transparent text-sm font-medium text-white outline-none"
-                              />
-                              <span className="text-[10px] text-neutral-600">→</span>
-                              <span className="text-[11px] font-medium text-neutral-400">{addMinutes(time, sessionDuration)}</span>
-                              <span className="ml-auto text-[9px] text-neutral-700">{sessionDuration}'</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </FieldBlock>
-
-                  {previewSessions.length > 0 && (
-                    <div>
-                      <div className="mb-2 flex items-center justify-between">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-neutral-600">
-                          Preview · {previewSessions.length} sessions
-                        </span>
-                        {previewSessions.length === totalSessions && (
-                          <span className="text-[9px] font-black text-emerald-400">Ready · {totalSessions} sessions</span>
-                        )}
-                      </div>
-                      <div className="hide-scrollbar max-h-[160px] space-y-1.5 overflow-y-auto">
-                        {previewSessions.map((session) => (
-                          <div
-                            key={session.number}
-                            className="flex items-center gap-3 rounded-[10px] bg-white/[0.02] px-3 py-2"
-                          >
-                            <span className="w-6 shrink-0 text-[10px] font-black text-neutral-600">#{session.number}</span>
-                            <span className="flex-1 text-xs text-white">{formatDate(session.date)}</span>
-                            <span className="text-[11px] text-neutral-500">{session.time}</span>
-                            <span className="text-[10px] text-neutral-700">→ {addMinutes(session.time, sessionDuration)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {schedule.length === 0 && (
-                    <div className="py-6 text-center text-neutral-700">
-                      <Calendar className="mx-auto mb-2 h-7 w-7 opacity-30" />
-                      <p className="text-[10px] font-black uppercase tracking-widest">
-                        Pick training days to preview the schedule
-                      </p>
-                    </div>
-                  )}
-                </>
+                <div className="rounded-[16px] border border-white/[0.06] bg-white/[0.03] px-4 py-4">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">Flexible schedule</p>
+                  <p className="mt-2 text-[11px] leading-relaxed text-neutral-400">
+                    This package is created without a fixed calendar. Set or change its weekly schedule anytime from the Sessions tab; only upcoming sessions will be regenerated.
+                  </p>
+                </div>
               )}
 
               {isStretching && (
