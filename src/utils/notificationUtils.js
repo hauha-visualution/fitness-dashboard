@@ -20,9 +20,9 @@ export const NOTIFICATION_TYPES = {
 // Ngưỡng buổi còn lại để trigger low_sessions alert
 export const LOW_SESSION_THRESHOLDS = [5, 3, 1];
 
-// Keep the schedule-change notification ready, but do not send it until the
-// product flow is approved for trainees.
-export const SCHEDULE_CHANGE_NOTIFICATIONS_ENABLED = false;
+// Notify trainees only when applying a package schedule actually moves one or
+// more unfinished sessions to a different date or time.
+export const SCHEDULE_CHANGE_NOTIFICATIONS_ENABLED = true;
 export const SESSION_COMPLETION_NOTIFICATIONS_ENABLED = true;
 
 // ─── Core insert ─────────────────────────────────────────────
