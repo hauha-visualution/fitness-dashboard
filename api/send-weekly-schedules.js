@@ -137,5 +137,7 @@ export default async function handler(req, res) {
     pushSent += result.sent;
     created += 1;
   }
-  return json(res, 200, { ok: true, weekStart: start, weekEnd: end, created, pushSent });
+  const result = { ok: true, weekStart: start, weekEnd: end, created, pushSent };
+  console.info('[weekly-schedule]', result);
+  return json(res, 200, result);
 }
