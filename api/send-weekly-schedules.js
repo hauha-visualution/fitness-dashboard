@@ -58,11 +58,35 @@ const restFetch = (path, options = {}) => fetch(`${supabaseUrl}/rest/v1/${path}`
   headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, ...(options.headers || {}) },
 });
 
-const sendPush = (notification) => fetch(`${supabaseUrl}/functions/v1/send-push`, {
-  method: 'POST',
-  headers: { Authorization: `Bearer ${serviceRoleKey}`, 'Content-Type': 'application/json' },
-  body: JSON.stringify({ record: notification }),
-}).catch(() => null);
+const sendPush = async (notification) => {
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/send-push`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${serviceRoleKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ record: notification }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    const sent = response.ok ? (payload.sent || 0) : 0;
+
+    if (sent > 0) {
+      await restFetch(`notifications?id=eq.${notification.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          metadata: {
+            ...(notification.metadata || {}),
+            pushSentAt: new Date().toISOString(),
+            pushResult: { sent, failed: payload.failed || 0 },
+          },
+        }),
+      });
+    }
+
+    return { sent, failed: payload.failed || 0 };
+  } catch {
+    return { sent: 0, failed: 0 };
+  }
+};
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return json(res, 405, { ok: false, error: 'Method not allowed' });
@@ -82,15 +106,25 @@ export default async function handler(req, res) {
     grouped.set(authUserId, list);
   }
 
-  const existingResponse = await restFetch('notifications?select=recipient_user_id,metadata&type=eq.weekly_schedule&order=created_at.desc&limit=1000');
-  const alreadySent = new Set();
+  const existingResponse = await restFetch('notifications?select=id,recipient_user_id,type,title,body,metadata&type=eq.weekly_schedule&order=created_at.desc&limit=1000');
+  const existingByRecipient = new Map();
   if (existingResponse.ok) for (const item of await existingResponse.json()) {
-    if (item.metadata?.weekStart === start) alreadySent.add(item.recipient_user_id);
+    if (item.metadata?.weekStart === start && !existingByRecipient.has(item.recipient_user_id)) {
+      existingByRecipient.set(item.recipient_user_id, item);
+    }
   }
 
-  let sent = 0;
+  let created = 0;
+  let pushSent = 0;
   for (const [recipient_user_id, rows] of grouped) {
-    if (alreadySent.has(recipient_user_id)) continue;
+    const existing = existingByRecipient.get(recipient_user_id);
+    if (existing) {
+      if (!existing.metadata?.pushSentAt) {
+        const result = await sendPush(existing);
+        pushSent += result.sent;
+      }
+      continue;
+    }
     const scheduleSummary = formatWeeklySchedule(rows);
     const sessionCount = rows.length;
     const insert = await restFetch('notifications', {
@@ -99,8 +133,9 @@ export default async function handler(req, res) {
     });
     if (!insert.ok) continue;
     const notification = (await insert.json())[0];
-    void sendPush(notification);
-    sent += 1;
+    const result = await sendPush(notification);
+    pushSent += result.sent;
+    created += 1;
   }
-  return json(res, 200, { ok: true, weekStart: start, weekEnd: end, sent });
+  return json(res, 200, { ok: true, weekStart: start, weekEnd: end, created, pushSent });
 }
