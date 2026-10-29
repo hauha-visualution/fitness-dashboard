@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, CheckCircle2, Dumbbell, RefreshCw, XCircle, Clock, Send } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle2, Dumbbell, RefreshCw, XCircle, Clock, Send, ChevronDown, CalendarDays } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import ClientAvatar from '../shared/ClientAvatar';
 import { parseServiceMeta } from '../../utils/serviceUtils';
@@ -192,7 +192,8 @@ const DashboardView = ({ session, refreshKey, onSelectClient, onOpenQuickLog }) 
   });
   const [sessionMap, setSessionMap] = useState({});
   const [loading, setLoading] = useState(true);
-  const [sendingWeeklySchedule, setSendingWeeklySchedule] = useState(false);
+  const [sendingSchedulePeriod, setSendingSchedulePeriod] = useState(null);
+  const [isScheduleMenuOpen, setIsScheduleMenuOpen] = useState(false);
 
   const currentWeekStart = useMemo(() => getWeekStart(selectedDate), [selectedDate]);
   const weekDays = useMemo(
@@ -343,25 +344,28 @@ const DashboardView = ({ session, refreshKey, onSelectClient, onOpenQuickLog }) 
     fetchData();
   }, [fetchData, refreshKey]);
 
-  const handleSendWeeklySchedule = async () => {
-    if (!session?.access_token || sendingWeeklySchedule) return;
-    setSendingWeeklySchedule(true);
+  const handleSendWeeklySchedule = async (period) => {
+    if (!session?.access_token || sendingSchedulePeriod) return;
+    setSendingSchedulePeriod(period);
+    setIsScheduleMenuOpen(false);
     try {
       const response = await fetch('/api/send-coach-weekly-schedules', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ period }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || 'Không thể gửi lịch tập.');
+      const periodLabel = period === 'current' ? 'tuần này' : 'tuần sau';
       if (result.created === 0) {
-        toast.info('Tất cả trainee có lịch tuần sau đã nhận thông báo, hoặc chưa có lịch để gửi.');
+        toast.info(`Tất cả trainee có lịch ${periodLabel} đã nhận thông báo, hoặc chưa có lịch để gửi.`);
       } else {
-        toast.success(`Đã gửi lịch tuần sau cho ${result.created} trainee${result.pushSent ? ` · ${result.pushSent} thiết bị đã nhận push` : ''}.`);
+        toast.success(`Đã gửi lịch ${periodLabel} cho ${result.created} trainee${result.pushSent ? ` · ${result.pushSent} thiết bị đã nhận push` : ''}.`);
       }
     } catch (error) {
       toast.error(error.message || 'Không thể gửi lịch tập.');
     } finally {
-      setSendingWeeklySchedule(false);
+      setSendingSchedulePeriod(null);
     }
   };
 
@@ -445,15 +449,31 @@ const DashboardView = ({ session, refreshKey, onSelectClient, onOpenQuickLog }) 
             <p className="app-label text-[10px] font-black uppercase tracking-[0.16em]">Coach dashboard</p>
             <p className="mt-1 text-[11px] font-semibold app-subtle-text">Thông báo lịch tuần kế tiếp cho trainee</p>
           </div>
-          <button
-            type="button"
-            onClick={handleSendWeeklySchedule}
-            disabled={sendingWeeklySchedule}
-            className="inline-flex shrink-0 items-center gap-2 rounded-[12px] border border-[rgba(200,245,63,0.32)] bg-[rgba(200,245,63,0.12)] px-3.5 py-2.5 text-[10px] font-black uppercase tracking-wide app-accent-text transition-all active:scale-95 disabled:cursor-wait disabled:opacity-60"
-          >
-            <Send className="h-3.5 w-3.5" />
-            {sendingWeeklySchedule ? 'Đang gửi...' : 'Gửi lịch tuần sau'}
-          </button>
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsScheduleMenuOpen((open) => !open)}
+              disabled={Boolean(sendingSchedulePeriod)}
+              aria-expanded={isScheduleMenuOpen}
+              className="inline-flex items-center gap-2 rounded-[12px] border border-[rgba(200,245,63,0.32)] bg-[rgba(200,245,63,0.12)] px-3.5 py-2.5 text-[10px] font-black uppercase tracking-wide app-accent-text transition-all active:scale-95 disabled:cursor-wait disabled:opacity-60"
+            >
+              <Send className="h-3.5 w-3.5" />
+              {sendingSchedulePeriod ? 'Đang gửi...' : 'Gửi lịch tập'}
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isScheduleMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {isScheduleMenuOpen && (
+              <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-[242px] overflow-hidden rounded-[14px] border border-white/[0.10] bg-[#10202b] p-1.5 shadow-2xl shadow-black/45">
+                <button type="button" onClick={() => handleSendWeeklySchedule('current')} className="flex w-full items-start gap-3 rounded-[10px] px-3 py-3 text-left transition-colors hover:bg-white/[0.06]">
+                  <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 app-accent-text" />
+                  <span><span className="block text-xs font-black text-white">Lịch tuần này</span><span className="mt-1 block text-[10px] font-semibold app-subtle-text">Từ hôm nay đến Chủ nhật</span></span>
+                </button>
+                <button type="button" onClick={() => handleSendWeeklySchedule('next')} className="flex w-full items-start gap-3 rounded-[10px] px-3 py-3 text-left transition-colors hover:bg-white/[0.06]">
+                  <Send className="mt-0.5 h-4 w-4 shrink-0 app-accent-text" />
+                  <span><span className="block text-xs font-black text-white">Lịch tuần sau</span><span className="mt-1 block text-[10px] font-semibold app-subtle-text">Thứ 2 đến Chủ nhật tuần kế tiếp</span></span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         <div className="app-bento-grid mb-4">
           {metricCards.map((card, index) => (

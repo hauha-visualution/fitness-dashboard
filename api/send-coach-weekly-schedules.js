@@ -23,6 +23,20 @@ const nextWeekRange = () => {
   return { start: monday.toISOString().slice(0, 10), end: sunday.toISOString().slice(0, 10) };
 };
 
+const currentWeekRemainingRange = () => {
+  const today = new Date(`${vnDate(new Date())}T00:00:00Z`);
+  const day = today.getUTCDay();
+  const monday = new Date(today);
+  monday.setUTCDate(today.getUTCDate() - (day === 0 ? 6 : day - 1));
+  const sunday = new Date(today);
+  sunday.setUTCDate(today.getUTCDate() + (day === 0 ? 0 : 7 - day));
+  return {
+    start: today.toISOString().slice(0, 10),
+    end: sunday.toISOString().slice(0, 10),
+    weekStart: monday.toISOString().slice(0, 10),
+  };
+};
+
 const weekdayLabel = (dateKey) => {
   const day = new Date(`${dateKey}T12:00:00Z`).getUTCDay();
   return day === 0 ? 'Chủ nhật' : `Thứ ${day + 1}`;
@@ -77,6 +91,8 @@ export default async function handler(req, res) {
   if (!userResponse.ok) return json(res, 401, { ok: false, error: 'Invalid authentication.' });
   const coach = await userResponse.json();
   if (!coach.email) return json(res, 403, { ok: false, error: 'Coach email not found.' });
+  const payload = typeof req.body === 'object' && req.body ? req.body : {};
+  const period = payload.period === 'current' ? 'current' : 'next';
 
   const clientsResponse = await restFetch(`clients?select=id,auth_user_id&coach_email=eq.${encodeURIComponent(coach.email)}`);
   if (!clientsResponse.ok) return json(res, 502, { ok: false, error: 'Could not load trainees.' });
@@ -84,7 +100,9 @@ export default async function handler(req, res) {
   const clientIds = clients.map((client) => client.id);
   if (clientIds.length === 0) return json(res, 200, { ok: true, created: 0, pushSent: 0, reason: 'No linked trainees.' });
 
-  const { start, end } = nextWeekRange();
+  const range = period === 'current' ? currentWeekRemainingRange() : nextWeekRange();
+  const { start, end } = range;
+  const weekStart = range.weekStart || start;
   const sessionsResponse = await restFetch(`sessions?select=client_id,scheduled_date,scheduled_time&status=in.(scheduled,in_progress)&client_id=in.(${clientIds.join(',')})&scheduled_date=gte.${start}&scheduled_date=lte.${end}&order=scheduled_date.asc,scheduled_time.asc`);
   if (!sessionsResponse.ok) return json(res, 502, { ok: false, error: 'Could not load next-week sessions.' });
   const authUserIdByClientId = new Map(clients.map((client) => [client.id, client.auth_user_id]));
@@ -97,7 +115,7 @@ export default async function handler(req, res) {
   const existingResponse = await restFetch('notifications?select=recipient_user_id,metadata&type=eq.weekly_schedule&order=created_at.desc&limit=1000');
   const alreadyNotified = new Set();
   if (existingResponse.ok) for (const item of await existingResponse.json()) {
-    if (item.metadata?.weekStart === start) alreadyNotified.add(item.recipient_user_id);
+    if (item.metadata?.weekStart === weekStart) alreadyNotified.add(item.recipient_user_id);
   }
 
   let created = 0;
@@ -109,9 +127,11 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         recipient_user_id,
         type: 'weekly_schedule',
-        title: `Lịch tập tuần sau (${start.slice(8, 10)}/${start.slice(5, 7)} - ${end.slice(8, 10)}/${end.slice(5, 7)}):`,
-        body: `Bạn có ${rows.length} buổi tập vào ${formatWeeklySchedule(rows)}. 💪`,
-        metadata: { url: '/portal?tab=sessions', targetTab: 'sessions', weekStart: start, weekEnd: end, sentManuallyByCoach: true },
+        title: `Lịch tập ${period === 'current' ? 'tuần này' : 'tuần sau'} (${start.slice(8, 10)}/${start.slice(5, 7)} - ${end.slice(8, 10)}/${end.slice(5, 7)}):`,
+        body: period === 'current'
+          ? `Bạn còn ${rows.length} buổi tập từ hôm nay vào ${formatWeeklySchedule(rows)}. 💪`
+          : `Bạn có ${rows.length} buổi tập vào ${formatWeeklySchedule(rows)}. 💪`,
+        metadata: { url: '/portal?tab=sessions', targetTab: 'sessions', weekStart, weekEnd: end, sentManuallyByCoach: true, schedulePeriod: period },
       }),
     });
     if (!insert.ok) continue;
@@ -120,5 +140,5 @@ export default async function handler(req, res) {
     created += 1;
   }
 
-  return json(res, 200, { ok: true, weekStart: start, weekEnd: end, created, pushSent });
+  return json(res, 200, { ok: true, period, start, end, weekStart, created, pushSent });
 }
