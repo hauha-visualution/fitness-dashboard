@@ -180,6 +180,31 @@ export const notifySessionRescheduled = async ({ clientAuthUserId, sessionNumber
   });
 };
 
+export const notifyCoachSessionRescheduleRequested = async ({ coachAuthUserId, clientId, clientName, sessionNumber, requestedDate, requestedTime }) => {
+  if (!coachAuthUserId) return;
+  await createNotification({
+    recipientUserId: coachAuthUserId,
+    type: NOTIFICATION_TYPES.SESSION_SCHEDULE_UPDATED,
+    title: 'Yêu cầu dời buổi tập 📅',
+    body: `${clientName || 'Trainee'} muốn dời buổi #${String(sessionNumber).padStart(2, '0')} sang ${formatDate(requestedDate)}${requestedTime ? ` lúc ${requestedTime.slice(0, 5)}` : ''}.`,
+    metadata: buildNotificationLinkMeta('/?tab=clients', 'clients', { clientId, sessionNumber, requestedDate, requestedTime, action: 'reschedule_request' }),
+  });
+};
+
+export const notifyTraineeSessionRescheduleReviewed = async ({ clientAuthUserId, sessionNumber, approved, requestedDate, requestedTime }) => {
+  if (!clientAuthUserId) return;
+  const slot = `${formatDate(requestedDate)}${requestedTime ? ` lúc ${requestedTime.slice(0, 5)}` : ''}`;
+  await createNotification({
+    recipientUserId: clientAuthUserId,
+    type: NOTIFICATION_TYPES.SESSION_SCHEDULE_UPDATED,
+    title: approved ? 'Yêu cầu dời buổi đã được xác nhận 📅' : 'Yêu cầu dời buổi chưa được chấp nhận',
+    body: approved
+      ? `Buổi #${String(sessionNumber).padStart(2, '0')} đã được đặt lại vào ${slot}.`
+      : `Coach chưa thể xác nhận việc dời buổi #${String(sessionNumber).padStart(2, '0')} sang ${slot}.`,
+    metadata: buildNotificationLinkMeta('/portal?tab=sessions', 'sessions', { sessionNumber, requestedDate, requestedTime, approved, action: 'reschedule_request_review' }),
+  });
+};
+
 export const notifyLowSessions = async ({ clientAuthUserId, coachAuthUserId, clientName, remaining, packageNumber }) => {
   const promises = [];
 

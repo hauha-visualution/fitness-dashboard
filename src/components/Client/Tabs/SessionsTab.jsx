@@ -6,8 +6,10 @@ import { getServiceTypeLabel, parseServiceBooking, parseServiceMeta } from '../.
 import {
   SCHEDULE_CHANGE_NOTIFICATIONS_ENABLED,
   notifyExtraSessionAdded,
+  notifyCoachSessionRescheduleRequested,
   notifySessionRescheduled,
   notifySessionScheduleUpdated,
+  notifyTraineeSessionRescheduleReviewed,
   notifyTraineeSessionCompleted,
   fetchCoachAuthUserId,
   fetchClientNotifInfo,
@@ -94,6 +96,12 @@ const SessionsTab = ({
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [savingReschedule, setSavingReschedule] = useState(false);
+  const [rescheduleRequests, setRescheduleRequests] = useState([]);
+  const [rescheduleRequestSession, setRescheduleRequestSession] = useState(null);
+  const [requestedDate, setRequestedDate] = useState('');
+  const [requestedTime, setRequestedTime] = useState('');
+  const [submittingRescheduleRequest, setSubmittingRescheduleRequest] = useState(false);
+  const [reviewingRescheduleRequestId, setReviewingRescheduleRequestId] = useState(null);
   const [completingSessionId, setCompletingSessionId] = useState(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const canScheduleStretching = !readOnly || allowStretchingBooking;
@@ -102,14 +110,16 @@ const SessionsTab = ({
     if (!clientId) return;
     setLoading(true);
 
-    const [{ data: pkgs }, { data: sess }] = await Promise.all([
+    const [{ data: pkgs }, { data: sess }, { data: pendingRequests }] = await Promise.all([
       supabase.from('packages').select('id, package_number, total_sessions, status, note, weekly_schedule').eq('client_id', clientId).order('package_number'),
       supabase.from('sessions').select('*').eq('client_id', clientId).order('scheduled_date').order('scheduled_time'),
+      supabase.from('session_reschedule_requests').select('*').eq('client_id', clientId).eq('status', 'pending'),
     ]);
 
     const loadedPackages = pkgs ?? [];
     setPackages(loadedPackages);
     setSessions(sess ?? []);
+    setRescheduleRequests(pendingRequests ?? []);
     // Auto-expand the first active package by default
     if (loadedPackages.length > 0) {
       const firstActive = loadedPackages.find(p => p.status === 'active') ?? loadedPackages[0];
@@ -160,6 +170,78 @@ const SessionsTab = ({
     setRescheduleSession(sessionItem);
     setRescheduleDate(sessionItem.scheduled_date || localDateStr(new Date()));
     setRescheduleTime(sessionItem.scheduled_time?.slice(0, 5) || '07:00');
+  };
+
+  const openRescheduleRequestModal = (sessionItem) => {
+    setRescheduleRequestSession(sessionItem);
+    setRequestedDate(sessionItem.scheduled_date || localDateStr(new Date()));
+    setRequestedTime(sessionItem.scheduled_time?.slice(0, 5) || '07:00');
+  };
+
+  const handleSubmitRescheduleRequest = async () => {
+    if (!rescheduleRequestSession || !requestedDate || !requestedTime || submittingRescheduleRequest) return;
+    const previousTime = rescheduleRequestSession.scheduled_time?.slice(0, 5) || '';
+    if (rescheduleRequestSession.scheduled_date === requestedDate && previousTime === requestedTime) {
+      setRescheduleRequestSession(null);
+      return;
+    }
+
+    setSubmittingRescheduleRequest(true);
+    const { data, error } = await supabase.rpc('request_session_reschedule', {
+      p_session_id: rescheduleRequestSession.id,
+      p_requested_date: requestedDate,
+      p_requested_time: requestedTime,
+    });
+    setSubmittingRescheduleRequest(false);
+    if (error || !data) {
+      toast.error(`Unable to send request: ${error?.message || 'Please try again.'}`);
+      return;
+    }
+
+    setRescheduleRequests((current) => [...current.filter((request) => request.session_id !== data.session_id), data]);
+    setRescheduleRequestSession(null);
+    toast.success('Request sent to your coach.');
+    void (async () => {
+      const coachAuthUserId = await fetchCoachAuthUserId(client?.coach_email);
+      await notifyCoachSessionRescheduleRequested({
+        coachAuthUserId,
+        clientId,
+        clientName: client?.name,
+        sessionNumber: rescheduleRequestSession.session_number,
+        requestedDate: data.requested_date,
+        requestedTime: data.requested_time,
+      });
+    })();
+  };
+
+  const handleReviewRescheduleRequest = async (request, decision) => {
+    if (!request?.id || reviewingRescheduleRequestId) return;
+    setReviewingRescheduleRequestId(request.id);
+    const { data, error } = await supabase.rpc('review_session_reschedule_request', {
+      p_request_id: request.id,
+      p_decision: decision,
+    });
+    setReviewingRescheduleRequestId(null);
+    if (error) {
+      toast.error(`Unable to ${decision === 'approved' ? 'confirm' : 'decline'} request: ${error.message}`);
+      return;
+    }
+
+    if (decision === 'approved' && data) {
+      setSessions((current) => current.map((sessionItem) => sessionItem.id === data.id ? data : sessionItem));
+    }
+    setRescheduleRequests((current) => current.filter((item) => item.id !== request.id));
+    toast.success(decision === 'approved' ? 'New session time confirmed.' : 'Request declined.');
+    void (async () => {
+      const clientInfo = await fetchClientNotifInfo(clientId);
+      await notifyTraineeSessionRescheduleReviewed({
+        clientAuthUserId: clientInfo?.auth_user_id,
+        sessionNumber: data?.session_number || request.session_number,
+        approved: decision === 'approved',
+        requestedDate: request.requested_date,
+        requestedTime: request.requested_time,
+      });
+    })();
   };
 
   const handleRescheduleSession = async () => {
@@ -513,6 +595,7 @@ const SessionsTab = ({
                       const today = isToday(sess.scheduled_date);
                       const isInProgress = sess.status === 'in_progress';
                       const bookingMeta = formatBookingWindow(sess);
+                      const pendingRescheduleRequest = rescheduleRequests.find((request) => request.session_id === sess.id);
                       const traineeCanComplete = isSessionTimeReached(sess, nowMs);
                       const completeDisabled = completingSessionId === sess.id || (readOnly && !traineeCanComplete);
 
@@ -539,6 +622,13 @@ const SessionsTab = ({
                             <p className="truncate text-[10px] text-neutral-600">
                               {bookingMeta.timeLabel}{bookingMeta.locationLabel ? ` · ${bookingMeta.locationLabel}` : ''}
                             </p>
+                            {pendingRescheduleRequest && (
+                              <p className="mt-1 text-[9px] font-bold text-amber-300">
+                                {readOnly
+                                  ? `Đang chờ coach xác nhận · ${formatSessionDate(pendingRescheduleRequest.requested_date).short} ${String(pendingRescheduleRequest.requested_time || '').slice(0, 5)}`
+                                  : `Trainee muốn dời sang ${formatSessionDate(pendingRescheduleRequest.requested_date).short} · ${String(pendingRescheduleRequest.requested_time || '').slice(0, 5)}`}
+                              </p>
+                            )}
                           </div>
 
                           <div className="flex shrink-0 items-center gap-1.5">
@@ -573,6 +663,37 @@ const SessionsTab = ({
                                     <CalendarDays className="h-3.5 w-3.5" />
                                   </button>
                                 )}
+                              </>
+                            )}
+                            {readOnly && sess.status === 'scheduled' && !traineeCanComplete && !pendingRescheduleRequest && (
+                              <button
+                                type="button"
+                                onClick={() => openRescheduleRequestModal(sess)}
+                                aria-label="Request a new session time"
+                                title="Request a new time"
+                                className="inline-flex h-11 w-11 items-center justify-center rounded-[12px] border border-white/[0.10] bg-white/[0.05] text-white/75 transition-transform active:scale-95"
+                              >
+                                <CalendarDays className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            {!readOnly && pendingRescheduleRequest && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleReviewRescheduleRequest(pendingRescheduleRequest, 'declined')}
+                                  disabled={reviewingRescheduleRequestId === pendingRescheduleRequest.id}
+                                  className="inline-flex h-10 items-center rounded-[11px] border border-rose-400/25 bg-rose-500/10 px-2.5 text-[9px] font-black uppercase text-rose-300 disabled:opacity-50"
+                                >
+                                  Decline
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleReviewRescheduleRequest(pendingRescheduleRequest, 'approved')}
+                                  disabled={reviewingRescheduleRequestId === pendingRescheduleRequest.id}
+                                  className="inline-flex h-10 items-center rounded-[11px] border border-emerald-300/30 bg-emerald-400 px-2.5 text-[9px] font-black uppercase text-emerald-950 disabled:opacity-50"
+                                >
+                                  {reviewingRescheduleRequestId === pendingRescheduleRequest.id ? 'Saving' : 'Confirm'}
+                                </button>
                               </>
                             )}
                             {(!readOnly || allowTraineeComplete) && (
@@ -846,6 +967,36 @@ const SessionsTab = ({
             <div className="mt-5 flex gap-3">
               <button onClick={() => setRescheduleSession(null)} disabled={savingReschedule} className="flex-1 rounded-[16px] border border-white/[0.08] bg-white/[0.04] py-3.5 text-sm font-bold text-white disabled:opacity-50">Cancel</button>
               <button onClick={handleRescheduleSession} disabled={savingReschedule || !rescheduleDate || !rescheduleTime} className="flex-1 rounded-[16px] bg-[var(--app-accent)] py-3.5 text-sm font-bold text-black disabled:opacity-50">{savingReschedule ? 'Moving...' : 'Move session'}</button>
+            </div>
+          </div>
+        </div>, document.body
+      )}
+      {rescheduleRequestSession && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[220] flex items-end justify-center bg-black/70 px-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-[560px] rounded-t-[28px] border border-white/10 bg-[#111113] p-5 pb-8 animate-modal-in lg:rounded-[28px]">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">Request a new time</p>
+                <h3 className="text-lg font-semibold text-white">Session #{String(rescheduleRequestSession.session_number).padStart(2, '0')}</h3>
+              </div>
+              <button onClick={() => setRescheduleRequestSession(null)} disabled={submittingRescheduleRequest} className="rounded-full bg-white/5 p-2 text-neutral-400 disabled:opacity-40"><X className="h-4 w-4" /></button>
+            </div>
+            <p className="mb-4 rounded-[14px] border border-amber-300/10 bg-amber-300/[0.04] px-4 py-3 text-[11px] leading-relaxed text-neutral-400">
+              Coach needs to confirm before the booking changes. Your current session time stays the same until then.
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-[9px] font-black uppercase tracking-widest text-neutral-600">Requested date</label>
+                <input type="date" value={requestedDate} onChange={(event) => setRequestedDate(event.target.value)} className="w-full rounded-[14px] border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-sm text-white outline-none" />
+              </div>
+              <div>
+                <label className="mb-2 block text-[9px] font-black uppercase tracking-widest text-neutral-600">Requested time</label>
+                <input type="time" value={requestedTime} onChange={(event) => setRequestedTime(event.target.value)} className="w-full rounded-[14px] border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-sm text-white outline-none" />
+              </div>
+            </div>
+            <div className="mt-5 flex gap-3">
+              <button onClick={() => setRescheduleRequestSession(null)} disabled={submittingRescheduleRequest} className="flex-1 rounded-[16px] border border-white/[0.08] bg-white/[0.04] py-3.5 text-sm font-bold text-white disabled:opacity-50">Cancel</button>
+              <button onClick={handleSubmitRescheduleRequest} disabled={submittingRescheduleRequest || !requestedDate || !requestedTime} className="flex-1 rounded-[16px] bg-[var(--app-accent)] py-3.5 text-sm font-bold text-black disabled:opacity-50">{submittingRescheduleRequest ? 'Sending...' : 'Send request'}</button>
             </div>
           </div>
         </div>, document.body
