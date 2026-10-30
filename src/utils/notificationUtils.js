@@ -165,6 +165,21 @@ export const notifySessionScheduleUpdated = async ({ clientAuthUserId, effective
   });
 };
 
+export const notifySessionRescheduled = async ({ clientAuthUserId, sessionNumber, previousDate, previousTime, scheduledDate, scheduledTime }) => {
+  if (!clientAuthUserId) return;
+  const previousSlot = `${formatDate(previousDate)}${previousTime ? ` lúc ${previousTime.slice(0, 5)}` : ''}`;
+  const nextSlot = `${formatDate(scheduledDate)}${scheduledTime ? ` lúc ${scheduledTime.slice(0, 5)}` : ''}`;
+  await createNotification({
+    recipientUserId: clientAuthUserId,
+    type: NOTIFICATION_TYPES.SESSION_SCHEDULE_UPDATED,
+    title: 'Buổi tập được dời 📅',
+    body: `Buổi #${String(sessionNumber).padStart(2, '0')} được dời từ ${previousSlot} sang ${nextSlot}.`,
+    metadata: buildNotificationLinkMeta('/portal?tab=sessions', 'sessions', {
+      sessionNumber, previousDate, previousTime, scheduledDate, scheduledTime,
+    }),
+  });
+};
+
 export const notifyLowSessions = async ({ clientAuthUserId, coachAuthUserId, clientName, remaining, packageNumber }) => {
   const promises = [];
 

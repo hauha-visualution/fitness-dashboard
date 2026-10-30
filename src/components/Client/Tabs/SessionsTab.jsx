@@ -6,6 +6,7 @@ import { getServiceTypeLabel, parseServiceBooking, parseServiceMeta } from '../.
 import {
   SCHEDULE_CHANGE_NOTIFICATIONS_ENABLED,
   notifyExtraSessionAdded,
+  notifySessionRescheduled,
   notifySessionScheduleUpdated,
   notifyTraineeSessionCompleted,
   fetchCoachAuthUserId,
@@ -89,6 +90,10 @@ const SessionsTab = ({
   const [scheduleEffectiveDate, setScheduleEffectiveDate] = useState('');
   const [weeklySchedule, setWeeklySchedule] = useState([]);
   const [savingSchedule, setSavingSchedule] = useState(false);
+  const [rescheduleSession, setRescheduleSession] = useState(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [savingReschedule, setSavingReschedule] = useState(false);
   const [completingSessionId, setCompletingSessionId] = useState(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const canScheduleStretching = !readOnly || allowStretchingBooking;
@@ -149,6 +154,52 @@ const SessionsTab = ({
     setSchedulePackage(pkg);
     setScheduleEffectiveDate(localDateStr(now));
     setWeeklySchedule(pkg.weekly_schedule || []);
+  };
+
+  const openRescheduleModal = (sessionItem) => {
+    setRescheduleSession(sessionItem);
+    setRescheduleDate(sessionItem.scheduled_date || localDateStr(new Date()));
+    setRescheduleTime(sessionItem.scheduled_time?.slice(0, 5) || '07:00');
+  };
+
+  const handleRescheduleSession = async () => {
+    if (!rescheduleSession || !rescheduleDate || !rescheduleTime || savingReschedule) return;
+    const previousDate = rescheduleSession.scheduled_date;
+    const previousTime = rescheduleSession.scheduled_time;
+    if (previousDate === rescheduleDate && (previousTime || '').slice(0, 5) === rescheduleTime) {
+      setRescheduleSession(null);
+      return;
+    }
+
+    setSavingReschedule(true);
+    const { data, error } = await supabase
+      .from('sessions')
+      .update({ scheduled_date: rescheduleDate, scheduled_time: rescheduleTime })
+      .eq('id', rescheduleSession.id)
+      .eq('status', 'scheduled')
+      .select('*')
+      .single();
+    setSavingReschedule(false);
+
+    if (error || !data) {
+      toast.error(`Unable to reschedule session: ${error?.message || 'Session is no longer available.'}`);
+      return;
+    }
+
+    setSessions((current) => current.map((sessionItem) => sessionItem.id === data.id ? data : sessionItem));
+    setRescheduleSession(null);
+    toast.success('Session rescheduled.');
+    void (async () => {
+      const clientInfo = await fetchClientNotifInfo(clientId);
+      await notifySessionRescheduled({
+        clientAuthUserId: clientInfo?.auth_user_id,
+        sessionNumber: data.session_number,
+        previousDate,
+        previousTime,
+        scheduledDate: data.scheduled_date,
+        scheduledTime: data.scheduled_time,
+      });
+    })();
   };
 
   const toggleScheduleDay = (day) => {
@@ -492,24 +543,37 @@ const SessionsTab = ({
 
                           <div className="flex shrink-0 items-center gap-1.5">
                             {!readOnly && (
-                              <button
-                                onClick={() => onOpenQuickLog?.({
-                                  sessionId: sess.id,
-                                  clientId,
-                                  clientName: client?.name,
-                                  scheduledDate: sess.scheduled_date,
-                                  scheduledTime: sess.scheduled_time,
-                                  packageId: sess.package_id,
-                                  workoutTemplateId: sess.workout_template_id,
-                                  sessionKind: sess.session_kind,
-                                  manualMode: false,
-                                })}
-                                aria-label="Record workout"
-                                title="Record workout"
-                                className="inline-flex h-11 w-11 items-center justify-center rounded-[12px] border border-blue-500/20 bg-blue-500/10 text-blue-300 transition-transform active:scale-95"
-                              >
-                                <Clock className="h-3.5 w-3.5" />
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => onOpenQuickLog?.({
+                                    sessionId: sess.id,
+                                    clientId,
+                                    clientName: client?.name,
+                                    scheduledDate: sess.scheduled_date,
+                                    scheduledTime: sess.scheduled_time,
+                                    packageId: sess.package_id,
+                                    workoutTemplateId: sess.workout_template_id,
+                                    sessionKind: sess.session_kind,
+                                    manualMode: false,
+                                  })}
+                                  aria-label="Record workout"
+                                  title="Record workout"
+                                  className="inline-flex h-11 w-11 items-center justify-center rounded-[12px] border border-blue-500/20 bg-blue-500/10 text-blue-300 transition-transform active:scale-95"
+                                >
+                                  <Clock className="h-3.5 w-3.5" />
+                                </button>
+                                {sess.status === 'scheduled' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => openRescheduleModal(sess)}
+                                    aria-label="Reschedule session"
+                                    title="Reschedule session"
+                                    className="inline-flex h-11 w-11 items-center justify-center rounded-[12px] border border-white/[0.10] bg-white/[0.05] text-white/75 transition-transform active:scale-95"
+                                  >
+                                    <CalendarDays className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </>
                             )}
                             {(!readOnly || allowTraineeComplete) && (
                               readOnly && !traineeCanComplete && completingSessionId !== sess.id ? (
@@ -755,6 +819,36 @@ const SessionsTab = ({
           </div>
         </div>,
         document.body
+      )}
+      {rescheduleSession && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[220] flex items-end justify-center bg-black/70 px-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-[560px] rounded-t-[28px] border border-white/10 bg-[#111113] p-5 pb-8 animate-modal-in lg:rounded-[28px]">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-neutral-600">Reschedule session</p>
+                <h3 className="text-lg font-semibold text-white">Session #{String(rescheduleSession.session_number).padStart(2, '0')}</h3>
+              </div>
+              <button onClick={() => setRescheduleSession(null)} disabled={savingReschedule} className="rounded-full bg-white/5 p-2 text-neutral-400 disabled:opacity-40"><X className="h-4 w-4" /></button>
+            </div>
+            <p className="mb-4 rounded-[14px] border border-white/[0.06] bg-white/[0.03] px-4 py-3 text-[11px] leading-relaxed text-neutral-400">
+              Move this session without cancelling it. The trainee will receive the updated date and time.
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-[9px] font-black uppercase tracking-widest text-neutral-600">New date</label>
+                <input type="date" value={rescheduleDate} onChange={(event) => setRescheduleDate(event.target.value)} className="w-full rounded-[14px] border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-sm text-white outline-none" />
+              </div>
+              <div>
+                <label className="mb-2 block text-[9px] font-black uppercase tracking-widest text-neutral-600">New time</label>
+                <input type="time" value={rescheduleTime} onChange={(event) => setRescheduleTime(event.target.value)} className="w-full rounded-[14px] border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-sm text-white outline-none" />
+              </div>
+            </div>
+            <div className="mt-5 flex gap-3">
+              <button onClick={() => setRescheduleSession(null)} disabled={savingReschedule} className="flex-1 rounded-[16px] border border-white/[0.08] bg-white/[0.04] py-3.5 text-sm font-bold text-white disabled:opacity-50">Cancel</button>
+              <button onClick={handleRescheduleSession} disabled={savingReschedule || !rescheduleDate || !rescheduleTime} className="flex-1 rounded-[16px] bg-[var(--app-accent)] py-3.5 text-sm font-bold text-black disabled:opacity-50">{savingReschedule ? 'Moving...' : 'Move session'}</button>
+            </div>
+          </div>
+        </div>, document.body
       )}
       {schedulePackage && ReactDOM.createPortal(
         <div className="fixed inset-0 z-[220] flex items-end justify-center bg-black/70 px-4 backdrop-blur-sm animate-fade-in">
