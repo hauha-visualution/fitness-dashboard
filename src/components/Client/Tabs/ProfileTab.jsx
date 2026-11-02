@@ -42,6 +42,24 @@ const isPortalSessionTimeReached = (session, nowMs = Date.now()) => {
   return !Number.isNaN(scheduledMs) && nowMs >= scheduledMs;
 };
 
+const localDateString = (value) => {
+  const yyyy = value.getFullYear();
+  const mm = String(value.getMonth() + 1).padStart(2, '0');
+  const dd = String(value.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const currentWeekRange = (now = new Date()) => {
+  const weekStart = new Date(now);
+  const mondayOffset = (weekStart.getDay() + 6) % 7;
+  weekStart.setDate(weekStart.getDate() - mondayOffset);
+
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+
+  return { start: localDateString(weekStart), end: localDateString(weekEnd) };
+};
+
 const INBODY_METRICS = [
   {
     key: 'weight',
@@ -1110,14 +1128,16 @@ const ProfileTab = ({
       return;
     }
 
+    const weekRange = currentWeekRange();
     const { data: sessionRows, error: sessionError } = await supabase
       .from('sessions')
       .select('id, package_id, session_number, scheduled_date, scheduled_time, status, notes')
       .eq('client_id', client.id)
       .in('status', ['scheduled', 'in_progress'])
+      .gte('scheduled_date', weekRange.start)
+      .lte('scheduled_date', weekRange.end)
       .order('scheduled_date', { ascending: true })
-      .order('scheduled_time', { ascending: true })
-      .limit(3);
+      .order('scheduled_time', { ascending: true });
 
     if (sessionError) {
       console.error('Upcoming schedule load error:', sessionError.message);
