@@ -49,10 +49,10 @@ const localDateString = (value) => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
-const currentWeekRange = (now = new Date()) => {
+const currentWeekRange = (now = new Date(), weekOffset = 0) => {
   const weekStart = new Date(now);
   const mondayOffset = (weekStart.getDay() + 6) % 7;
-  weekStart.setDate(weekStart.getDate() - mondayOffset);
+  weekStart.setDate(weekStart.getDate() - mondayOffset + (weekOffset * 7));
 
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekEnd.getDate() + 6);
@@ -1093,6 +1093,7 @@ const ProfileTab = ({
   const [timeFilter, setTimeFilter] = useState('all');
   const [activeChartIndex, setActiveChartIndex] = useState(null);
   const [upcomingSchedule, setUpcomingSchedule] = useState([]);
+  const [upcomingScheduleWeek, setUpcomingScheduleWeek] = useState('');
   const [completingScheduleId, setCompletingScheduleId] = useState(null);
   const [scheduleNowMs, setScheduleNowMs] = useState(() => Date.now());
   const [schedulePanelTab, setSchedulePanelTab] = useState('upcoming');
@@ -1125,27 +1126,41 @@ const ProfileTab = ({
   const fetchUpcomingSchedule = useCallback(async () => {
     if (!readOnly || !client.id) {
       setUpcomingSchedule([]);
+      setUpcomingScheduleWeek('');
       return;
     }
 
     const weekRange = currentWeekRange();
+    const nextWeekRange = currentWeekRange(new Date(), 1);
     const { data: sessionRows, error: sessionError } = await supabase
       .from('sessions')
       .select('id, package_id, session_number, scheduled_date, scheduled_time, status, notes')
       .eq('client_id', client.id)
-      .in('status', ['scheduled', 'in_progress'])
+      .in('status', ['scheduled', 'in_progress', 'completed'])
       .gte('scheduled_date', weekRange.start)
-      .lte('scheduled_date', weekRange.end)
+      .lte('scheduled_date', nextWeekRange.end)
       .order('scheduled_date', { ascending: true })
       .order('scheduled_time', { ascending: true });
 
     if (sessionError) {
       console.error('Upcoming schedule load error:', sessionError.message);
       setUpcomingSchedule([]);
+      setUpcomingScheduleWeek('');
       return;
     }
 
-    const packageIds = Array.from(new Set((sessionRows || []).map((item) => item.package_id).filter(Boolean)));
+    const isActiveSession = (item) => ['scheduled', 'in_progress'].includes(item.status);
+    const currentWeekSessions = (sessionRows || []).filter((item) => item.scheduled_date >= weekRange.start && item.scheduled_date <= weekRange.end);
+    const currentWeekActiveSessions = currentWeekSessions.filter(isActiveSession);
+    const showNextWeek = currentWeekActiveSessions.length === 0;
+    const visibleRange = showNextWeek ? nextWeekRange : weekRange;
+    const visibleSessions = (sessionRows || []).filter((item) => (
+      isActiveSession(item)
+      && item.scheduled_date >= visibleRange.start
+      && item.scheduled_date <= visibleRange.end
+    ));
+
+    const packageIds = Array.from(new Set(visibleSessions.map((item) => item.package_id).filter(Boolean)));
     let packageMetaMap = {};
 
     if (packageIds.length > 0) {
@@ -1164,7 +1179,7 @@ const ProfileTab = ({
       }
     }
 
-    const normalized = (sessionRows || []).map((item) => {
+    const normalized = visibleSessions.map((item) => {
       const packageMeta = packageMetaMap[item.package_id] || {};
       const bookingMeta = parseServiceBooking(item.notes);
       return {
@@ -1182,6 +1197,7 @@ const ProfileTab = ({
     });
 
     setUpcomingSchedule(normalized);
+    setUpcomingScheduleWeek(showNextWeek ? 'Next week' : 'This week');
   }, [client.id, readOnly]);
 
   const fetchPortalCalendarSessions = useCallback(async () => {
@@ -1811,6 +1827,11 @@ const ProfileTab = ({
 
           {schedulePanelTab === 'upcoming' ? (
             <div className="app-bento-card overflow-hidden">
+              {upcomingScheduleWeek ? (
+                <p className="border-b border-white/[0.05] px-4 py-2.5 text-[9px] font-black uppercase tracking-[0.12em] text-white/38">
+                  {upcomingScheduleWeek}
+                </p>
+              ) : null}
               {upcomingSchedule.length > 0 ? (
                 upcomingSchedule.map((item, index) => {
                   const canComplete = isPortalSessionTimeReached(item, scheduleNowMs);
