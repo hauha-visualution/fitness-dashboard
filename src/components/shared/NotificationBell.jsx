@@ -51,10 +51,10 @@ const timeAgo = (isoStr) => {
 };
 
 // ─── Single notification row ──────────────────────────────────
-const NotifRow = ({ notif, onMarkRead, index = 0 }) => (
+const NotifRow = ({ notif, onActivate, index = 0 }) => (
   <button
     type="button"
-    onClick={() => !notif.is_read && onMarkRead(notif.id)}
+    onClick={() => onActivate(notif)}
     className={`animate-notif-row w-full text-left flex items-start gap-3 px-4 py-3.5 transition-all active:scale-[0.99] ${
       !notif.is_read
         ? 'bg-white/[0.04] hover:bg-white/[0.06]'
@@ -96,7 +96,7 @@ const NotifRow = ({ notif, onMarkRead, index = 0 }) => (
 );
 
 // ─── Portal dropdown ──────────────────────────────────────────
-const NotifPanel = ({ anchorRef, onClose, notifications, unreadCount, loading, markRead, markAllRead, userId }) => {
+const NotifPanel = ({ anchorRef, onClose, notifications, unreadCount, loading, onNotificationActivate, markAllRead, userId }) => {
   const panelRef = useRef(null);
 
   // Calculate position from the anchor button
@@ -244,7 +244,7 @@ const NotifPanel = ({ anchorRef, onClose, notifications, unreadCount, loading, m
           </div>
         ) : (
           notifications.map((notif, i) => (
-            <NotifRow key={notif.id} notif={notif} onMarkRead={markRead} index={i} />
+            <NotifRow key={notif.id} notif={notif} onActivate={onNotificationActivate} index={i} />
           ))
         )}
       </div>
@@ -260,7 +260,7 @@ const NotifPanel = ({ anchorRef, onClose, notifications, unreadCount, loading, m
  * @param {string|null} userId  - auth.uid() của user đang đăng nhập
  * @param {string}      [className]
  */
-const NotificationBell = ({ userId, className = '' }) => {
+const NotificationBell = ({ userId, className = '', onNavigate }) => {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef(null);
 
@@ -269,6 +269,11 @@ const NotificationBell = ({ userId, className = '' }) => {
 
   const handleToggle = () => setIsOpen((v) => !v);
   const handleClose = useCallback(() => setIsOpen(false), []);
+  const handleNotificationActivate = useCallback((notification) => {
+    if (!notification.is_read) void markRead(notification.id);
+    setIsOpen(false);
+    onNavigate?.(notification);
+  }, [markRead, onNavigate]);
 
   return (
     <div className={`relative shrink-0 ${className}`}>
@@ -302,7 +307,7 @@ const NotificationBell = ({ userId, className = '' }) => {
           notifications={notifications}
           unreadCount={unreadCount}
           loading={loading}
-          markRead={markRead}
+          onNotificationActivate={handleNotificationActivate}
           markAllRead={markAllRead}
           userId={userId}
         />

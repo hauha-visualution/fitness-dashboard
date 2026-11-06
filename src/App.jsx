@@ -173,7 +173,7 @@ const CoachMoreMenu = ({ onClose, onOpenTemplates, onOpenProfile }) => (
   </div>
 );
 
-const CoachDesktopHeader = ({ coachProfile, session, onOpenProfile, onLogout }) => (
+const CoachDesktopHeader = ({ coachProfile, session, onOpenProfile, onLogout, onNotificationNavigate }) => (
   <div className="app-safe-top-header flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.04] bg-black/20 px-5 backdrop-blur-xl lg:px-6 lg:py-3">
     <button
       type="button"
@@ -195,7 +195,7 @@ const CoachDesktopHeader = ({ coachProfile, session, onOpenProfile, onLogout }) 
       </div>
     </button>
     <div className="flex gap-2 items-center">
-      <NotificationBell userId={session?.user?.id ?? null} />
+      <NotificationBell userId={session?.user?.id ?? null} onNavigate={onNotificationNavigate} />
       <button onClick={onLogout} className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-full text-[var(--app-danger)] active:scale-90 transition-all">
         <LogOut className="w-4 h-4" />
       </button>
@@ -221,6 +221,7 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState(() => getRequestedTab(['home', 'templates', 'clients', 'payments', 'add_client'], 'home'));
   const [selectedClient, setSelectedClient] = useState(null);
+  const [notificationSubTab, setNotificationSubTab] = useState('profile');
   const [clients, setClients] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showCoachProfile, setShowCoachProfile] = useState(false);
@@ -340,6 +341,45 @@ export default function App() {
     setQuickLogSelection(null);
   };
 
+  const handleCoachNotificationNavigate = useCallback(async (notification) => {
+    const metadata = notification?.metadata || {};
+    const clientId = metadata.clientId ?? metadata.client_id ?? null;
+    const targetTab = metadata.targetTab;
+    const sessionNotification = notification?.type === 'session_completed'
+      || notification?.type === 'session_cancelled'
+      || notification?.type === 'session_extra'
+      || notification?.type === 'session_schedule_updated';
+    const missionNotification = notification?.type === 'mission_assigned' || notification?.type === 'mission_completed';
+    const subTab = sessionNotification ? 'sessions' : missionNotification ? 'missions' : 'profile';
+
+    if (clientId) {
+      let targetClient = clients.find((item) => String(item.id) === String(clientId));
+      if (!targetClient) {
+        const { data } = await supabase.from('clients').select('*').eq('id', clientId).maybeSingle();
+        if (data) {
+          targetClient = {
+            ...data,
+            avatar: data.avatar_url || DEFAULT_AVATAR_PATH,
+            package: { total: 0, remaining: '--', hasActive: false },
+          };
+        }
+      }
+
+      if (targetClient) {
+        setNotificationSubTab(subTab);
+        setSelectedClient(targetClient);
+        setActiveTab('clients');
+        setShowCoachMore(false);
+        return;
+      }
+    }
+
+    if (targetTab === 'payments') setActiveTab('payments');
+    else if (targetTab === 'clients') setActiveTab('clients');
+    else if (targetTab === 'home') setActiveTab('home');
+    setShowCoachMore(false);
+  }, [clients]);
+
   useEffect(() => {
     if (!session) return;
     const timeoutId = window.setTimeout(() => {
@@ -441,6 +481,7 @@ export default function App() {
               session={session}
               onOpenProfile={() => setShowCoachProfile(true)}
               onLogout={handleLogout}
+              onNotificationNavigate={handleCoachNotificationNavigate}
             />
 
             <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-4 lg:p-4">
@@ -517,7 +558,11 @@ export default function App() {
           <Suspense fallback={<ViewFallback />}>
             <ClientDetailView
               client={selectedClient}
-              onBack={() => setSelectedClient(null)}
+              initialSubTab={notificationSubTab}
+              onBack={() => {
+                setSelectedClient(null);
+                setNotificationSubTab('profile');
+              }}
               onDelete={handleDeleteClient}
               onOpenQuickLog={openQuickLog}
               refreshKey={refreshKey}

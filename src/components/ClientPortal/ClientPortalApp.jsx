@@ -120,6 +120,15 @@ const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) =
     clearConsumedTabParam();
   }, []);
 
+  const handleNotificationNavigate = useCallback((notification) => {
+    const targetTab = notification?.metadata?.targetTab;
+    if (!PORTAL_TABS.includes(targetTab)) return;
+    setActiveTab(targetTab);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', targetTab);
+    window.history.pushState({}, '', `${url.pathname}${url.search}${url.hash}`);
+  }, []);
+
   if (isLoading) {
     return (
       <div className="app-screen-shell h-dvh flex items-center justify-center lg:h-full">
@@ -200,7 +209,7 @@ const ClientPortalApp = ({ session, clientProfile: initialProfile, onLogout }) =
           <p className="mt-1 truncate text-[11px] text-neutral-500">{client?.name}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <NotificationBell userId={session?.user?.id ?? null} />
+          <NotificationBell userId={session?.user?.id ?? null} onNavigate={handleNotificationNavigate} />
           <button
             onClick={onLogout}
             className="app-ghost-button shrink-0 p-2.5 border rounded-full text-neutral-600"

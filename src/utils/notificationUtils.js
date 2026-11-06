@@ -180,14 +180,14 @@ export const notifySessionRescheduled = async ({ clientAuthUserId, sessionNumber
   });
 };
 
-export const notifyCoachSessionRescheduleRequested = async ({ coachAuthUserId, clientId, clientName, sessionNumber, requestedDate, requestedTime }) => {
+export const notifyCoachSessionRescheduleRequested = async ({ coachAuthUserId, clientId, clientName, sessionId, sessionNumber, requestedDate, requestedTime }) => {
   if (!coachAuthUserId) return;
   await createNotification({
     recipientUserId: coachAuthUserId,
     type: NOTIFICATION_TYPES.SESSION_SCHEDULE_UPDATED,
     title: 'Yêu cầu dời buổi tập 📅',
     body: `${clientName || 'Trainee'} muốn dời buổi #${String(sessionNumber).padStart(2, '0')} sang ${formatDate(requestedDate)}${requestedTime ? ` lúc ${requestedTime.slice(0, 5)}` : ''}.`,
-    metadata: buildNotificationLinkMeta('/?tab=clients', 'clients', { clientId, sessionNumber, requestedDate, requestedTime, action: 'reschedule_request' }),
+    metadata: buildNotificationLinkMeta('/?tab=clients', 'clients', { clientId, sessionId, sessionNumber, requestedDate, requestedTime, action: 'reschedule_request' }),
   });
 };
 
@@ -205,7 +205,7 @@ export const notifyTraineeSessionRescheduleReviewed = async ({ clientAuthUserId,
   });
 };
 
-export const notifyLowSessions = async ({ clientAuthUserId, coachAuthUserId, clientName, remaining, packageNumber }) => {
+export const notifyLowSessions = async ({ clientAuthUserId, coachAuthUserId, clientId, clientName, remaining, packageNumber }) => {
   const promises = [];
 
   // Thông báo cho coach
@@ -215,7 +215,7 @@ export const notifyLowSessions = async ({ clientAuthUserId, coachAuthUserId, cli
       type: NOTIFICATION_TYPES.LOW_SESSIONS,
       title: `⚠️ Sắp hết buổi — còn ${remaining} buổi`,
       body: `${pkgLabel(packageNumber)} của ${clientName || 'trainee'} chỉ còn ${remaining} buổi. Cần gia hạn sớm.`,
-      metadata: buildNotificationLinkMeta('/?tab=clients', 'clients', { clientName, remaining, packageNumber }),
+      metadata: buildNotificationLinkMeta('/?tab=clients', 'clients', { clientId, clientName, remaining, packageNumber }),
     }));
   }
 
@@ -355,6 +355,7 @@ export const checkAndNotifyLowSessions = async ({ packageId, clientId, coachAuth
       await notifyLowSessions({
         clientAuthUserId: client?.auth_user_id,
         coachAuthUserId,
+        clientId,
         clientName: client?.name || 'Trainee',
         remaining,
         packageNumber: pkg.package_number,

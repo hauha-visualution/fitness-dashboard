@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -71,8 +71,8 @@ const ClientDetailNavigation = ({ activeSubTab, onSelectTab, desktop = false }) 
   );
 };
 
-const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey }) => {
-  const [activeSubTab, setActiveSubTab] = useState('profile');
+const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey, initialSubTab = 'profile' }) => {
+  const [activeSubTab, setActiveSubTab] = useState(initialSubTab);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [confirmUsername, setConfirmUsername] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -80,6 +80,10 @@ const ClientDetailView = ({ client, onBack, onDelete, onOpenQuickLog, refreshKey
   const [deleteError, setDeleteError] = useState('');
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [profileActions, setProfileActions] = useState(null);
+
+  useEffect(() => {
+    setActiveSubTab(initialSubTab);
+  }, [initialSubTab, client?.id]);
 
   const isProfileTab = activeSubTab === 'profile';
   const activeHeader = DETAIL_HEADER_META[activeSubTab] || DETAIL_HEADER_META.profile;

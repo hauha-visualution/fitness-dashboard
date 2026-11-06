@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { Dumbbell, CheckCircle2, Clock, ChevronDown, ChevronUp, Plus, X, CalendarDays } from 'lucide-react';
+import { Dumbbell, Check, CheckCircle2, Clock, ChevronDown, ChevronUp, Plus, X, CalendarDays } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 import { getServiceTypeLabel, parseServiceBooking, parseServiceMeta } from '../../../utils/serviceUtils';
 import {
@@ -116,7 +116,11 @@ const SessionsTab = ({
       supabase.from('session_reschedule_requests').select('*').eq('client_id', clientId).eq('status', 'pending'),
     ]);
 
-    const loadedPackages = pkgs ?? [];
+    const packageStatusRank = { active: 0, completed: 1, cancelled: 2 };
+    const loadedPackages = [...(pkgs ?? [])].sort((a, b) => (
+      (packageStatusRank[a.status] ?? 3) - (packageStatusRank[b.status] ?? 3)
+      || (a.package_number ?? 0) - (b.package_number ?? 0)
+    ));
     setPackages(loadedPackages);
     setSessions(sess ?? []);
     setRescheduleRequests(pendingRequests ?? []);
@@ -207,6 +211,7 @@ const SessionsTab = ({
         coachAuthUserId,
         clientId,
         clientName: client?.name,
+        sessionId: data.session_id,
         sessionNumber: rescheduleRequestSession.session_number,
         requestedDate: data.requested_date,
         requestedTime: data.requested_time,
@@ -597,7 +602,7 @@ const SessionsTab = ({
                       const bookingMeta = formatBookingWindow(sess);
                       const pendingRescheduleRequest = rescheduleRequests.find((request) => request.session_id === sess.id);
                       const traineeCanComplete = isSessionTimeReached(sess, nowMs);
-                      const completeDisabled = completingSessionId === sess.id || (readOnly && !traineeCanComplete);
+                      const completeDisabled = completingSessionId === sess.id || !traineeCanComplete;
 
                       return (
                         <div
@@ -632,6 +637,31 @@ const SessionsTab = ({
                           </div>
 
                           <div className="flex shrink-0 items-center gap-1.5">
+                            {pendingRescheduleRequest && !readOnly ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleReviewRescheduleRequest(pendingRescheduleRequest, 'declined')}
+                                  disabled={reviewingRescheduleRequestId === pendingRescheduleRequest.id}
+                                  aria-label="Decline reschedule request"
+                                  title="Decline request"
+                                  className="inline-flex h-11 w-11 items-center justify-center rounded-[12px] border border-rose-400/25 bg-rose-500/10 text-rose-300 transition-transform active:scale-95 disabled:opacity-50"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleReviewRescheduleRequest(pendingRescheduleRequest, 'approved')}
+                                  disabled={reviewingRescheduleRequestId === pendingRescheduleRequest.id}
+                                  aria-label="Confirm reschedule request"
+                                  title="Confirm request"
+                                  className="inline-flex h-11 w-11 items-center justify-center rounded-[12px] border border-emerald-300/30 bg-emerald-400 text-emerald-950 transition-transform active:scale-95 disabled:opacity-50"
+                                >
+                                  {reviewingRescheduleRequestId === pendingRescheduleRequest.id ? <Clock className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                                </button>
+                              </>
+                            ) : (
+                              <>
                             {!readOnly && (
                               <>
                                 <button
@@ -676,26 +706,6 @@ const SessionsTab = ({
                                 <CalendarDays className="h-3.5 w-3.5" />
                               </button>
                             )}
-                            {!readOnly && pendingRescheduleRequest && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => handleReviewRescheduleRequest(pendingRescheduleRequest, 'declined')}
-                                  disabled={reviewingRescheduleRequestId === pendingRescheduleRequest.id}
-                                  className="inline-flex h-10 items-center rounded-[11px] border border-rose-400/25 bg-rose-500/10 px-2.5 text-[9px] font-black uppercase text-rose-300 disabled:opacity-50"
-                                >
-                                  Decline
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleReviewRescheduleRequest(pendingRescheduleRequest, 'approved')}
-                                  disabled={reviewingRescheduleRequestId === pendingRescheduleRequest.id}
-                                  className="inline-flex h-10 items-center rounded-[11px] border border-emerald-300/30 bg-emerald-400 px-2.5 text-[9px] font-black uppercase text-emerald-950 disabled:opacity-50"
-                                >
-                                  {reviewingRescheduleRequestId === pendingRescheduleRequest.id ? 'Saving' : 'Confirm'}
-                                </button>
-                              </>
-                            )}
                             {(!readOnly || allowTraineeComplete) && (
                               readOnly && !traineeCanComplete && completingSessionId !== sess.id ? (
                                 <span
@@ -710,13 +720,15 @@ const SessionsTab = ({
                                   type="button"
                                   onClick={() => handleCompleteSession(sess.id)}
                                   disabled={completeDisabled}
-                                  title="Complete session"
+                                  title={traineeCanComplete ? 'Complete session' : `Available after ${bookingMeta.timeLabel}`}
                                   className="inline-flex h-11 items-center gap-1.5 rounded-[12px] border border-emerald-300/30 bg-emerald-400 px-3 text-[10px] font-black uppercase text-emerald-950 transition-transform active:scale-95 disabled:opacity-50"
                                 >
                                   <CheckCircle2 className="h-3.5 w-3.5" />
                                   {completingSessionId === sess.id ? 'Saving' : 'Complete'}
                                 </button>
                               )
+                            )}
+                              </>
                             )}
                           </div>
                         </div>
